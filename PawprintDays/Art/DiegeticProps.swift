@@ -106,7 +106,9 @@ struct CompanionMedallionView: View {
                         applyMetalPaperShader: false,
                         isStaticSnapshot: true
                     )
-                    .frame(width: 46, height: 46)
+                    .frame(width: 68, height: 68)
+                    .offset(y: 12)
+                    .frame(width: 48, height: 48)
                     .clipShape(Circle())
                     .offset(y: isNearFind && pulse ? -1.5 : 0)
                 } else {
