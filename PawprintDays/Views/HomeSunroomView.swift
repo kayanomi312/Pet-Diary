@@ -30,18 +30,32 @@ struct HomeSunroomView: View {
         ZStack {
             GeometryReader { geo in
                 ZStack {
-                    SunroomBackPlane(
-                        weather: coordinator.activeWeather,
-                        theme: coordinator.ledger.activeRoomTheme
-                    )
-                    .offset(x: effectivePan * 0.25)
+                    if let uiBg = UIImage(named: "bg_home_sunroom") {
+                        Image(uiImage: uiBg)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geo.size.width + 180, height: geo.size.height)
+                            .offset(x: effectivePan * 0.35)
+                            .overlay(
+                                Rectangle()
+                                    .fill(sunroomThemeTint(weather: coordinator.activeWeather, theme: coordinator.ledger.activeRoomTheme))
+                                    .blendMode(.multiply)
+                            )
+                            .clipped()
+                    } else {
+                        SunroomBackPlane(
+                            weather: coordinator.activeWeather,
+                            theme: coordinator.ledger.activeRoomTheme
+                        )
+                        .offset(x: effectivePan * 0.25)
 
-                    SunroomMidTimberPlane(
-                        weather: coordinator.activeWeather,
-                        theme: coordinator.ledger.activeRoomTheme,
-                        verandaUnlocked: coordinator.ledger.verandaUnlocked
-                    )
-                    .offset(x: effectivePan * 0.55)
+                        SunroomMidTimberPlane(
+                            weather: coordinator.activeWeather,
+                            theme: coordinator.ledger.activeRoomTheme,
+                            verandaUnlocked: coordinator.ledger.verandaUnlocked
+                        )
+                        .offset(x: effectivePan * 0.55)
+                    }
 
                     VStack {
                         Spacer()
@@ -209,6 +223,17 @@ struct HomeSunroomView: View {
             PetBookmarkJumpDrawer(coordinator: coordinator)
                 .presentationDetents([.medium, .large])
         }
+    }
+
+    private func sunroomThemeTint(weather: WeatherMode, theme: SeasonalRoomTheme) -> Color {
+        if weather.isRainy || theme == .rainySeason {
+            return Color(hex: "#C8DCE2").opacity(0.28)
+        } else if theme == .winterLamp || weather == .dusk {
+            return Color(hex: "#F2C58A").opacity(0.30)
+        } else if theme == .autumnCedar {
+            return Color(hex: "#E6B98A").opacity(0.22)
+        }
+        return Color.clear
     }
 }
 
@@ -573,6 +598,31 @@ private struct WickerBasketDrawer: View {
     }
 }
 
+private struct PetPortraitThumbnail: View {
+    let petID: String
+    let size: CGFloat
+
+    private var assetName: String {
+        petID.replacingOccurrences(of: ".", with: "_")
+    }
+
+    var body: some View {
+        ZStack {
+            Circle().fill(AppTheme.parchmentTray)
+            if let img = UIImage(named: assetName) {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: size * 1.45, height: size * 1.45)
+                    .offset(y: size * 0.22)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .overlay(Circle().stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 1))
+    }
+}
+
 private struct CeramicTeapotDrawer: View {
     @Bindable var coordinator: GameCoordinator
     let onBrewTea: () -> Void
@@ -651,7 +701,7 @@ private struct CeramicTeapotDrawer: View {
                                 let spec = PetCatalog.pet(id: resident.petID)
                                 let isCurrent = coordinator.activeWalkCompanionID == resident.petID
                                 HStack {
-                                    Circle().fill(Color(hex: spec.primaryCoatHex)).frame(width: 28, height: 28)
+                                    PetPortraitThumbnail(petID: resident.petID, size: 36)
                                     VStack(alignment: .leading) {
                                         Text(spec.name)
                                             .font(AppTheme.serifTitle(15))
@@ -699,7 +749,7 @@ private struct PetBookmarkJumpDrawer: View {
                 ForEach(coordinator.residents, id: \.petID) { res in
                     let spec = PetCatalog.pet(id: res.petID)
                     HStack {
-                        Circle().fill(Color(hex: spec.primaryCoatHex)).frame(width: 30, height: 30)
+                        PetPortraitThumbnail(petID: res.petID, size: 42)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(spec.name)
                                 .font(AppTheme.serifTitle(16))
