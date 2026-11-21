@@ -362,7 +362,7 @@ struct TactileCareView: View {
                             }
                         }
 
-                        careToyChip(title: "轉圈圈", kind: .happyTwirl, active: activePlayAction == .happyTwirl) {
+                        careToyChip(title: "踏踏舞", kind: .happyTwirl, active: activePlayAction == .happyTwirl) {
                             HapticsEngine.shared.playCurioUnpack()
                             CozySoundEngine.shared.playWardrobeSnap(withBell: true)
                             emitBurstSparkles()
@@ -603,7 +603,7 @@ struct TactileCareView: View {
         case .eatMunch:
             return "卡滋卡滋～好好吃喔♪"
         case .happyTwirl:
-            return petSpec.kind == .dragonCat ? "轉圈圈～小龍尾巴翹高高！" : "轉圈圈撒嬌最開心♡"
+            return petSpec.kind == .dragonCat ? "踏踏踏～尾巴搖高高噴出小火星♪" : "踩踏踏搖尾巴最開心了♡"
         default:
             return "呼嚕呼嚕…"
         }

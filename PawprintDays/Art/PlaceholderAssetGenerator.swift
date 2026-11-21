@@ -87,95 +87,314 @@ struct ProceduralPetRigView: View {
         }
     }
 
-    private struct PlayfulTransform {
-        var scaleX: CGFloat = 0
-        var scaleY: CGFloat = 0
-        var offsetX: CGFloat = 0
-        var offsetY: CGFloat = 0
-        var rotationDeg: Double = 0
-        var flipScaleX: CGFloat = 1.0
+    /// Exact pixel-calibrated Live2D anatomical rig for each 1024x1024 hand-painted pet portrait.
+    fileprivate struct PetAnatomicalRig {
+        let headCenter: CGPoint
+        let headRadius: CGFloat
+        let eyeL: CGPoint
+        let eyeR: CGPoint
+        let eyeRadius: CGFloat
+        let eyelidHex: String
+        let mouth: CGPoint
+        let tailCenter: CGPoint
+        let tailRadius: CGFloat
+        let wingCenter: CGPoint?
+        let pawL: CGPoint
+        let pawR: CGPoint
+    }
+
+    private var anatomicalRig: PetAnatomicalRig {
+        switch pet.id {
+        case "pet.01": // 芝麻 · 街角虎斑貓
+            return PetAnatomicalRig(
+                headCenter: CGPoint(x: 0.42, y: 0.23), headRadius: 0.16,
+                eyeL: CGPoint(x: 0.335, y: 0.240), eyeR: CGPoint(x: 0.435, y: 0.245), eyeRadius: 0.030,
+                eyelidHex: "#8D959C", mouth: CGPoint(x: 0.375, y: 0.315),
+                tailCenter: CGPoint(x: 0.26, y: 0.80), tailRadius: 0.19,
+                wingCenter: nil,
+                pawL: CGPoint(x: 0.41, y: 0.81), pawR: CGPoint(x: 0.47, y: 0.82)
+            )
+        case "pet.02": // 杜松 · 黑曜惡魔貓
+            return PetAnatomicalRig(
+                headCenter: CGPoint(x: 0.34, y: 0.23), headRadius: 0.15,
+                eyeL: CGPoint(x: 0.255, y: 0.250), eyeR: CGPoint(x: 0.345, y: 0.255), eyeRadius: 0.029,
+                eyelidHex: "#242931", mouth: CGPoint(x: 0.285, y: 0.320),
+                tailCenter: CGPoint(x: 0.74, y: 0.54), tailRadius: 0.24,
+                wingCenter: CGPoint(x: 0.58, y: 0.42),
+                pawL: CGPoint(x: 0.32, y: 0.88), pawR: CGPoint(x: 0.41, y: 0.89)
+            )
+        case "pet.03": // 餘燼 · 赤瓦龍貓
+            return PetAnatomicalRig(
+                headCenter: CGPoint(x: 0.34, y: 0.22), headRadius: 0.16,
+                eyeL: CGPoint(x: 0.245, y: 0.235), eyeR: CGPoint(x: 0.335, y: 0.240), eyeRadius: 0.030,
+                eyelidHex: "#7E6B60", mouth: CGPoint(x: 0.275, y: 0.310),
+                tailCenter: CGPoint(x: 0.68, y: 0.78), tailRadius: 0.20,
+                wingCenter: CGPoint(x: 0.64, y: 0.41),
+                pawL: CGPoint(x: 0.34, y: 0.84), pawR: CGPoint(x: 0.41, y: 0.86)
+            )
+        case "pet.04": // 摺翼 · 暮光夜魔貓
+            return PetAnatomicalRig(
+                headCenter: CGPoint(x: 0.36, y: 0.23), headRadius: 0.16,
+                eyeL: CGPoint(x: 0.265, y: 0.250), eyeR: CGPoint(x: 0.360, y: 0.260), eyeRadius: 0.031,
+                eyelidHex: "#5D5468", mouth: CGPoint(x: 0.295, y: 0.330),
+                tailCenter: CGPoint(x: 0.34, y: 0.78), tailRadius: 0.20,
+                wingCenter: CGPoint(x: 0.65, y: 0.52),
+                pawL: CGPoint(x: 0.36, y: 0.80), pawR: CGPoint(x: 0.44, y: 0.82)
+            )
+        case "pet.05": // 味噌 · 巷口暖金犬
+            return PetAnatomicalRig(
+                headCenter: CGPoint(x: 0.58, y: 0.25), headRadius: 0.16,
+                eyeL: CGPoint(x: 0.515, y: 0.225), eyeR: CGPoint(x: 0.610, y: 0.235), eyeRadius: 0.025,
+                eyelidHex: "#DAA769", mouth: CGPoint(x: 0.555, y: 0.330),
+                tailCenter: CGPoint(x: 0.29, y: 0.81), tailRadius: 0.15,
+                wingCenter: nil,
+                pawL: CGPoint(x: 0.62, y: 0.89), pawR: CGPoint(x: 0.76, y: 0.87)
+            )
+        case "pet.06": // 鈕扣 · 墨玉小魔犬
+            return PetAnatomicalRig(
+                headCenter: CGPoint(x: 0.39, y: 0.24), headRadius: 0.18,
+                eyeL: CGPoint(x: 0.315, y: 0.205), eyeR: CGPoint(x: 0.425, y: 0.205), eyeRadius: 0.027,
+                eyelidHex: "#272D34", mouth: CGPoint(x: 0.340, y: 0.330),
+                tailCenter: CGPoint(x: 0.74, y: 0.78), tailRadius: 0.14,
+                wingCenter: nil,
+                pawL: CGPoint(x: 0.32, y: 0.86), pawR: CGPoint(x: 0.53, y: 0.88)
+            )
+        case "pet.07": // 梅子 · 銀月星靈犬
+            return PetAnatomicalRig(
+                headCenter: CGPoint(x: 0.42, y: 0.22), headRadius: 0.17,
+                eyeL: CGPoint(x: 0.335, y: 0.200), eyeR: CGPoint(x: 0.415, y: 0.200), eyeRadius: 0.024,
+                eyelidHex: "#C5BEB4", mouth: CGPoint(x: 0.345, y: 0.310),
+                tailCenter: CGPoint(x: 0.68, y: 0.80), tailRadius: 0.15,
+                wingCenter: nil,
+                pawL: CGPoint(x: 0.32, y: 0.86), pawR: CGPoint(x: 0.48, y: 0.89)
+            )
+        default: // pet.08 蘆葦 · 鹿角森靈犬
+            return PetAnatomicalRig(
+                headCenter: CGPoint(x: 0.56, y: 0.21), headRadius: 0.15,
+                eyeL: CGPoint(x: 0.505, y: 0.165), eyeR: CGPoint(x: 0.575, y: 0.165), eyeRadius: 0.023,
+                eyelidHex: "#C47F3E", mouth: CGPoint(x: 0.515, y: 0.245),
+                tailCenter: CGPoint(x: 0.36, y: 0.87), tailRadius: 0.18,
+                wingCenter: nil,
+                pawL: CGPoint(x: 0.61, y: 0.87), pawR: CGPoint(x: 0.73, y: 0.86)
+            )
+        }
+    }
+
+    fileprivate enum Live2DEyeExpression {
+        case open(blinkProgress: CGFloat)
+        case happyCrescent
+        case sleepyClosed
+    }
+
+    fileprivate struct Live2DBoneState {
+        var headTiltRad: Float = 0
+        var headShiftX: Float = 0
+        var headShiftY: Float = 0
+        var earTwitch: Float = 0
+        var chestBreath: Float = 0
+        var tailWagPhase: Float = 0
+        var tailWagAmp: Float = 0
+        var wingFlapAmp: Float = 0
+        var pawLiftL: Float = 0
+        var pawLiftR: Float = 0
+        var jumpOffsetX: CGFloat = 0
+        var jumpOffsetY: CGFloat = 0
+        var eyeExpression: Live2DEyeExpression = .open(blinkProgress: 0)
+        var mouthOpen: CGFloat = 0
+        var showDragonPuff: Bool = false
+        var showBlush: Bool = false
         var isExcited: Bool = false
     }
 
-    private func computePlayfulTransform(time: Double, minDim: CGFloat) -> PlayfulTransform {
-        var res = PlayfulTransform()
+    private func computeLive2DBoneState(time: Double, minDim: CGFloat) -> Live2DBoneState {
+        var b = Live2DBoneState()
         let elapsed = isStaticSnapshot ? 99.0 : max(0, Date().timeIntervalSince(actionTriggerDate))
+        let ikX = Float(fingerFocusNormalized?.x ?? 0.0)
+        let ikY = Float(fingerFocusNormalized?.y ?? 0.0)
 
+        // Base natural alive idle: localized ribcage breathing + gentle tail swish + periodic curious head tilt + natural double-blink
+        let breath = Float(sin(time * (2.0 * .pi / 3.2)))
+        b.chestBreath = breath * 0.032 + Float(brushRuffleAmount) * 0.038
+
+        // Periodic curious ear twitch every ~3.8s
+        let earCycle = (time * 0.27 + Double(pet.id.hashValue & 7) * 0.13).truncatingRemainder(dividingBy: 1.0)
+        if earCycle > 0.86 && earCycle < 0.96 {
+            let ep = (earCycle - 0.86) / 0.10
+            b.earTwitch = Float(sin(ep * .pi * 2.0)) * 0.034
+        }
+
+        // Periodic curious head tilt + live 2.5D finger gaze tracking
+        let headCycle = (time * 0.18).truncatingRemainder(dividingBy: 1.0)
+        let idleHeadTilt = (headCycle > 0.65 && headCycle < 0.90)
+            ? Float(sin((headCycle - 0.65) / 0.25 * .pi)) * 0.13
+            : Float(sin(time * 0.85)) * 0.035
+        b.headTiltRad = idleHeadTilt + ikX * 0.20
+        b.headShiftX = ikX * 0.026
+        b.headShiftY = ikY * 0.018 + breath * 0.008
+
+        // Continuous supple tail swishing + gentle wing breathing for winged species
+        b.tailWagPhase = Float(time * 3.1)
+        b.tailWagAmp = 0.026
+        if anatomicalRig.wingCenter != nil {
+            b.wingFlapAmp = Float(sin(time * 2.1)) * 0.14
+        }
+
+        // Natural blinking every ~3.4s (with quick crisp eyelid sweep)
+        let blinkCycle = (time * 0.30 + Double(pet.id.hashValue & 3) * 0.21).truncatingRemainder(dividingBy: 1.0)
+        let naturalBlink: CGFloat = (blinkCycle > 0.92)
+            ? CGFloat(sin((blinkCycle - 0.92) / 0.08 * .pi))
+            : 0.0
+        b.eyeExpression = .open(blinkProgress: naturalBlink)
+
+        // Expressive multi-bone interactive animations (NO whole-image flat card squeezing/flipping!)
         switch playfulAction {
         case .idle:
-            break
-        case .bellyBoop:
-            if elapsed < 1.15 {
-                let p = elapsed / 1.15
-                let jelly = sin(p * .pi * 5.0) * exp(-p * 3.2)
-                let hop = sin(min(1.0, p * 1.8) * .pi)
-                res.scaleX = CGFloat(-jelly * 0.16)
-                res.scaleY = CGFloat(jelly * 0.17)
-                res.offsetY = -CGFloat(hop) * minDim * 0.10
-                res.rotationDeg = jelly * 8.0
-                res.isExcited = true
+            if pose == .resting {
+                b.tailWagAmp = 0.012
+                b.headShiftY += 0.018
+                b.eyeExpression = .sleepyClosed
             }
-        case .pounceHop:
+
+        case .bellyBoop:
             if elapsed < 1.35 {
                 let p = elapsed / 1.35
-                if p < 0.25 {
-                    let c = p / 0.25
-                    res.scaleX = CGFloat(c * 0.14)
-                    res.scaleY = CGFloat(-c * 0.14)
-                    res.offsetY = CGFloat(c) * minDim * 0.03
-                } else if p < 0.75 {
-                    let j = (p - 0.25) / 0.50
-                    let arc = sin(j * .pi)
-                    res.scaleX = CGFloat(-arc * 0.09)
-                    res.scaleY = CGFloat(arc * 0.12)
-                    res.offsetY = -CGFloat(arc) * minDim * 0.18
-                    res.offsetX = CGFloat(arc) * minDim * 0.09
-                    res.rotationDeg = -arc * 11.0
-                } else {
-                    let l = (p - 0.75) / 0.25
-                    let squish = sin(l * .pi)
-                    res.scaleX = CGFloat(squish * 0.12)
-                    res.scaleY = CGFloat(-squish * 0.10)
-                }
-                res.isExcited = true
+                let env = Float(sin(p * .pi))
+                // Excited head tilt + rapid ear perk + happy tail wag + alternating front paw knead ("踏踏")!
+                b.headTiltRad += Float(sin(p * .pi * 3.0)) * 0.22 * env
+                b.headShiftY -= 0.025 * env
+                b.earTwitch = Float(sin(p * .pi * 5.0)) * 0.055
+                b.tailWagPhase = Float(time * 10.5)
+                b.tailWagAmp = 0.068 * env
+                b.wingFlapAmp = Float(sin(p * .pi * 4.0)) * 0.36
+                b.pawLiftL = max(0, Float(sin(p * .pi * 4.0))) * 0.055
+                b.pawLiftR = max(0, Float(-sin(p * .pi * 4.0))) * 0.055
+                b.chestBreath += 0.045 * env
+                b.eyeExpression = .happyCrescent
+                b.mouthOpen = CGFloat(0.65 * env)
+                b.showDragonPuff = (pet.kind == .dragonCat && p > 0.15 && p < 0.78)
+                b.showBlush = true
+                b.isExcited = true
             }
+
+        case .pounceHop:
+            if elapsed < 1.45 {
+                let p = elapsed / 1.45
+                if p < 0.28 {
+                    // Crouch: head ducks forward, ears flatten, tail twitches rapidly in anticipation!
+                    let c = Float(p / 0.28)
+                    b.headShiftY += 0.045 * c
+                    b.headShiftX -= 0.022 * c
+                    b.earTwitch = -0.045 * c
+                    b.tailWagPhase = Float(time * 14.0)
+                    b.tailWagAmp = 0.052
+                    b.chestBreath -= 0.03 * c
+                } else if p < 0.78 {
+                    // Leap: both front paws reach up/forward, wings unfurl wide, happy excited face!
+                    let j = (p - 0.28) / 0.50
+                    let arc = Float(sin(j * .pi))
+                    b.jumpOffsetY = -CGFloat(arc) * minDim * 0.13
+                    b.jumpOffsetX = CGFloat(arc) * minDim * 0.055
+                    b.headShiftY -= 0.035 * arc
+                    b.headTiltRad -= 0.18 * arc
+                    b.pawLiftL = 0.085 * arc
+                    b.pawLiftR = 0.075 * arc
+                    b.wingFlapAmp = 0.45 * arc
+                    b.tailWagPhase = Float(time * 11.0)
+                    b.tailWagAmp = 0.070
+                    b.mouthOpen = CGFloat(0.75 * arc)
+                } else {
+                    // Soft landing with happy paw pat & tail swish
+                    let l = Float((p - 0.78) / 0.22)
+                    b.headShiftY += Float(sin(l * .pi)) * 0.025
+                    b.eyeExpression = .happyCrescent
+                }
+                b.showBlush = true
+                b.isExcited = true
+            }
+
         case .eatMunch:
+            if elapsed < 2.0 {
+                let p = elapsed / 2.0
+                // Rhythmic chewing head nods + real opening/closing mouth + happy tail wag!
+                let chewWave = sin(p * .pi * 10.0)
+                let munchAmp = CGFloat(max(0.0, chewWave)) * CGFloat(1.0 - p * 0.25)
+                b.headShiftY += Float(munchAmp) * 0.030
+                b.headTiltRad += Float(sin(p * .pi * 5.0)) * 0.10
+                b.earTwitch = Float(chewWave) * 0.025
+                b.tailWagPhase = Float(time * 8.5)
+                b.tailWagAmp = 0.055
+                b.wingFlapAmp = Float(sin(p * .pi * 6.0)) * 0.22
+                b.pawLiftL = max(0, Float(sin(p * .pi * 5.0))) * 0.028
+                b.eyeExpression = .happyCrescent
+                b.mouthOpen = munchAmp
+                b.showBlush = true
+                b.isExcited = true
+            }
+
+        case .cozyNap:
+            // Peaceful sleeping: head gently droops, slow deep ribcage breathing, lazy tail curl, closed eyes!
+            let slowBreath = Float(sin(time * 1.1))
+            b.chestBreath = slowBreath * 0.040
+            b.headShiftY += 0.038 + slowBreath * 0.008
+            b.headTiltRad = 0.14 + slowBreath * 0.03
+            b.earTwitch = -0.028
+            b.tailWagPhase = Float(time * 1.1)
+            b.tailWagAmp = 0.012
+            b.eyeExpression = .sleepyClosed
+            b.showBlush = true
+
+        case .happyTwirl:
+            // True Joyful Kneading Dance & Excited Tail-Wag (NO flat 2D card flip!)
             if elapsed < 1.8 {
                 let p = elapsed / 1.8
-                let munch = abs(sin(p * .pi * 6.0)) * (1.0 - p * 0.35)
-                res.scaleX = CGFloat(munch * 0.07)
-                res.scaleY = CGFloat(-munch * 0.06)
-                res.offsetY = -CGFloat(munch) * minDim * 0.035
-                res.rotationDeg = sin(p * .pi * 6.0) * 4.5
-                res.isExcited = true
+                let env = Float(sin(p * .pi))
+                let beat = Float(sin(p * .pi * 6.0))
+                b.pawLiftL = max(0, beat) * 0.078 * env
+                b.pawLiftR = max(0, -beat) * 0.078 * env
+                b.headTiltRad = beat * 0.24 * env
+                b.headShiftX = beat * 0.028 * env
+                b.headShiftY = -abs(beat) * 0.022 * env
+                b.earTwitch = beat * 0.052 * env
+                b.tailWagPhase = Float(time * 13.0)
+                b.tailWagAmp = 0.075 * env
+                b.wingFlapAmp = Float(sin(p * .pi * 8.0)) * 0.42 * env
+                b.jumpOffsetY = -CGFloat(abs(beat)) * minDim * 0.045 * CGFloat(env)
+                b.eyeExpression = .happyCrescent
+                b.mouthOpen = CGFloat(0.75 * env)
+                b.showDragonPuff = (pet.kind == .dragonCat && p > 0.20 && p < 0.80)
+                b.showBlush = true
+                b.isExcited = true
             }
-        case .cozyNap:
-            let slowNap = sin(time * 1.15)
-            res.scaleX = 0.07 + CGFloat(slowNap) * 0.025
-            res.scaleY = -0.09 - CGFloat(slowNap) * 0.020
-            res.offsetY = minDim * 0.06
-            res.rotationDeg = sin(time * 0.6) * 2.0
-        case .happyTwirl:
-            if elapsed < 1.3 {
-                let p = elapsed / 1.3
-                let hop = sin(p * .pi)
-                let spinCos = cos(p * .pi * 2.0)
-                res.flipScaleX = CGFloat(spinCos >= 0 ? max(0.18, spinCos) : min(-0.18, spinCos))
-                res.offsetY = -CGFloat(hop) * minDim * 0.15
-                res.scaleY = CGFloat(hop * 0.10)
-                res.rotationDeg = sin(p * .pi * 2.0) * 10.0
-                res.isExcited = true
-            }
+
         case .curiousWaddle:
-            let step = sin(time * 3.8)
-            let hop = abs(sin(time * 3.8))
-            res.offsetX = CGFloat(sin(time * 1.4)) * minDim * 0.065
-            res.offsetY = -CGFloat(hop) * minDim * 0.035
-            res.rotationDeg = step * 5.8
-            res.scaleY = CGFloat(hop * 0.04)
-            res.scaleX = CGFloat(-hop * 0.03)
+            // Living autonomous trotting/kneading + curious looking around + tail swish!
+            let step = Float(sin(time * 4.4))
+            b.pawLiftL = max(0, step) * 0.050
+            b.pawLiftR = max(0, -step) * 0.050
+            b.headTiltRad += step * 0.14
+            b.headShiftX += Float(sin(time * 1.5)) * 0.024
+            b.earTwitch = step * 0.026
+            b.tailWagPhase = Float(time * 6.2)
+            b.tailWagAmp = 0.048
+            b.wingFlapAmp = Float(sin(time * 4.4)) * 0.20
+            b.jumpOffsetX = CGFloat(sin(time * 1.3)) * minDim * 0.040
+            b.jumpOffsetY = -CGFloat(abs(step)) * minDim * 0.018
         }
-        return res
+
+        if isHappySquint || brushRuffleAmount > 0.08 {
+            b.eyeExpression = .happyCrescent
+            b.tailWagAmp = max(b.tailWagAmp, 0.052)
+            b.tailWagPhase = Float(time * 8.0)
+            b.showBlush = true
+        }
+        if tapBounceScale > 0.1 {
+            b.earTwitch = 0.045
+            b.headShiftY -= 0.022
+            b.eyeExpression = .happyCrescent
+            b.showBlush = true
+        }
+
+        return b
     }
 
     @ViewBuilder
@@ -184,32 +403,9 @@ struct ProceduralPetRigView: View {
             let w = geo.size.width
             let h = geo.size.height
             let minDim = min(w, h)
-
-            // 1. 軟糯麻糬呼吸節奏（體積守恆的 Q 彈起伏 ＋ 週期性好奇小歪頭）
-            let breath = sin(time * (2.0 * .pi / 3.1))
-            let headBobPhase = (time * 0.22).truncatingRemainder(dividingBy: 1.0)
-            let cutePeriodicTilt = (headBobPhase > 0.72 && headBobPhase < 0.92)
-                ? sin((headBobPhase - 0.72) / 0.20 * .pi) * 4.2
-                : 0.0
-
-            // 2. 互動動作曲線計算（依 actionTriggerDate 跑出流暢 60fps 動態）
-            let act = computePlayfulTransform(time: time, minDim: minDim)
-            let actOffsetX = act.offsetX
-            let actOffsetY = act.offsetY
-            let isExcitedNow = act.isExcited
-
-            let breathScaleY: CGFloat = 1.0 + CGFloat(breath) * 0.024 + brushRuffleAmount * 0.024 + tapBounceScale * 0.09 + act.scaleY
-            let breathScaleX: CGFloat = (1.0 - CGFloat(breath) * 0.014 + brushRuffleAmount * 0.015 - tapBounceScale * 0.06 + act.scaleX) * act.flipScaleX
-
-            // Subtle IK finger tracking lean & tilt (+-7.5 deg)
-            let ikX = fingerFocusNormalized?.x ?? 0.0
-            let ikY = fingerFocusNormalized?.y ?? 0.0
-            let tiltDegrees = Double(ikX) * 7.5 + sin(time * 0.95) * 1.2 + cutePeriodicTilt + act.rotationDeg
-            let leanOffsetX = ikX * minDim * 0.025 + actOffsetX
-            let leanOffsetY = ikY * minDim * 0.014 + (pose == .resting ? minDim * 0.035 : 0) - tapBounceScale * minDim * 0.05 + actOffsetY
-
-            let showRosyBlush = isHappySquint || brushRuffleAmount > 0.08 || isExcitedNow || playfulAction == .cozyNap
-            let shadowShrink = max(0.70, 1.0 + (actOffsetY / max(1, minDim)) * 1.3)
+            let rig = anatomicalRig
+            let bones = computeLive2DBoneState(time: time, minDim: minDim)
+            let shadowShrink = max(0.74, 1.0 + (bones.jumpOffsetY / max(1, minDim)) * 1.3)
 
             let rimGlowColor: Color = {
                 switch weatherMode {
@@ -234,21 +430,20 @@ struct ProceduralPetRigView: View {
                     .frame(width: minDim * 0.86, height: minDim * 0.78)
                     .offset(y: minDim * 0.04)
 
-                // L1_Shadow: Grounded multi-layer watercolor puddle shadow under paws (shrinks smoothly when hopping!)
+                // L1_Shadow: Grounded multi-layer watercolor puddle shadow under paws
                 Ellipse()
                     .fill(AppTheme.deepPineInk.opacity(0.17))
                     .frame(width: minDim * 0.58 * shadowShrink, height: minDim * 0.12 * shadowShrink)
                     .blur(radius: minDim * 0.020)
-                    .offset(x: actOffsetX * 0.7, y: minDim * 0.40 + (pose == .resting ? minDim * 0.02 : 0))
+                    .offset(x: bones.jumpOffsetX * 0.7, y: minDim * 0.40 + (pose == .resting ? minDim * 0.02 : 0))
 
                 Ellipse()
                     .fill(AppTheme.deepPineInk.opacity(0.10))
                     .frame(width: minDim * 0.42 * shadowShrink, height: minDim * 0.07 * shadowShrink)
-                    .offset(x: actOffsetX * 0.7, y: minDim * 0.40 + (pose == .resting ? minDim * 0.02 : 0))
+                    .offset(x: bones.jumpOffsetX * 0.7, y: minDim * 0.40 + (pose == .resting ? minDim * 0.02 : 0))
 
-                // Hand-painted 1024x1024 transparent gouache & pencil illustration + synced mythical anatomy & wardrobe layer
+                // Unified Live2D Multi-Bone GPU-Deformed Pet + Real Animated Face + Mythical Anatomy + Wardrobe!
                 ZStack {
-                    // 《貓與龍》奇幻物種背後羽翼／雲絮靈光層（位在角色身體後方）
                     if pet.kind.isMagical {
                         MythicalSpeciesBackLayerCanvas(
                             pet: pet,
@@ -267,32 +462,24 @@ struct ProceduralPetRigView: View {
                             .frame(width: minDim * 0.5, height: minDim * 0.5)
                     }
 
-                    // 《貓與龍》奇幻物種前層（惡魔小角、森靈鹿角、爐火龍息火星、星塵月光）
+                    // Real Live2D Facial Rig: Fur-Matched Blinking Eyelids, Happy ^ ^ Eyes, Sleepy ◡ ◡ Eyes,
+                    // Finger-Tracking Catchlights, Opening/Chewing Mouth & Rosy Watercolor Cheeks!
+                    if !isStaticSnapshot {
+                        Live2DFacialExpressionCanvas(
+                            rig: rig,
+                            bones: bones,
+                            fingerFocus: fingerFocusNormalized,
+                            time: time
+                        )
+                        .allowsHitTesting(false)
+                    }
+
                     if pet.kind.isMagical {
                         MythicalSpeciesFrontLayerCanvas(
                             pet: pet,
                             neckAnchor: calibratedNeckAnchor,
                             time: isStaticSnapshot ? 0.6 : time
                         )
-                    }
-
-                    // 可愛水彩蜜桃紅暈雙頰（開心、被戳肚皮、梳毛、吃點心或午睡時綻放！）
-                    if showRosyBlush {
-                        let cheekY = h * (calibratedNeckAnchor.v - 0.105)
-                        let cheekL = w * (calibratedNeckAnchor.u - 0.08)
-                        let cheekR = w * (calibratedNeckAnchor.u + 0.06)
-                        Ellipse()
-                            .fill(Color(hex: "#F28D80").opacity(0.45))
-                            .frame(width: minDim * 0.095, height: minDim * 0.055)
-                            .blur(radius: minDim * 0.012)
-                            .position(x: cheekL, y: cheekY)
-                            .allowsHitTesting(false)
-                        Ellipse()
-                            .fill(Color(hex: "#F28D80").opacity(0.45))
-                            .frame(width: minDim * 0.095, height: minDim * 0.055)
-                            .blur(radius: minDim * 0.012)
-                            .position(x: cheekR, y: cheekY)
-                            .allowsHitTesting(false)
                     }
 
                     // 蓋被被午睡時，披上一條柔和馬卡龍拼布小棉被
@@ -325,22 +512,189 @@ struct ProceduralPetRigView: View {
                         )
                     }
                 }
-                .scaleEffect(x: breathScaleX, y: breathScaleY, anchor: .bottom)
-                .rotationEffect(.degrees(tiltDegrees), anchor: .bottom)
-                .offset(x: leanOffsetX, y: leanOffsetY)
+                .modifier(
+                    Live2DMeshWarpModifier(
+                        enabled: !isStaticSnapshot,
+                        viewSize: CGSize(width: w, height: h),
+                        rig: rig,
+                        bones: bones
+                    )
+                )
+                .offset(x: bones.jumpOffsetX, y: bones.jumpOffsetY)
 
                 // Happy purr / brushing / Mentorship / Cozy Nap watercolor particle motes (hearts, stars, sleepy Zzz)
-                if showRosyBlush || mentorshipParticle != nil || pose == .resting {
+                if bones.showBlush || mentorshipParticle != nil || pose == .resting {
                     StorybookParticleMotesCanvas(
                         time: isStaticSnapshot ? 0.8 : time,
                         habit: mentorshipParticle,
-                        isHappy: showRosyBlush && playfulAction != .cozyNap,
-                        isResting: (pose == .resting && !isHappySquint && brushRuffleAmount <= 0.05 && !isExcitedNow) || playfulAction == .cozyNap
+                        isHappy: bones.showBlush && playfulAction != .cozyNap,
+                        isResting: (pose == .resting && !isHappySquint && brushRuffleAmount <= 0.05 && !bones.isExcited) || playfulAction == .cozyNap
                     )
                     .allowsHitTesting(false)
                 }
             }
             .frame(width: w, height: h)
+        }
+    }
+}
+
+/// GPU-accelerated 60fps Live2D multi-bone mesh deformation wrapper
+private struct Live2DMeshWarpModifier: ViewModifier {
+    let enabled: Bool
+    let viewSize: CGSize
+    let rig: ProceduralPetRigView.PetAnatomicalRig
+    let bones: ProceduralPetRigView.Live2DBoneState
+
+    func body(content: Content) -> some View {
+        if enabled && viewSize.width > 10 && viewSize.height > 10 {
+            let wingU = Float(rig.wingCenter?.x ?? 0.5)
+            let wingV = Float(rig.wingCenter?.y ?? 0.5)
+            content.distortionEffect(
+                ShaderLibrary.live2DCreatureWarp(
+                    .float2(Float(viewSize.width), Float(viewSize.height)),
+                    .float4(Float(rig.headCenter.x), Float(rig.headCenter.y), Float(rig.headRadius), bones.headTiltRad),
+                    .float4(bones.headShiftX, bones.headShiftY, bones.earTwitch, bones.chestBreath),
+                    .float4(Float(rig.tailCenter.x), Float(rig.tailCenter.y), Float(rig.tailRadius), bones.tailWagPhase),
+                    .float4(bones.tailWagAmp, rig.wingCenter != nil ? bones.wingFlapAmp : 0.0, wingU, wingV),
+                    .float4(Float(rig.pawL.x), Float(rig.pawL.y), Float(rig.pawR.x), Float(rig.pawR.y)),
+                    .float2(bones.pawLiftL, bones.pawLiftR)
+                ),
+                maxSampleOffset: CGSize(width: 28, height: 28)
+            )
+        } else {
+            content
+        }
+    }
+}
+
+/// True multi-part facial expression layer (blinking eyelids, ^ ^ happy eyes, ◡ ◡ sleepy eyes, live gaze catchlights, chewing/smiling mouth)
+/// Warped together with the base portrait by `live2DCreatureWarp` so facial features stay 100% locked onto the head!
+private struct Live2DFacialExpressionCanvas: View {
+    let rig: ProceduralPetRigView.PetAnatomicalRig
+    let bones: ProceduralPetRigView.Live2DBoneState
+    let fingerFocus: CGPoint?
+    let time: Double
+
+    var body: some View {
+        Canvas { ctx, size in
+            let w = size.width
+            let h = size.height
+            let minDim = min(w, h)
+            let lidColor = Color(hex: rig.eyelidHex)
+            let ink = Color(hex: "#2B2220").opacity(0.86)
+            let er = minDim * rig.eyeRadius
+
+            let eyePoints = [
+                CGPoint(x: w * rig.eyeL.x, y: h * rig.eyeL.y),
+                CGPoint(x: w * rig.eyeR.x, y: h * rig.eyeR.y)
+            ]
+
+            // 1. Animated Eyes: Natural Blink / Happy ^ ^ Crescent / Sleepy ◡ ◡ Lashes / Gaze Catchlights
+            switch bones.eyeExpression {
+            case .open(let blinkProgress):
+                if blinkProgress > 0.03 {
+                    for pt in eyePoints {
+                        // Fur-matched upper eyelid sweeping smoothly down over the eye
+                        let lidHeight = er * 2.15 * blinkProgress
+                        let lidRect = CGRect(x: pt.x - er * 1.18, y: pt.y - er * 1.05, width: er * 2.36, height: lidHeight)
+                        ctx.fill(Path(roundedRect: lidRect, cornerRadius: er * 0.55), with: .color(lidColor))
+                        // Crisp curved eyelid lash line at lower edge of eyelid
+                        var lash = Path()
+                        let ly = lidRect.maxY
+                        lash.move(to: CGPoint(x: pt.x - er * 0.95, y: ly - er * 0.12))
+                        lash.addQuadCurve(to: CGPoint(x: pt.x + er * 0.95, y: ly - er * 0.12), control: CGPoint(x: pt.x, y: ly + er * 0.35))
+                        ctx.stroke(lash, with: .color(ink), style: StrokeStyle(lineWidth: max(1.4, minDim * 0.009), lineCap: .round))
+                    }
+                } else if let focus = fingerFocus {
+                    // Subtle live eye-tracking sparkle catchlight shifting toward finger!
+                    for pt in eyePoints {
+                        let gx = pt.x + focus.x * er * 0.36
+                        let gy = pt.y + focus.y * er * 0.28
+                        let cr = er * 0.26
+                        ctx.fill(Path(ellipseIn: CGRect(x: gx - cr, y: gy - cr, width: cr * 2, height: cr * 2)), with: .color(.white.opacity(0.85)))
+                    }
+                }
+
+            case .happyCrescent:
+                for pt in eyePoints {
+                    // Seamless fur-matched eyelid mask covering open eye
+                    let maskRect = CGRect(x: pt.x - er * 1.24, y: pt.y - er * 1.10, width: er * 2.48, height: er * 2.20)
+                    ctx.fill(Path(ellipseIn: maskRect), with: .color(lidColor))
+                    // Adorable curving ^ smiling eye arc
+                    var arc = Path()
+                    arc.move(to: CGPoint(x: pt.x - er * 0.95, y: pt.y + er * 0.24))
+                    arc.addQuadCurve(to: CGPoint(x: pt.x + er * 0.95, y: pt.y + er * 0.24), control: CGPoint(x: pt.x, y: pt.y - er * 0.78))
+                    ctx.stroke(arc, with: .color(ink), style: StrokeStyle(lineWidth: max(1.8, minDim * 0.012), lineCap: .round))
+                }
+
+            case .sleepyClosed:
+                for pt in eyePoints {
+                    let maskRect = CGRect(x: pt.x - er * 1.24, y: pt.y - er * 1.10, width: er * 2.48, height: er * 2.20)
+                    ctx.fill(Path(ellipseIn: maskRect), with: .color(lidColor))
+                    // Peaceful downward ◡ sleeping eyelid arc
+                    var arc = Path()
+                    arc.move(to: CGPoint(x: pt.x - er * 0.92, y: pt.y - er * 0.12))
+                    arc.addQuadCurve(to: CGPoint(x: pt.x + er * 0.92, y: pt.y - er * 0.12), control: CGPoint(x: pt.x, y: pt.y + er * 0.65))
+                    ctx.stroke(arc, with: .color(ink), style: StrokeStyle(lineWidth: max(1.6, minDim * 0.010), lineCap: .round))
+                }
+            }
+
+            // 2. Soft Rosy Watercolor Cheeks directly underneath the eyes
+            if bones.showBlush {
+                let cheekR = er * 1.55
+                for pt in eyePoints {
+                    let cx = pt.x
+                    let cy = pt.y + er * 1.45
+                    let blushRect = CGRect(x: cx - cheekR, y: cy - cheekR * 0.58, width: cheekR * 2, height: cheekR * 1.16)
+                    ctx.fill(
+                        Path(ellipseIn: blushRect),
+                        with: .radialGradient(
+                            Gradient(colors: [Color(hex: "#F5867B").opacity(0.62), Color(hex: "#F5867B").opacity(0.0)]),
+                            center: CGPoint(x: cx, y: cy),
+                            startRadius: 1,
+                            endRadius: cheekR
+                        )
+                    )
+                }
+            }
+
+            // 3. Real Animated Mouth (Happy open ᗜ smile / rhythmic chewing ○ ↔ ω + crumbs / Dragon-Cat fire puff!)
+            if bones.mouthOpen > 0.08 {
+                let mx = w * rig.mouth.x
+                let my = h * rig.mouth.y
+                let mw = minDim * 0.056 * (0.65 + bones.mouthOpen * 0.35)
+                let mh = minDim * 0.044 * bones.mouthOpen
+
+                var mouthPath = Path()
+                mouthPath.move(to: CGPoint(x: mx - mw * 0.5, y: my))
+                mouthPath.addQuadCurve(to: CGPoint(x: mx + mw * 0.5, y: my), control: CGPoint(x: mx, y: my - mh * 0.25))
+                mouthPath.addQuadCurve(to: CGPoint(x: mx - mw * 0.5, y: my), control: CGPoint(x: mx, y: my + mh * 1.35))
+                mouthPath.closeSubpath()
+                ctx.fill(mouthPath, with: .color(Color(hex: "#C75A63")))
+                // Cute tiny pink tongue inside open happy mouth
+                ctx.fill(
+                    Path(ellipseIn: CGRect(x: mx - mw * 0.28, y: my + mh * 0.18, width: mw * 0.56, height: mh * 0.52)),
+                    with: .color(Color(hex: "#F29BA3"))
+                )
+                ctx.stroke(mouthPath, with: .color(ink), lineWidth: max(1.2, minDim * 0.007))
+
+                // Dragon-Cat adorable glowing ember puff floating right out of snout!
+                if bones.showDragonPuff {
+                    let puffPhase = CGFloat((time * 2.2).truncatingRemainder(dividingBy: 1.0))
+                    let px = mx - minDim * (0.04 + puffPhase * 0.10)
+                    let py = my - minDim * (0.01 + puffPhase * 0.06)
+                    let pr = minDim * 0.026 * (1.0 - puffPhase * 0.4)
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: px - pr, y: py - pr, width: pr * 2, height: pr * 2)),
+                        with: .radialGradient(
+                            Gradient(colors: [Color(hex: "#FFF2A6"), Color(hex: "#F28B3C"), .clear]),
+                            center: CGPoint(x: px, y: py),
+                            startRadius: 1,
+                            endRadius: pr
+                        )
+                    )
+                }
+            }
         }
     }
 }
