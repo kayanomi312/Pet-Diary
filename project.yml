@@ -1,0 +1,72 @@
+name: PawprintDays
+options:
+  bundleIdPrefix: com.pawprintdays
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_LANGUAGE: zh-Hant
+    GENERATE_INFOPLIST_FILE: NO
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: G9CBH6VR3R
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  PawprintDays:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: PawprintDays
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pawprintdays.app
+        PRODUCT_NAME: PawprintDays
+        INFOPLIST_FILE: PawprintDays/Resources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        SWIFT_EMIT_LOC_STRINGS: YES
+        ENABLE_PREVIEWS: YES
+        MTL_ENABLE_DEBUG_INFO: INCLUDE_SOURCE
+    info:
+      path: PawprintDays/Resources/Info.plist
+  PawprintDaysTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: PawprintDaysTests
+    dependencies:
+      - target: PawprintDays
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pawprintdays.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/PawprintDays.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PawprintDays"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+schemes:
+  PawprintDays:
+    build:
+      targets:
+        PawprintDays: all
+        PawprintDaysTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - PawprintDaysTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

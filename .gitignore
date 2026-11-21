@@ -1,0 +1,17 @@
+# Xcode & Swift
+.DS_Store
+*.xcuserstate
+xcuserdata/
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.moved-aside
+*.hmap
+*.xccheckout
+*.xcscmblueprint
+.swiftpm/
+
+# Generated Xcode project (uncomment if you prefer not committing .xcodeproj)
+# PawprintDays.xcodeproj/

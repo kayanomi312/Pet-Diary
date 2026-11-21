@@ -1,0 +1,1060 @@
+import Foundation
+import SwiftData
+import CoreLocation
+import Observation
+
+@MainActor
+@Observable
+final class GameCoordinator {
+    private let ownedModelContainer: ModelContainer?
+    let modelContext: ModelContext
+    let locationService: LocationService
+    let pedometerService: PedometerService
+
+    var currentScreen: AppScreen = .street
+    var currentSimulatedDate: Date = Date()
+    var activeWeather: WeatherMode = .lightRain
+    var showOnboardingPaperSlip: Bool = false
+    var showAccessibleNearbyList: Bool = false
+    var showFixtureDrawer: Bool = false
+    var transientWhisper: String? = nil
+    var latestFixtureReport: Stage1VerificationSummary? = nil
+    var isDiscoveringAnchors: Bool = false
+
+    var anchors: [AnchorSiteRecord] = []
+    var residents: [PetResidentState] = []
+    var homeSpots: [HomeSpotPlacement] = []
+    var diaryDays: [DiaryDayRecord] = []
+    var encounters: [EncounterLog] = []
+    var teachingIntentions: [TeachingIntention] = []
+    var ledger: WalletAndCurioLedger
+
+    init(
+        modelContext: ModelContext,
+        modelContainer: ModelContainer? = nil,
+        locationService: LocationService = LocationService(),
+        pedometerService: PedometerService = PedometerService()
+    ) {
+        self.ownedModelContainer = modelContainer
+        self.modelContext = modelContext
+        self.locationService = locationService
+        self.pedometerService = pedometerService
+
+        let existingLedgers = (try? modelContext.fetch(FetchDescriptor<WalletAndCurioLedger>())) ?? []
+        if let found = existingLedgers.first {
+            self.ledger = found
+        } else {
+            let created = WalletAndCurioLedger()
+            modelContext.insert(created)
+            self.ledger = created
+        }
+
+        seedInitialWorldIfNeeded()
+        reloadAll()
+        wireLocationCallbacks()
+    }
+
+    var currentLocalDateISO: String {
+        CivilCalendarHelper.localDateISO(for: currentSimulatedDate)
+    }
+
+    var activeWalkCompanionID: String? {
+        todayDiaryRecord().companionPetID
+    }
+
+    var isNearPocketFind: Bool {
+        StepCoinLedgerEngine.isNearPocketFind(progress: ledger.pocketFindStepProgress)
+    }
+
+    var stepsUntilNextPocketFind: Int {
+        StepCoinLedgerEngine.stepsRemainingForPocketFind(progress: ledger.pocketFindStepProgress)
+    }
+
+    var visibleAnchors: [AnchorSiteRecord] {
+        anchors.filter { !$0.isHiddenByUser }
+    }
+
+    var activeStrollChainTargetID: String? {
+        guard ledger.activeStrollChainDateISO == currentLocalDateISO else { return nil }
+        return ledger.activeStrollChainTargetSiteID
+    }
+
+    // MARK: - Sensor Callback Wiring
+    private func wireLocationCallbacks() {
+        locationService.onRealLocationMoved = { [weak self] location, lowSpeedMeters, dwellSeconds in
+            guard let self else { return }
+            if self.ledger.mobilityRollModeEnabled && (lowSpeedMeters > 0 || dwellSeconds > 0) {
+                self.recordMobilityRollMovement(lowSpeedMeters: lowSpeedMeters, dwellSeconds: dwellSeconds)
+            }
+            let needsDiscovery: Bool
+            if let lastLat = self.ledger.lastNeighborhoodLat, let lastLon = self.ledger.lastNeighborhoodLon {
+                let dist = location.distance(from: CLLocation(latitude: lastLat, longitude: lastLon))
+                needsDiscovery = dist > 2_000
+            } else {
+                needsDiscovery = true
+            }
+            if needsDiscovery && !self.isDiscoveringAnchors {
+                Task { @MainActor in
+                    await self.discoverRealNeighborhoodAnchors(around: location.coordinate)
+                }
+            }
+        }
+
+        locationService.onEnteredAnchorGeofence = { [weak self] siteID in
+            guard let self,
+                  let anchor = self.anchors.first(where: { $0.siteID == siteID }) else { return }
+            self.showWhisper("前方 \(anchor.customLabel) 有隻小腳印正在等你。")
+        }
+
+        locationService.onBackgroundVisitRecorded = { [weak self] _, _ in
+            guard let self, self.ledger.backgroundVisitsOptIn else { return }
+            let day = self.todayDiaryRecord()
+            if day.personalNote.isEmpty {
+                day.personalNote = "在熟悉的小街角安靜停駐了一會兒。"
+                try? self.modelContext.save()
+                self.reloadAll()
+            }
+        }
+    }
+
+    // MARK: - Seeding (自動升級舊有英文種子名稱為繁體中文)
+    private func seedInitialWorldIfNeeded() {
+        let existingPets = (try? modelContext.fetch(FetchDescriptor<PetResidentState>())) ?? []
+        if existingPets.isEmpty {
+            showOnboardingPaperSlip = true
+        }
+        for spec in PetCatalog.allPets {
+            if let existing = existingPets.first(where: { $0.petID == spec.id }) {
+                if existing.nickname != spec.name && existing.nickname.allSatisfy(\.isASCII) {
+                    existing.nickname = spec.name
+                }
+            } else {
+                modelContext.insert(PetResidentState(petID: spec.id, nickname: spec.name))
+            }
+        }
+
+        let existingAnchors = (try? modelContext.fetch(FetchDescriptor<AnchorSiteRecord>())) ?? []
+        if existingAnchors.isEmpty {
+            let origin = LocationService.defaultNeighborhoodOrigin
+            let bakeryCoord = AnchorRotationEngine.coordinateAhead(from: origin, meters: 42, bearingDegrees: 22)
+            let riverCoord = AnchorRotationEngine.coordinateAhead(from: origin, meters: 165, bearingDegrees: 115)
+            let parkCoord = AnchorRotationEngine.coordinateAhead(from: origin, meters: 260, bearingDegrees: 295)
+
+            modelContext.insert(AnchorSiteRecord(
+                siteID: "sys.luodong.bakery_corner",
+                lat: bakeryCoord.latitude,
+                lon: bakeryCoord.longitude,
+                radiusM: 75,
+                customLabel: "麵包店巷口",
+                regularPetID: "pet.01",
+                cycleTapCount: 0,
+                isFamiliarCorner: false
+            ))
+            modelContext.insert(AnchorSiteRecord(
+                siteID: "sys.luodong.riverside_bench",
+                lat: riverCoord.latitude,
+                lon: riverCoord.longitude,
+                radiusM: 75,
+                customLabel: "溪畔木椅",
+                regularPetID: "pet.05",
+                cycleTapCount: 0,
+                isFamiliarCorner: false
+            ))
+            modelContext.insert(AnchorSiteRecord(
+                siteID: "sys.luodong.library_arcade",
+                lat: parkCoord.latitude,
+                lon: parkCoord.longitude,
+                radiusM: 75,
+                customLabel: "圖書館騎樓",
+                regularPetID: "pet.02",
+                cycleTapCount: 0,
+                isFamiliarCorner: false
+            ))
+        } else {
+            // 升級既有英文預設街角名稱為繁體中文
+            for a in existingAnchors {
+                if a.customLabel == "Bakery Corner" { a.customLabel = "麵包店巷口" }
+                if a.customLabel == "Riverside Bench" { a.customLabel = "溪畔木椅" }
+                if a.customLabel == "Library Arcade" { a.customLabel = "圖書館騎樓" }
+            }
+        }
+
+        ensureHomeSpotsExist()
+
+        let todayISO = currentLocalDateISO
+        let existingDays = (try? modelContext.fetch(FetchDescriptor<DiaryDayRecord>())) ?? []
+        if !existingDays.contains(where: { $0.localDateISO == todayISO }) {
+            let day = DiaryDayRecord(
+                localDateISO: todayISO,
+                weatherCode: activeWeather.rawValue,
+                weatherAttribution: "天氣範例 · 羅東街區"
+            )
+            modelContext.insert(day)
+        }
+
+        try? modelContext.save()
+    }
+
+    private func ensureHomeSpotsExist() {
+        let existingSpots = (try? modelContext.fetch(FetchDescriptor<HomeSpotPlacement>())) ?? []
+        let starterDefinitions: [(Int, String, String?)] = [
+            (1, "向陽窗台", "goodie.folded_towel"),
+            (2, "中央編織毯", "goodie.wool_blanket"),
+            (3, "靜謐角落", "goodie.cloth_ball"),
+            (4, "雨廊門檻", nil),
+            (5, "茶席點心盤", nil)
+        ]
+        for (idx, name, defaultGoodie) in starterDefinitions {
+            if let existing = existingSpots.first(where: { $0.spotIndex == idx }) {
+                if existing.spotName.allSatisfy(\.isASCII) {
+                    existing.spotName = name
+                }
+            } else {
+                modelContext.insert(HomeSpotPlacement(spotIndex: idx, spotName: name, equippedGoodieID: defaultGoodie))
+            }
+        }
+        if ledger.verandaUnlocked {
+            let verandaDefinitions: [(Int, String)] = [
+                (6, "雨廊木欄"),
+                (7, "紅檜長凳"),
+                (8, "細雨石階")
+            ]
+            for (idx, name) in verandaDefinitions {
+                if !existingSpots.contains(where: { $0.spotIndex == idx }) {
+                    modelContext.insert(HomeSpotPlacement(spotIndex: idx, spotName: name))
+                }
+            }
+        }
+    }
+
+    func reloadAll() {
+        anchors = ((try? modelContext.fetch(FetchDescriptor<AnchorSiteRecord>())) ?? [])
+            .sorted { $0.siteID < $1.siteID }
+        residents = ((try? modelContext.fetch(FetchDescriptor<PetResidentState>())) ?? [])
+            .sorted { $0.petID < $1.petID }
+        homeSpots = ((try? modelContext.fetch(FetchDescriptor<HomeSpotPlacement>())) ?? [])
+            .sorted { $0.spotIndex < $1.spotIndex }
+        diaryDays = ((try? modelContext.fetch(FetchDescriptor<DiaryDayRecord>())) ?? [])
+            .sorted { $0.localDateISO > $1.localDateISO }
+        encounters = ((try? modelContext.fetch(FetchDescriptor<EncounterLog>())) ?? [])
+            .sorted { $0.createdAtUTC > $1.createdAtUTC }
+        teachingIntentions = (try? modelContext.fetch(FetchDescriptor<TeachingIntention>())) ?? []
+        locationService.syncRollingGeofences(for: anchors)
+    }
+
+    func todayDiaryRecord() -> DiaryDayRecord {
+        let iso = currentLocalDateISO
+        if let found = diaryDays.first(where: { $0.localDateISO == iso }) {
+            return found
+        }
+        let created = DiaryDayRecord(
+            localDateISO: iso,
+            timeZoneID: TimeZone.current.identifier,
+            weatherCode: activeWeather.rawValue,
+            weatherAttribution: "天氣範例 · 鄰里街區"
+        )
+        modelContext.insert(created)
+        try? modelContext.save()
+        reloadAll()
+        return created
+    }
+
+    func resident(for petID: String) -> PetResidentState? {
+        residents.first(where: { $0.petID == petID })
+    }
+
+    // MARK: - Real-World Anchor Discovery & 'Carry Regulars Forward' Relocation Guarantee
+    func discoverRealNeighborhoodAnchors(around coordinate: CLLocationCoordinate2D) async {
+        isDiscoveringAnchors = true
+        defer { isDiscoveringAnchors = false }
+
+        let discovered = await MapKitAnchorDiscoveryService.discoverNearbyWalkableAnchors(around: coordinate)
+        applyDiscoveredAnchors(discovered, around: coordinate)
+    }
+
+    func applyDiscoveredAnchors(_ discovered: [DiscoveredWalkableAnchor], around coordinate: CLLocationCoordinate2D) {
+        ledger.lastNeighborhoodLat = coordinate.latitude
+        ledger.lastNeighborhoodLon = coordinate.longitude
+
+        for (idx, item) in discovered.enumerated() {
+            if !anchors.contains(where: { $0.siteID == item.siteID }) {
+                let regularID = MapKitAnchorDiscoveryService.pickRegularPetID(forIndex: idx, residents: residents)
+                modelContext.insert(AnchorSiteRecord(
+                    siteID: item.siteID,
+                    lat: item.latitude,
+                    lon: item.longitude,
+                    radiusM: 75.0,
+                    customLabel: item.label,
+                    regularPetID: regularID,
+                    cycleTapCount: 0,
+                    isFamiliarCorner: false
+                ))
+            }
+        }
+        try? modelContext.save()
+        reloadAll()
+        if !discovered.isEmpty {
+            showWhisper("已替你標出周遭 \(discovered.count) 個可散步的街角足印。")
+        }
+    }
+
+    // MARK: - Live Pedometer & Mobility-Aid Roll Mode
+    func optInAndSyncPedometer() async {
+        ledger.pedometerOptIn = true
+        let buckets = await pedometerService.requestAndSyncRolling7Days(now: currentSimulatedDate)
+        var totalAdded = 0
+        for bucket in buckets {
+            let res = ingestSteps(
+                steps: bucket.steps,
+                intervalStartUTC: bucket.intervalStartUTC,
+                placeLabel: "日常散步"
+            )
+            totalAdded += res.newlyAcceptedSteps
+        }
+        try? modelContext.save()
+        reloadAll()
+        if totalAdded > 0 {
+            showWhisper("已同步 \(totalAdded.formatted()) 步進你的步數幣袋。")
+        } else if !pedometerService.isStepCountingAvailable {
+            showWhisper("此裝置暫無計步器；可改開「緩步里程模式」。")
+        } else {
+            showWhisper("已連結計步器，日常散步會安靜累積成步數幣。")
+        }
+    }
+
+    func toggleMobilityRollMode(_ enabled: Bool) {
+        ledger.mobilityRollModeEnabled = enabled
+        try? modelContext.save()
+        reloadAll()
+        showWhisper(enabled ? "已開啟緩步里程模式（低速 130 公尺或戶外停留 2 分鐘 = 1 幣）。" : "已關閉緩步里程模式。")
+    }
+
+    func toggleOptionalBackgroundVisits(_ enabled: Bool) {
+        ledger.backgroundVisitsOptIn = enabled
+        if enabled {
+            locationService.enableOptionalBackgroundVisits()
+            showWhisper("已開啟長停留日記備註，隨時可單日抹除。")
+        } else {
+            locationService.disableBackgroundVisits()
+            showWhisper("已暫停背景停留備註。")
+        }
+        try? modelContext.save()
+        reloadAll()
+    }
+
+    @discardableResult
+    func recordMobilityRollMovement(
+        lowSpeedMeters: Double,
+        dwellSeconds: TimeInterval,
+        placeLabel: String = "緩步散心"
+    ) -> StepIngestionResult {
+        let day = todayDiaryRecord()
+        let result = StepCoinLedgerEngine.ingestMobilityRollCredit(
+            ledger: ledger,
+            lowSpeedMeters: lowSpeedMeters,
+            outdoorDwellSeconds: dwellSeconds,
+            companionPetID: day.companionPetID,
+            weather: activeWeather,
+            placeLabel: placeLabel,
+            localDateISO: currentLocalDateISO
+        )
+        if result.newlyAcceptedSteps > 0 {
+            day.acceptedSteps += result.newlyAcceptedSteps
+            advanceMentorshipSteps(by: result.newlyAcceptedSteps)
+            try? modelContext.save()
+            reloadAll()
+        }
+        return result
+    }
+
+    // MARK: - Street Anchors, Stroll Chains & Familiar Corners
+    func pawState(for anchor: AnchorSiteRecord) -> PawState {
+        if anchor.lastVisitedLocalDate == currentLocalDateISO {
+            return .metToday
+        }
+        if activeStrollChainTargetID == anchor.siteID {
+            return .strollChain
+        }
+        let check = AnchorRotationEngine.evaluateProximity(
+            anchor: anchor,
+            userLocation: locationService.currentLocation,
+            now: Date(),
+            currentLocalDateISO: currentLocalDateISO
+        )
+        if case .eligible = check {
+            return .inRange
+        }
+        return .distant
+    }
+
+    func distanceMeters(to anchor: AnchorSiteRecord) -> Double {
+        let anchorLoc = CLLocation(latitude: anchor.lat, longitude: anchor.lon)
+        return locationService.currentLocation.distance(from: anchorLoc)
+    }
+
+    @discardableResult
+    func attemptOpenAnchor(_ anchor: AnchorSiteRecord) -> AnchorProximityCheck {
+        if locationService.useSimulatedPosition {
+            locationService.refreshFreshSimulatedFix()
+        }
+        let check = AnchorRotationEngine.evaluateProximity(
+            anchor: anchor,
+            userLocation: locationService.currentLocation,
+            now: Date(),
+            currentLocalDateISO: currentLocalDateISO
+        )
+
+        switch check {
+        case .eligible:
+            let offeredPetID = AnchorRotationEngine.resolveAndPersistOfferedPetID(
+                anchor: anchor,
+                residents: residents,
+                ledger: ledger
+            )
+            let isStrollChainArrival = (activeStrollChainTargetID == anchor.siteID)
+            let guidePetID = isStrollChainArrival ? ledger.activeStrollChainGuidePetID : nil
+            let distinctGuide = (guidePetID != offeredPetID) ? guidePetID : nil
+            try? modelContext.save()
+            HapticsEngine.shared.playPawRangeCue()
+            currentScreen = .encounter(siteID: anchor.siteID, petID: offeredPetID, companionStreetPetID: distinctGuide)
+        case .tooFar(let distanceM, _):
+            showWhisper("請走近至 75 公尺內再打招呼（目前相距 \(Int(distanceM)) 公尺）。")
+        case .poorAccuracy:
+            showWhisper("正在等待較穩定的戶外定位訊號…")
+        case .staleFix:
+            showWhisper("正在重新確認你目前的散步位置…")
+        case .movingTooFast:
+            showWhisper("放慢至步行速度（12 km/h 以下）就能和街角夥伴打招呼。")
+        case .alreadyMetToday:
+            showWhisper("今天已經在「\(anchor.customLabel)」打過招呼囉。")
+        }
+        return check
+    }
+
+    @discardableResult
+    func pinFamiliarCornerAhead(label: String? = nil) -> AnchorSiteRecord? {
+        let existingCorners = anchors.filter { $0.isFamiliarCorner && !$0.isHiddenByUser }
+        guard existingCorners.count < AnchorRotationEngine.maxPersonalFamiliarCorners else {
+            showWhisper("3 個私人熟悉街角已全部釘選完成。")
+            return nil
+        }
+
+        let ahead = AnchorRotationEngine.coordinateAhead(
+            from: locationService.currentLocation.coordinate,
+            meters: 60.0,
+            bearingDegrees: 35.0 + Double(existingCorners.count) * 45.0
+        )
+        let cornerIndex = existingCorners.count + 1
+        let defaultNames = ["公車站老榕樹下", "轉角雨棚木凳", "靜巷石階口"]
+        let chosenLabel = label ?? defaultNames[(cornerIndex - 1) % defaultNames.count]
+        let regularID = MapKitAnchorDiscoveryService.pickRegularPetID(forIndex: cornerIndex, residents: residents)
+
+        let record = AnchorSiteRecord(
+            siteID: "local.corner.\(cornerIndex).\(UUID().uuidString.prefix(6))",
+            lat: ahead.latitude,
+            lon: ahead.longitude,
+            radiusM: 75,
+            customLabel: chosenLabel,
+            regularPetID: regularID,
+            cycleTapCount: 0,
+            isFamiliarCorner: true
+        )
+        modelContext.insert(record)
+        try? modelContext.save()
+        reloadAll()
+        showWhisper("已在前方 60 公尺釘選「\(chosenLabel)」（僅私密留存本機）。")
+        return record
+    }
+
+    func renameAnchor(siteID: String, newLabel: String) {
+        let trimmed = newLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let anchor = anchors.first(where: { $0.siteID == siteID }) else { return }
+        anchor.customLabel = trimmed
+        for enc in encounters where enc.siteID == siteID && !enc.placeRedacted {
+            enc.siteDisplayLabel = trimmed
+        }
+        try? modelContext.save()
+        reloadAll()
+    }
+
+    func hideAnchor(siteID: String) {
+        guard let anchor = anchors.first(where: { $0.siteID == siteID }) else { return }
+        anchor.isHiddenByUser = true
+        try? modelContext.save()
+        reloadAll()
+        showWhisper("已將「\(anchor.customLabel)」從地圖隱藏。")
+    }
+
+    @discardableResult
+    func commitStreetEncounter(
+        siteID: String,
+        petID: String,
+        companionStreetPetID: String? = nil,
+        gesture: GreetingGesture,
+        inviteHome: Bool = true,
+        forceOfferStrollChain: Bool = false
+    ) -> EncounterLog? {
+        guard let anchor = anchors.first(where: { $0.siteID == siteID }),
+              let pet = residents.first(where: { $0.petID == petID }) else {
+            return nil
+        }
+
+        let dateISO = currentLocalDateISO
+        let siteDayKey = "\(siteID)|\(dateISO)"
+        if let existing = encounters.first(where: { $0.siteDayKey == siteDayKey }) {
+            return existing
+        }
+
+        let secondarySpec = companionStreetPetID.map(PetCatalog.pet(id:))
+        let secondaryOutfit = companionStreetPetID.flatMap { resident(for: $0)?.activeOutfitID }
+        let activePack = ledger.activeOutingPack
+        let isWideSpread = (activePack == .sketchbookCharcoal)
+
+        let selection = NarrativeEngine.selectStreetScene(
+            pet: pet,
+            secondaryStreetPet: secondarySpec,
+            anchorLabel: anchor.customLabel,
+            weather: activeWeather,
+            chosenGesture: gesture,
+            localDateISO: dateISO,
+            pastEncounters: encounters,
+            activeIntentions: teachingIntentions,
+            activeOutingPack: activePack
+        )
+
+        let petSpec = PetCatalog.pet(id: petID)
+        let frozenOutfitID = pet.activeOutfitID
+        let bakedPNG = DiarySnapshotBaker.bakeEncounterPostcardPNG(
+            pet: petSpec,
+            outfitID: frozenOutfitID,
+            secondaryPet: secondarySpec,
+            secondaryOutfitID: secondaryOutfit,
+            weather: activeWeather,
+            placeLabel: anchor.customLabel,
+            localDateISO: dateISO,
+            isWideSpread: isWideSpread
+        )
+
+        var offeredChainTargetID: String? = nil
+        if companionStreetPetID == nil {
+            let shouldOffer = forceOfferStrollChain || ((encounters.count + 1) % 3 == 0)
+            if shouldOffer,
+               let target = AnchorRotationEngine.pickStrollChainTarget(from: anchor, allAnchors: anchors, currentLocalDateISO: dateISO) {
+                offeredChainTargetID = target.siteID
+                ledger.activeStrollChainTargetSiteID = target.siteID
+                ledger.activeStrollChainGuidePetID = petID
+                ledger.activeStrollChainDateISO = dateISO
+            }
+        } else {
+            ledger.activeStrollChainTargetSiteID = nil
+            ledger.activeStrollChainGuidePetID = nil
+            ledger.activeStrollChainDateISO = nil
+        }
+
+        if activePack == .sketchbookCharcoal {
+            ledger.activeOutingPackRaw = nil
+        }
+
+        let log = EncounterLog(
+            siteID: siteID,
+            siteDisplayLabel: anchor.customLabel,
+            localDateISO: dateISO,
+            timeZoneID: TimeZone.current.identifier,
+            petID: petID,
+            secondaryPetID: companionStreetPetID,
+            sceneRevisionID: selection.sceneRevisionID,
+            gestureChosen: gesture,
+            equippedOutfitSnapshotID: frozenOutfitID,
+            secondaryOutfitSnapshotID: secondaryOutfit,
+            weatherSnapshot: activeWeather,
+            narrativeLine: selection.diarySystemSentence,
+            bakedSnapshotPNGData: bakedPNG,
+            strollChainTargetSiteID: offeredChainTargetID,
+            isWideWatercolorSpread: isWideSpread,
+            createdAtUTC: currentSimulatedDate
+        )
+        modelContext.insert(log)
+
+        if pet.firstMetDateISO == nil {
+            pet.firstMetDateISO = dateISO
+            pet.firstGesture = gesture
+        }
+        if pet.lastSharedDateISO != dateISO {
+            pet.sharedDaysCount += 1
+            pet.lastSharedDateISO = dateISO
+            pet.milestoneTier = PetResidentState.milestoneForSharedDays(pet.sharedDaysCount)
+        }
+        if inviteHome {
+            pet.inviteState = .invitedHome
+        } else if pet.inviteState == .unmet {
+            pet.inviteState = .sighted
+        }
+
+        var recent = pet.recentSceneIDs
+        recent.append(selection.sceneRevisionID)
+        if recent.count > 6 { recent.removeFirst(recent.count - 6) }
+        pet.recentSceneIDs = recent
+
+        AnchorRotationEngine.commitCompletedTap(
+            anchor: anchor,
+            offeredPetID: petID,
+            localDateISO: dateISO,
+            ledger: ledger
+        )
+
+        let day = todayDiaryRecord()
+        day.weatherCode = activeWeather.rawValue
+        if let trail = locationService.encodeTrailGeoJSON() {
+            day.routeTrackGeoJSON = trail
+        }
+        if day.companionPetID == nil && pet.inviteState == .invitedHome {
+            day.companionPetID = pet.petID
+        }
+
+        resolveMentorshipsOnNewDay(dateISO: dateISO)
+
+        RoomOccupancySolver.solveRoom(
+            spots: homeSpots,
+            residents: residents,
+            activeIntentions: teachingIntentions,
+            weather: activeWeather,
+            now: currentSimulatedDate
+        )
+
+        try? modelContext.save()
+        reloadAll()
+        return log
+    }
+
+    // MARK: - Steps, Coins, Shop, Treats & Outings
+    func setWalkCompanion(petID: String) {
+        let day = todayDiaryRecord()
+        day.companionPetID = petID
+        try? modelContext.save()
+        reloadAll()
+        showWhisper("今天由「\(PetCatalog.pet(id: petID).name)」陪你一起放進口袋散步。")
+    }
+
+    @discardableResult
+    func ingestSteps(
+        steps: Int,
+        intervalStartUTC: Date? = nil,
+        placeLabel: String = "鄰里散步"
+    ) -> StepIngestionResult {
+        let day = todayDiaryRecord()
+        let result = StepCoinLedgerEngine.ingestIntervalSteps(
+            ledger: ledger,
+            intervalStartUTC: intervalStartUTC ?? currentSimulatedDate,
+            reportedSteps: steps,
+            companionPetID: day.companionPetID,
+            weather: activeWeather,
+            placeLabel: placeLabel,
+            localDateISO: currentLocalDateISO
+        )
+        day.acceptedSteps += result.newlyAcceptedSteps
+
+        if result.newlyAcceptedSteps > 0 {
+            advanceMentorshipSteps(by: result.newlyAcceptedSteps)
+        }
+
+        if !result.newCuriosForaged.isEmpty {
+            HapticsEngine.shared.playCurioUnpack()
+            let curioName = CurioCatalog.curio(id: result.newCuriosForaged[0].curioID).name
+            showWhisper("撿到口袋拾遺：\(curioName)")
+        }
+
+        try? modelContext.save()
+        reloadAll()
+        return result
+    }
+
+    private func advanceMentorshipSteps(by deltaSteps: Int) {
+        for intention in teachingIntentions where intention.state == .queued {
+            intention.stepsAccumulated += deltaSteps
+            if intention.stepsAccumulated >= 2_500 {
+                intention.state = .demonstrated
+            }
+        }
+    }
+
+    private func resolveMentorshipsOnNewDay(dateISO: String) {
+        for intention in teachingIntentions where intention.state == .queued && intention.plannedDateISO != dateISO {
+            intention.state = .demonstrated
+        }
+    }
+
+    @discardableResult
+    func purchaseItem(_ item: ShopItemSpec, txID: String? = nil) -> Bool {
+        let resolvedTx = txID ?? "tx.\(item.id).\(UUID().uuidString.prefix(8))"
+        let ok = StepCoinLedgerEngine.spendCoins(ledger: ledger, txID: resolvedTx, item: item)
+        if ok {
+            if item.id == "room.rain_veranda" {
+                ensureHomeSpotsExist()
+                solveHomeRoomNow()
+            } else if item.id == "treat.picnic_portion" {
+                createPicnicPortionSnapshot()
+            }
+            try? modelContext.save()
+            reloadAll()
+            showWhisper("已收進「\(item.name)」。")
+        } else {
+            showWhisper("需要 \(item.priceCoins) 步數幣（袋中目前有 \(ledger.coinBalance) 幣）。")
+        }
+        return ok
+    }
+
+    @discardableResult
+    func createPicnicPortionSnapshot() -> EncounterLog? {
+        let invited = residents.filter { $0.inviteState == .invitedHome }
+        guard let first = invited.first else { return nil }
+        let second = invited.dropFirst().first
+
+        let firstSpec = PetCatalog.pet(id: first.petID)
+        let secondSpec = second.map { PetCatalog.pet(id: $0.petID) }
+        let dateISO = currentLocalDateISO
+        let siteID = "home.picnic.\(UUID().uuidString.prefix(6))"
+        let bakedPNG = DiarySnapshotBaker.bakeEncounterPostcardPNG(
+            pet: firstSpec,
+            outfitID: first.activeOutfitID,
+            secondaryPet: secondSpec,
+            secondaryOutfitID: second?.activeOutfitID,
+            weather: activeWeather,
+            placeLabel: "陽光室茶點盤",
+            localDateISO: dateISO
+        )
+        let line: String
+        if let secondSpec {
+            line = "\(firstSpec.name)與\(secondSpec.name)在暖木窗邊一起享用了雙人野餐點心。"
+        } else {
+            line = "\(firstSpec.name)在陶瓷茶壺旁慢慢品嚐了野餐點心。"
+        }
+        let log = EncounterLog(
+            siteID: siteID,
+            siteDisplayLabel: "陽光室茶點盤",
+            localDateISO: dateISO,
+            petID: first.petID,
+            secondaryPetID: second?.petID,
+            sceneRevisionID: "home.picnic.\(dateISO)",
+            gestureChosen: .crouchQuietly,
+            equippedOutfitSnapshotID: first.activeOutfitID,
+            secondaryOutfitSnapshotID: second?.activeOutfitID,
+            weatherSnapshot: activeWeather,
+            narrativeLine: line,
+            bakedSnapshotPNGData: bakedPNG,
+            createdAtUTC: currentSimulatedDate
+        )
+        modelContext.insert(log)
+        _ = todayDiaryRecord()
+        try? modelContext.save()
+        reloadAll()
+        return log
+    }
+
+    func selectRoomTheme(_ theme: SeasonalRoomTheme) {
+        guard ledger.ownedRoomThemeIDs.contains(theme.rawValue) else { return }
+        ledger.activeRoomTheme = theme
+        try? modelContext.save()
+        reloadAll()
+    }
+
+    @discardableResult
+    func mendGoodiePatch(spotIndex: Int, txID: String? = nil) -> Bool {
+        guard let spot = homeSpots.first(where: { $0.spotIndex == spotIndex }) else { return false }
+        let resolvedTx = txID ?? "tx.patch.\(spotIndex).\(UUID().uuidString.prefix(6))"
+        let ok = StepCoinLedgerEngine.spendPatchMendCoins(ledger: ledger, spot: spot, txID: resolvedTx)
+        if ok {
+            try? modelContext.save()
+            reloadAll()
+            showWhisper("已替「\(spot.spotName)」縫上一塊溫暖小補丁。")
+        } else {
+            showWhisper("縫補裝飾補丁需要 10 步數幣。")
+        }
+        return ok
+    }
+
+    func equipOutfit(petID: String, outfitID: String?) {
+        guard let pet = residents.first(where: { $0.petID == petID }) else { return }
+        pet.activeOutfitID = outfitID
+        try? modelContext.save()
+        reloadAll()
+    }
+
+    func placeGoodie(spotIndex: Int, goodieID: String) {
+        guard let spot = homeSpots.first(where: { $0.spotIndex == spotIndex }) else { return }
+        spot.equippedGoodieID = goodieID
+        spot.goodieUseCount = 0
+        spot.hasStitchedPatch = false
+        RoomOccupancySolver.solveRoom(
+            spots: homeSpots,
+            residents: residents,
+            activeIntentions: teachingIntentions,
+            weather: activeWeather,
+            now: currentSimulatedDate
+        )
+        try? modelContext.save()
+        reloadAll()
+    }
+
+    func solveHomeRoomNow() {
+        RoomOccupancySolver.solveRoom(
+            spots: homeSpots,
+            residents: residents,
+            activeIntentions: teachingIntentions,
+            weather: activeWeather,
+            now: currentSimulatedDate
+        )
+        try? modelContext.save()
+        reloadAll()
+    }
+
+    func completeTactileCare(petID: String, texture: FoodTexture? = nil) {
+        guard let pet = residents.first(where: { $0.petID == petID }) else { return }
+        let dateISO = currentLocalDateISO
+        if pet.lastSharedDateISO != dateISO {
+            pet.sharedDaysCount += 1
+            pet.lastSharedDateISO = dateISO
+            pet.milestoneTier = PetResidentState.milestoneForSharedDays(pet.sharedDaysCount)
+        }
+        if let texture {
+            pet.favoriteTexture = texture
+        }
+        try? modelContext.save()
+        reloadAll()
+    }
+
+    func togglePinFavorite(petID: String) {
+        guard let pet = residents.first(where: { $0.petID == petID }) else { return }
+        pet.isPinned.toggle()
+        solveHomeRoomNow()
+    }
+
+    // MARK: - Shared-Prop Cross-Species Mentorship
+    @discardableResult
+    func planMentorship(mentorID: String, learnerID: String) -> TeachingIntention? {
+        guard mentorID != learnerID else { return nil }
+        let spec = PetCatalog.pet(id: mentorID)
+        let intention = TeachingIntention(
+            mentorPetID: mentorID,
+            learnerPetID: learnerID,
+            habitFamilyID: spec.habitFamily.rawValue,
+            sharedPropID: spec.habitFamily.sharedPropID,
+            plannedDateISO: currentLocalDateISO
+        )
+        modelContext.insert(intention)
+        solveHomeRoomNow()
+        try? modelContext.save()
+        reloadAll()
+        showWhisper("已約好一起練習：由\(spec.name)分享「\(spec.signatureHabitTitle)」。")
+        return intention
+    }
+
+    func completeMentorshipLesson(intentionUUID: UUID) {
+        guard let intention = teachingIntentions.first(where: { $0.intentionUUID == intentionUUID }),
+              let learner = resident(for: intention.learnerPetID) else { return }
+        let mentorSpec = PetCatalog.pet(id: intention.mentorPetID)
+        let habit = HabitFamily(rawValue: intention.habitFamilyID) ?? .wait
+
+        intention.state = .mastered
+
+        var habits = learner.learnedHabitIDs
+        if !habits.contains(habit.rawValue) {
+            habits.append(habit.rawValue)
+            if habits.count > 2 { habits.removeFirst(habits.count - 2) }
+            learner.learnedHabitIDs = habits
+        }
+
+        let credit = "於\(CivilCalendarHelper.displayDate(from: currentLocalDateISO))向\(mentorSpec.name)學會了「\(habit.title)」。"
+        var credits = learner.learnedHabitCredits
+        if !credits.contains(credit) {
+            credits.append(credit)
+            learner.learnedHabitCredits = credits
+        }
+
+        try? modelContext.save()
+        reloadAll()
+        HapticsEngine.shared.playCurioUnpack()
+        showWhisper("\(PetCatalog.pet(id: learner.petID).name)向\(mentorSpec.name)學會了「\(habit.title)」！")
+    }
+
+    // MARK: - Living Diary, Annual Traditions & Single-Day Erasure
+    func savePersonalNote(for localDateISO: String, note: String) {
+        guard let day = diaryDays.first(where: { $0.localDateISO == localDateISO }) else { return }
+        day.personalNote = note
+        try? modelContext.save()
+        reloadAll()
+    }
+
+    func toggleStarredTradition(for localDateISO: String) {
+        guard let day = diaryDays.first(where: { $0.localDateISO == localDateISO }) else { return }
+        day.isStarredTradition.toggle()
+        try? modelContext.save()
+        reloadAll()
+    }
+
+    func removeEncounter(uuid: UUID) {
+        guard let target = encounters.first(where: { $0.encounterUUID == uuid }) else { return }
+        modelContext.delete(target)
+        try? modelContext.save()
+        reloadAll()
+    }
+
+    func erasePlaceDataForSingleDay(localDateISO: String) {
+        if let day = diaryDays.first(where: { $0.localDateISO == localDateISO }) {
+            day.routeTrackGeoJSON = nil
+            day.weatherAttribution = "已抹除地點"
+            day.deletionState = .placeErased
+        }
+        for encounter in encounters where encounter.localDateISO == localDateISO {
+            encounter.siteDisplayLabel = "一段安靜的散步"
+            encounter.placeRedacted = true
+            encounter.narrativeLine = "\(PetCatalog.pet(id: encounter.petID).name)與我共度了一段平靜片刻。"
+        }
+        try? modelContext.save()
+        reloadAll()
+        showWhisper("已抹除 \(localDateISO) 的地點與軌跡；動物夥伴與步數幣完整保留。")
+    }
+
+    // MARK: - 14-Day Fast-Forward Deterministic Verification Fixture
+    func advanceSimulatedDays(_ days: Int) {
+        if let next = Calendar(identifier: .gregorian).date(byAdding: .day, value: days, to: currentSimulatedDate) {
+            currentSimulatedDate = next
+            _ = todayDiaryRecord()
+            resolveMentorshipsOnNewDay(dateISO: currentLocalDateISO)
+            reloadAll()
+        }
+    }
+
+    @discardableResult
+    func runStage1Deterministic14DayFixture() -> Stage1VerificationSummary {
+        var details: [String] = []
+        let baseDate = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 1, hour: 9, minute: 0)) ?? Date()
+        currentSimulatedDate = baseDate
+        activeWeather = .lightRain
+
+        guard let bakery = anchors.first(where: { $0.siteID == "sys.luodong.bakery_corner" }),
+              let riverside = anchors.first(where: { $0.siteID == "sys.luodong.riverside_bench" }) else {
+            return Stage1VerificationSummary(
+                gate1ProximityAndDay3CallbackPassed: false,
+                gate2ImmutableSnapshotPassed: false,
+                gate3DisjointCoinLedgerPassed: false,
+                gate4SingleDayErasurePassed: false,
+                details: ["找不到預設街角錨點。"]
+            )
+        }
+
+        let farCoord = AnchorRotationEngine.coordinateAhead(from: CLLocationCoordinate2D(latitude: bakery.lat, longitude: bakery.lon), meters: 220, bearingDegrees: 180)
+        locationService.walkSimulated(to: farCoord, stepsSegments: 2)
+        let farCheck = AnchorRotationEngine.evaluateProximity(
+            anchor: bakery,
+            userLocation: locationService.currentLocation,
+            now: Date(),
+            currentLocalDateISO: currentLocalDateISO
+        )
+        let rejectedWhenFar: Bool
+        if case .tooFar = farCheck { rejectedWhenFar = true } else { rejectedWhenFar = false }
+
+        let nearBakery = AnchorRotationEngine.coordinateAhead(from: CLLocationCoordinate2D(latitude: bakery.lat, longitude: bakery.lon), meters: 12, bearingDegrees: 0)
+        locationService.walkSimulated(to: nearBakery, stepsSegments: 4)
+        let day1ISO = currentLocalDateISO
+        let offeredDay1 = AnchorRotationEngine.resolveAndPersistOfferedPetID(anchor: bakery, residents: residents, ledger: ledger)
+        let day1Log = commitStreetEncounter(siteID: bakery.siteID, petID: offeredDay1, gesture: .offerHand, inviteHome: true)
+        let day1SnapshotBytes = day1Log?.bakedSnapshotPNGData
+        details.append("第 1 天 (\(day1ISO))：遠距阻擋=\(rejectedWhenFar)；素頸遇見\(PetCatalog.pet(id: offeredDay1).name)。")
+
+        advanceSimulatedDays(1)
+        let day2ISO = currentLocalDateISO
+        let intervalA = currentSimulatedDate
+        let intervalB = currentSimulatedDate.addingTimeInterval(900)
+        _ = ingestSteps(steps: 5_840, intervalStartUTC: intervalA, placeLabel: bakery.customLabel)
+        _ = ingestSteps(steps: 5_840, intervalStartUTC: intervalA, placeLabel: bakery.customLabel)
+        _ = ingestSteps(steps: 160, intervalStartUTC: intervalB, placeLabel: bakery.customLabel)
+        let coinsBeforePurchase = ledger.coinBalance
+        let sageRibbon = ShopCatalog.item(id: "outfit.sage_ribbon")!
+        let boughtRibbon = purchaseItem(sageRibbon, txID: "fixture.buy.sage_ribbon")
+        _ = purchaseItem(sageRibbon, txID: "fixture.buy.sage_ribbon")
+        let coinsAfterRibbon = ledger.coinBalance
+        let gate3Passed = (coinsBeforePurchase == 30) && boughtRibbon && (coinsAfterRibbon == 18) && (ledger.stepCarryRemainder == 0)
+        details.append("第 2 天 (\(day2ISO))：5,840+160 步 → \(coinsBeforePurchase) 幣 − 12 幣緞帶 = \(coinsAfterRibbon) 幣。")
+
+        equipOutfit(petID: "pet.01", outfitID: sageRibbon.id)
+        let offeredDay2 = AnchorRotationEngine.resolveAndPersistOfferedPetID(anchor: bakery, residents: residents, ledger: ledger)
+        let day2Log = commitStreetEncounter(siteID: bakery.siteID, petID: offeredDay2, gesture: .offerHand, inviteHome: true)
+        let day1AfterReload = encounters.first(where: { $0.localDateISO == day1ISO && $0.petID == "pet.01" })
+        let gate2Passed =
+            day1AfterReload?.equippedOutfitSnapshotID == nil &&
+            day2Log?.equippedOutfitSnapshotID == sageRibbon.id &&
+            day1AfterReload?.bakedSnapshotPNGData != nil &&
+            day2Log?.bakedSnapshotPNGData != nil &&
+            day1AfterReload?.bakedSnapshotPNGData == day1SnapshotBytes &&
+            day1AfterReload?.bakedSnapshotPNGData != day2Log?.bakedSnapshotPNGData
+        details.append("歷史明信片驗證：第 1 天素頸原圖未受第 2 天緞帶影響=\(gate2Passed)。")
+
+        advanceSimulatedDays(1)
+        activeWeather = .overcast
+        let offeredTap3 = AnchorRotationEngine.resolveAndPersistOfferedPetID(anchor: bakery, residents: residents, ledger: ledger)
+        let cinderLog = commitStreetEncounter(siteID: bakery.siteID, petID: offeredTap3, gesture: .crouchQuietly, inviteHome: true)
+
+        let nearRiver = AnchorRotationEngine.coordinateAhead(from: CLLocationCoordinate2D(latitude: riverside.lat, longitude: riverside.lon), meters: 10, bearingDegrees: 0)
+        locationService.walkSimulated(to: nearRiver, stepsSegments: 3)
+        let misoOffer = AnchorRotationEngine.resolveAndPersistOfferedPetID(anchor: riverside, residents: residents, ledger: ledger)
+        _ = commitStreetEncounter(siteID: riverside.siteID, petID: misoOffer, gesture: .rollBall, inviteHome: true)
+
+        advanceSimulatedDays(1)
+        let sesameBeforeDay3 = resident(for: "pet.01")!
+        let callbackSelection = NarrativeEngine.selectStreetScene(
+            pet: sesameBeforeDay3,
+            anchorLabel: bakery.customLabel,
+            weather: .overcast,
+            chosenGesture: .offerHand,
+            localDateISO: currentLocalDateISO,
+            pastEncounters: encounters,
+            activeIntentions: teachingIntentions
+        )
+        locationService.walkSimulated(to: nearBakery, stepsSegments: 3)
+        _ = commitStreetEncounter(siteID: bakery.siteID, petID: "pet.01", gesture: .offerHand, inviteHome: true)
+
+        let gate1Passed =
+            rejectedWhenFar &&
+            offeredTap3 == "pet.03" &&
+            cinderLog != nil &&
+            callbackSelection.sceneRevisionID.contains("milestone.day3.callback.offer_hand")
+        details.append("第 3–4 天驗證：第 3 輪保底奇幻訪客=\(PetCatalog.pet(id: offeredTap3).name)；芝麻記得首日手勢。")
+
+        advanceSimulatedDays(10)
+        activeWeather = .dusk
+        solveHomeRoomNow()
+
+        let coinsBeforeErase = ledger.coinBalance
+        let invitedCountBeforeErase = residents.filter { $0.inviteState == .invitedHome }.count
+        erasePlaceDataForSingleDay(localDateISO: day1ISO)
+        let erasedDay = diaryDays.first(where: { $0.localDateISO == day1ISO })
+        let erasedEnc = encounters.first(where: { $0.localDateISO == day1ISO && $0.petID == "pet.01" })
+        let gate4Passed =
+            erasedDay?.deletionState == .placeErased &&
+            erasedDay?.routeTrackGeoJSON == nil &&
+            erasedEnc?.placeRedacted == true &&
+            ledger.coinBalance == coinsBeforeErase &&
+            residents.filter { $0.inviteState == .invitedHome }.count == invitedCountBeforeErase
+        details.append("第 14 天隱私抹除：已清除第 1 天路線與地名，完整保留 \(invitedCountBeforeErase) 位室友與 \(ledger.coinBalance) 步數幣。")
+
+        let report = Stage1VerificationSummary(
+            gate1ProximityAndDay3CallbackPassed: gate1Passed,
+            gate2ImmutableSnapshotPassed: gate2Passed,
+            gate3DisjointCoinLedgerPassed: gate3Passed,
+            gate4SingleDayErasurePassed: gate4Passed,
+            details: details
+        )
+        latestFixtureReport = report
+        return report
+    }
+
+    func showWhisper(_ text: String) {
+        transientWhisper = text
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3.2))
+            if self.transientWhisper == text {
+                self.transientWhisper = nil
+            }
+        }
+    }
+}
