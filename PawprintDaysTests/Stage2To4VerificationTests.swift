@@ -278,4 +278,35 @@ final class Stage2To4VerificationTests: XCTestCase {
         XCTAssertTrue(pinned.isHiddenByUser)
         XCTAssertEqual(bakery.totalVisitsCount, 6)
     }
+
+    /// Verifies Cat-and-Dragon mythical species cast + optional Stroll Session, single-trip Satchel Charms (zero idle burn), and return-home summary.
+    func testStrollSessionSatchelAndCatDragonMythicalCast() throws {
+        let coordinator = try makeInMemoryCoordinator()
+        let juniper = PetCatalog.pet(id: "pet.02")
+        let cinder = PetCatalog.pet(id: "pet.03")
+        XCTAssertEqual(juniper.kind, .demonCat)
+        XCTAssertTrue(juniper.kind.isCatFamily && juniper.kind.isMagical)
+        XCTAssertEqual(cinder.kind, .dragonCat)
+        XCTAssertTrue(cinder.kind.isCatFamily && cinder.kind.isMagical)
+
+        // 1. Forage Sachet stroll grants +35% sniffing progress without time-based burning
+        coordinator.ledger.coinBalance = 20
+        XCTAssertTrue(coordinator.startStrollSession(companionPetID: "pet.02", charm: .forageSachet))
+        XCTAssertEqual(coordinator.ledger.coinBalance, 14)
+
+        _ = coordinator.ingestSteps(steps: 1_100, intervalStartUTC: Date(), placeLabel: "老街麵包巷")
+        let summary = try XCTUnwrap(coordinator.endStrollSession())
+        XCTAssertEqual(summary.totalSteps, 1_100)
+        XCTAssertEqual(summary.packedCharm, .forageSachet)
+        // 1,100 + 385 (35% bonus) = 1,485 >= 1,400 -> triggers a Pocket Find curio!
+        XCTAssertFalse(summary.curiosFoundIDs.isEmpty, "Forage sachet 35% bonus should trigger Pocket Find curio at 1,100 steps")
+
+        // 2. Ginger Thermos awards +2 warm tea return bonus & day rollover auto-archives cleanly
+        XCTAssertTrue(coordinator.startStrollSession(companionPetID: "pet.03", charm: .gingerThermos))
+        let balanceAfterStart = coordinator.ledger.coinBalance
+        _ = coordinator.ingestSteps(steps: 200, intervalStartUTC: Date().addingTimeInterval(4000), placeLabel: "雨巷")
+        coordinator.advanceSimulatedDays(1)
+        XCTAssertNil(coordinator.activeStroll, "Day rollover must cleanly auto-archive active stroll")
+        XCTAssertEqual(coordinator.ledger.coinBalance, balanceAfterStart + 1 + 2, "Should include 1 step coin + 2 ginger thermos bonus coins")
+    }
 }

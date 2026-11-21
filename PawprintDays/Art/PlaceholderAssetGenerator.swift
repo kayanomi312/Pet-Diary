@@ -128,8 +128,17 @@ struct ProceduralPetRigView: View {
                     .frame(width: minDim * 0.42, height: minDim * 0.07)
                     .offset(y: minDim * 0.40 + (pose == .resting ? minDim * 0.02 : 0))
 
-                // Hand-painted 1024x1024 transparent gouache & pencil illustration + synced wardrobe layer
+                // Hand-painted 1024x1024 transparent gouache & pencil illustration + synced mythical anatomy & wardrobe layer
                 ZStack {
+                    // 《貓與龍》奇幻物種背後羽翼／雲絮靈光層（位在角色身體後方）
+                    if pet.kind.isMagical {
+                        MythicalSpeciesBackLayerCanvas(
+                            pet: pet,
+                            neckAnchor: calibratedNeckAnchor,
+                            time: isStaticSnapshot ? 0.6 : time
+                        )
+                    }
+
                     if let uiImage = UIImage(named: assetName) {
                         Image(uiImage: uiImage)
                             .resizable()
@@ -138,6 +147,15 @@ struct ProceduralPetRigView: View {
                         Circle()
                             .fill(Color(hex: pet.primaryCoatHex))
                             .frame(width: minDim * 0.5, height: minDim * 0.5)
+                    }
+
+                    // 《貓與龍》奇幻物種前層（惡魔小角、森靈鹿角、爐火龍息火星、星塵月光）
+                    if pet.kind.isMagical {
+                        MythicalSpeciesFrontLayerCanvas(
+                            pet: pet,
+                            neckAnchor: calibratedNeckAnchor,
+                            time: isStaticSnapshot ? 0.6 : time
+                        )
                     }
 
                     // Soft watercolor warm cheek glow when happy / being brushed
@@ -429,5 +447,275 @@ struct PaperGrainShaderModifier: ViewModifier {
         } else {
             content
         }
+    }
+}
+
+// MARK: - 《貓與龍》風格奇幻物種活體光影與解剖特徵層
+private struct MythicalSpeciesBackLayerCanvas: View {
+    let pet: PetSpec
+    let neckAnchor: (u: CGFloat, v: CGFloat, width: CGFloat)
+    let time: Double
+
+    var body: some View {
+        Canvas { ctx, size in
+            let w = size.width
+            let h = size.height
+            let minDim = min(w, h)
+            let ink = Color(hex: "#231E26").opacity(0.75)
+
+            switch pet.kind {
+            case .demonCat:
+                // 杜松（黑曜惡魔貓）：身後微微拍動的迷你惡魔蝠翼 ＋ 俏皮黑桃尖尾
+                let flap = CGFloat(sin(time * 2.6)) * minDim * 0.020
+                let shoulderX = w * (neckAnchor.u + 0.18)
+                let shoulderY = h * (neckAnchor.v + 0.06)
+
+                var wing = Path()
+                wing.move(to: CGPoint(x: shoulderX, y: shoulderY))
+                wing.addQuadCurve(
+                    to: CGPoint(x: shoulderX + minDim * 0.24, y: shoulderY - minDim * 0.17 - flap),
+                    control: CGPoint(x: shoulderX + minDim * 0.12, y: shoulderY - minDim * 0.18)
+                )
+                wing.addQuadCurve(
+                    to: CGPoint(x: shoulderX + minDim * 0.19, y: shoulderY - minDim * 0.01 - flap * 0.4),
+                    control: CGPoint(x: shoulderX + minDim * 0.18, y: shoulderY - minDim * 0.09)
+                )
+                wing.addQuadCurve(
+                    to: CGPoint(x: shoulderX + minDim * 0.09, y: shoulderY + minDim * 0.04),
+                    control: CGPoint(x: shoulderX + minDim * 0.12, y: shoulderY - minDim * 0.02)
+                )
+                wing.closeSubpath()
+                ctx.fill(
+                    wing,
+                    with: .linearGradient(
+                        Gradient(colors: [Color(hex: "#32263A"), Color(hex: "#6B2E48")]),
+                        startPoint: CGPoint(x: shoulderX, y: shoulderY - minDim * 0.16),
+                        endPoint: CGPoint(x: shoulderX + minDim * 0.20, y: shoulderY + minDim * 0.04)
+                    )
+                )
+                ctx.stroke(wing, with: .color(ink), lineWidth: minDim * 0.008)
+
+                // 黑桃小惡魔尾尖（輕輕擺動）
+                let tailBaseX = w * 0.72
+                let tailBaseY = h * 0.56
+                let wag = CGFloat(sin(time * 2.2)) * minDim * 0.025
+                var tailLine = Path()
+                tailLine.move(to: CGPoint(x: tailBaseX, y: tailBaseY))
+                tailLine.addCurve(
+                    to: CGPoint(x: tailBaseX + minDim * 0.12 + wag, y: tailBaseY - minDim * 0.18),
+                    control1: CGPoint(x: tailBaseX + minDim * 0.12, y: tailBaseY - minDim * 0.04),
+                    control2: CGPoint(x: tailBaseX + minDim * 0.04 + wag, y: tailBaseY - minDim * 0.14)
+                )
+                ctx.stroke(tailLine, with: .color(Color(hex: "#26232D")), style: StrokeStyle(lineWidth: minDim * 0.022, lineCap: .round))
+
+                // 桃心黑桃尾尖
+                let tipX = tailBaseX + minDim * 0.12 + wag
+                let tipY = tailBaseY - minDim * 0.19
+                let s = minDim * 0.040
+                var spade = Path()
+                spade.move(to: CGPoint(x: tipX, y: tipY - s))
+                spade.addQuadCurve(to: CGPoint(x: tipX + s * 0.85, y: tipY + s * 0.25), control: CGPoint(x: tipX + s * 0.9, y: tipY - s * 0.3))
+                spade.addLine(to: CGPoint(x: tipX, y: tipY + s * 0.65))
+                spade.addLine(to: CGPoint(x: tipX - s * 0.85, y: tipY + s * 0.25))
+                spade.addQuadCurve(to: CGPoint(x: tipX, y: tipY - s), control: CGPoint(x: tipX - s * 0.9, y: tipY - s * 0.3))
+                spade.closeSubpath()
+                ctx.fill(spade, with: .color(Color(hex: "#9E3B58")))
+                ctx.stroke(spade, with: .color(ink), lineWidth: minDim * 0.007)
+
+            case .spiritHound:
+                // 梅子（銀月星靈犬）：背後浮動的柔白雲霞仙帶與淡金星環
+                let drift = CGFloat(sin(time * 1.3)) * minDim * 0.018
+                var cloudRibbon = Path()
+                cloudRibbon.move(to: CGPoint(x: w * 0.16, y: h * 0.44 + drift))
+                cloudRibbon.addCurve(
+                    to: CGPoint(x: w * 0.84, y: h * 0.38 - drift),
+                    control1: CGPoint(x: w * 0.36, y: h * 0.18 - drift),
+                    control2: CGPoint(x: w * 0.66, y: h * 0.20 + drift)
+                )
+                ctx.stroke(
+                    cloudRibbon,
+                    with: .linearGradient(
+                        Gradient(colors: [.clear, Color(hex: "#FFFDF6").opacity(0.65), Color(hex: "#DDE8F0").opacity(0.55), .clear]),
+                        startPoint: CGPoint(x: w * 0.16, y: h * 0.4),
+                        endPoint: CGPoint(x: w * 0.84, y: h * 0.4)
+                    ),
+                    style: StrokeStyle(lineWidth: minDim * 0.045, lineCap: .round)
+                )
+
+            case .dragonCat:
+                // 餘燼（赤瓦龍貓）：背後散發的溫暖爐火龍鱗柔光
+                let pulse = 0.22 + sin(time * 2.0) * 0.07
+                ctx.fill(
+                    Path(ellipseIn: CGRect(x: w * 0.24, y: h * 0.22, width: w * 0.56, height: h * 0.52)),
+                    with: .radialGradient(
+                        Gradient(colors: [Color(hex: "#F29D4B").opacity(pulse), Color(hex: "#C85A32").opacity(pulse * 0.35), .clear]),
+                        center: CGPoint(x: w * 0.52, y: h * 0.46),
+                        startRadius: minDim * 0.06,
+                        endRadius: minDim * 0.34
+                    )
+                )
+
+            default:
+                break
+            }
+        }
+    }
+}
+
+private struct MythicalSpeciesFrontLayerCanvas: View {
+    let pet: PetSpec
+    let neckAnchor: (u: CGFloat, v: CGFloat, width: CGFloat)
+    let time: Double
+
+    var body: some View {
+        Canvas { ctx, size in
+            let w = size.width
+            let h = size.height
+            let minDim = min(w, h)
+            let ink = Color(hex: "#251E28").opacity(0.80)
+
+            switch pet.kind {
+            case .demonCat:
+                // 頭頂成對彎曲黑曜緋紅小惡魔角
+                let headX = w * (neckAnchor.u - 0.01)
+                let headY = h * (neckAnchor.v - 0.175)
+                drawCurvedHorn(in: &ctx, base: CGPoint(x: headX - minDim * 0.055, y: headY), dir: -1, scale: minDim, topColor: Color(hex: "#B84A62"), baseColor: Color(hex: "#2B2230"), ink: ink)
+                drawCurvedHorn(in: &ctx, base: CGPoint(x: headX + minDim * 0.045, y: headY - minDim * 0.005), dir: 1, scale: minDim, topColor: Color(hex: "#B84A62"), baseColor: Color(hex: "#2B2230"), ink: ink)
+
+                // 飄浮的紫紅魔法小火星
+                for idx in 0..<3 {
+                    let phase = (time * 0.55 + Double(idx) * 0.33).truncatingRemainder(dividingBy: 1.0)
+                    let px = w * (0.28 + CGFloat(idx) * 0.22) + CGFloat(sin(time * 2.0 + Double(idx))) * minDim * 0.02
+                    let py = h * 0.42 - CGFloat(phase) * minDim * 0.24
+                    let r = minDim * 0.011
+                    ctx.fill(Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)), with: .color(Color(hex: "#D66586").opacity(sin(phase * .pi) * 0.85)))
+                }
+
+            case .dragonCat:
+                // 餘燼（赤瓦龍貓）：上升的爐火橘金小火星與可愛小煙圈
+                for idx in 0..<4 {
+                    let phase = (time * 0.52 + Double(idx) * 0.25).truncatingRemainder(dividingBy: 1.0)
+                    let px = w * (0.25 + CGFloat(idx) * 0.16) + CGFloat(sin(time * 1.8 + Double(idx) * 1.3)) * minDim * 0.025
+                    let py = h * 0.44 - CGFloat(phase) * minDim * 0.28
+                    let r = minDim * (0.013 - CGFloat(phase) * 0.004)
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)),
+                        with: .color(Color(hex: idx % 2 == 0 ? "#FFD275" : "#E86C3A").opacity(sin(phase * .pi) * 0.88))
+                    )
+                }
+
+            case .batCat:
+                // 摺翼（暮光夜魔貓）：星塵月光微芒
+                for idx in 0..<4 {
+                    let phase = (time * 0.45 + Double(idx) * 0.25).truncatingRemainder(dividingBy: 1.0)
+                    let px = w * (0.24 + CGFloat(idx) * 0.18)
+                    let py = h * 0.38 - CGFloat(phase) * minDim * 0.20
+                    let s = minDim * 0.018 * CGFloat(sin(phase * .pi))
+                    var star = Path()
+                    star.move(to: CGPoint(x: px, y: py - s))
+                    star.addLine(to: CGPoint(x: px + s * 0.35, y: py - s * 0.35))
+                    star.addLine(to: CGPoint(x: px + s, y: py))
+                    star.addLine(to: CGPoint(x: px + s * 0.35, y: py + s * 0.35))
+                    star.addLine(to: CGPoint(x: px, y: py + s))
+                    star.addLine(to: CGPoint(x: px - s * 0.35, y: py + s * 0.35))
+                    star.addLine(to: CGPoint(x: px - s, y: py))
+                    star.addLine(to: CGPoint(x: px - s * 0.35, y: py - s * 0.35))
+                    star.closeSubpath()
+                    ctx.fill(star, with: .color(Color(hex: "#EDE2FF").opacity(0.90)))
+                }
+
+            case .impHound:
+                // 鈕扣（墨玉小魔犬）：圓潤小魔角 ＋ 肩畔漂浮的溫柔藍紫小鬼火
+                let headX = w * (neckAnchor.u - 0.01)
+                let headY = h * (neckAnchor.v - 0.17)
+                drawCurvedHorn(in: &ctx, base: CGPoint(x: headX - minDim * 0.06, y: headY), dir: -1, scale: minDim * 0.82, topColor: Color(hex: "#D49B6A"), baseColor: Color(hex: "#322F3D"), ink: ink)
+                drawCurvedHorn(in: &ctx, base: CGPoint(x: headX + minDim * 0.05, y: headY), dir: 1, scale: minDim * 0.82, topColor: Color(hex: "#D49B6A"), baseColor: Color(hex: "#322F3D"), ink: ink)
+
+                let wispX = w * 0.72 + CGFloat(cos(time * 1.6)) * minDim * 0.02
+                let wispY = h * 0.32 + CGFloat(sin(time * 2.2)) * minDim * 0.03
+                let glowR = minDim * 0.065
+                ctx.fill(
+                    Path(ellipseIn: CGRect(x: wispX - glowR, y: wispY - glowR, width: glowR * 2, height: glowR * 2)),
+                    with: .radialGradient(
+                        Gradient(colors: [Color(hex: "#C5B4FF").opacity(0.65), Color(hex: "#7358C7").opacity(0.22), .clear]),
+                        center: CGPoint(x: wispX, y: wispY),
+                        startRadius: 2,
+                        endRadius: glowR
+                    )
+                )
+                ctx.fill(Path(ellipseIn: CGRect(x: wispX - minDim * 0.016, y: wispY - minDim * 0.018, width: minDim * 0.032, height: minDim * 0.036)), with: .color(Color(hex: "#F2EDFF")))
+
+            case .spiritHound:
+                // 梅子（銀月星靈犬）：環繞的淡金小星光
+                for idx in 0..<3 {
+                    let angle = time * 0.9 + Double(idx) * (2.0 * .pi / 3.0)
+                    let px = w * 0.50 + CGFloat(cos(angle)) * minDim * 0.30
+                    let py = h * 0.28 + CGFloat(sin(angle)) * minDim * 0.07
+                    let r = minDim * 0.013
+                    ctx.fill(Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)), with: .color(Color(hex: "#F7DF9C").opacity(0.85)))
+                }
+
+            case .marshHound:
+                // 蘆葦（鹿角森靈犬）：頭頂嫩綠新葉小鹿角 ＋ 林間螢火光點
+                let headX = w * (neckAnchor.u + 0.01)
+                let headY = h * (neckAnchor.v - 0.165)
+                drawBotanicalAntler(in: &ctx, base: CGPoint(x: headX - minDim * 0.045, y: headY), dir: -1, scale: minDim, ink: ink)
+                drawBotanicalAntler(in: &ctx, base: CGPoint(x: headX + minDim * 0.045, y: headY), dir: 1, scale: minDim, ink: ink)
+
+                for idx in 0..<3 {
+                    let phase = (time * 0.5 + Double(idx) * 0.33).truncatingRemainder(dividingBy: 1.0)
+                    let fx = w * (0.30 + CGFloat(idx) * 0.22) + CGFloat(sin(time * 1.4 + Double(idx))) * minDim * 0.03
+                    let fy = h * 0.32 - CGFloat(phase) * minDim * 0.16
+                    let r = minDim * 0.012
+                    ctx.fill(Path(ellipseIn: CGRect(x: fx - r, y: fy - r, width: r * 2, height: r * 2)), with: .color(Color(hex: "#DDF08A").opacity(sin(phase * .pi) * 0.90)))
+                }
+
+            default:
+                break
+            }
+        }
+    }
+
+    private func drawCurvedHorn(in ctx: inout GraphicsContext, base: CGPoint, dir: CGFloat, scale: CGFloat, topColor: Color, baseColor: Color, ink: Color) {
+        var horn = Path()
+        horn.move(to: CGPoint(x: base.x - dir * scale * 0.018, y: base.y + scale * 0.008))
+        horn.addQuadCurve(
+            to: CGPoint(x: base.x + dir * scale * 0.048, y: base.y - scale * 0.082),
+            control: CGPoint(x: base.x + dir * scale * 0.042, y: base.y - scale * 0.020)
+        )
+        horn.addQuadCurve(
+            to: CGPoint(x: base.x + dir * scale * 0.018, y: base.y + scale * 0.008),
+            control: CGPoint(x: base.x + dir * scale * 0.012, y: base.y - scale * 0.035)
+        )
+        horn.closeSubpath()
+        ctx.fill(
+            horn,
+            with: .linearGradient(
+                Gradient(colors: [topColor, baseColor]),
+                startPoint: CGPoint(x: base.x, y: base.y - scale * 0.08),
+                endPoint: CGPoint(x: base.x, y: base.y + scale * 0.01)
+            )
+        )
+        ctx.stroke(horn, with: .color(ink), lineWidth: scale * 0.008)
+    }
+
+    private func drawBotanicalAntler(in ctx: inout GraphicsContext, base: CGPoint, dir: CGFloat, scale: CGFloat, ink: Color) {
+        var stem = Path()
+        stem.move(to: base)
+        stem.addQuadCurve(
+            to: CGPoint(x: base.x + dir * scale * 0.055, y: base.y - scale * 0.095),
+            control: CGPoint(x: base.x + dir * scale * 0.015, y: base.y - scale * 0.055)
+        )
+        var branch = Path()
+        branch.move(to: CGPoint(x: base.x + dir * scale * 0.025, y: base.y - scale * 0.048))
+        branch.addLine(to: CGPoint(x: base.x + dir * scale * 0.072, y: base.y - scale * 0.058))
+        ctx.stroke(stem, with: .color(Color(hex: "#7D5836")), style: StrokeStyle(lineWidth: scale * 0.014, lineCap: .round))
+        ctx.stroke(branch, with: .color(Color(hex: "#7D5836")), style: StrokeStyle(lineWidth: scale * 0.010, lineCap: .round))
+        // Tiny sprouting spring leaf on antler
+        let lx = base.x + dir * scale * 0.068
+        let ly = base.y - scale * 0.068
+        let leaf = Path(ellipseIn: CGRect(x: lx - scale * 0.018, y: ly - scale * 0.010, width: scale * 0.036, height: scale * 0.020))
+        ctx.fill(leaf, with: .color(Color(hex: "#6AA36F")))
+        ctx.stroke(leaf, with: .color(ink), lineWidth: scale * 0.005)
     }
 }

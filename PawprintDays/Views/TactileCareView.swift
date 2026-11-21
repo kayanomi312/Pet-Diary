@@ -109,7 +109,9 @@ struct TactileCareView: View {
                         .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 1))
                     }
 
-                    Text("\(petSpec.kind.rawValue) · \(resident?.milestoneTitle ?? "初次相遇") · 相伴 \(resident?.sharedDaysCount ?? 1) 天")
+                    SpeciesFolkloreBadgeView(kind: petSpec.kind)
+
+                    Text("\(resident?.milestoneTitle ?? "初次相遇") · 相伴 \(resident?.sharedDaysCount ?? 1) 天")
                         .font(AppTheme.serifBody(13.5))
                         .foregroundStyle(AppTheme.softInk)
 
