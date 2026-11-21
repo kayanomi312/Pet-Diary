@@ -6,6 +6,7 @@ struct StreetOverworldView: View {
     @State private var cameraPosition: MapCameraPosition
     @State private var selectedFarAnchor: AnchorSiteRecord? = nil
     @State private var hasCenteredOnRealGPS: Bool = false
+    @State private var showStartStrollSheet: Bool = false
 
     init(coordinator: GameCoordinator) {
         self.coordinator = coordinator
@@ -46,8 +47,10 @@ struct StreetOverworldView: View {
                 .stroke(AppTheme.pawInRange.opacity(0.42), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
 
                 Annotation("", coordinate: coordinator.locationService.currentLocation.coordinate) {
-                    PlayerLanternMapPinView()
-                        .accessibilityLabel("你目前的散步位置")
+                    PlayerLanternMapPinView(
+                        walkingCompanion: coordinator.activeStroll?.companionPetID.map(PetCatalog.pet(id:))
+                    )
+                    .accessibilityLabel("你目前的散步位置")
                 }
 
                 ForEach(coordinator.visibleAnchors, id: \.siteID) { anchor in
@@ -120,6 +123,53 @@ struct StreetOverworldView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 3)
+
+                // 正在進行「出發散步」時的專屬同行橫幅（顯示即時步數、帆布袋小物與「回到家了」結算鈕）
+                if let stroll = coordinator.activeStroll {
+                    StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.forestTeal, paddingAmount: 10) {
+                        HStack(spacing: 10) {
+                            if let compID = stroll.companionPetID {
+                                ProceduralPetRigView(
+                                    pet: PetCatalog.pet(id: compID),
+                                    outfitID: coordinator.resident(for: compID)?.activeOutfitID,
+                                    pose: .notice,
+                                    weatherMode: coordinator.activeWeather,
+                                    applyMetalPaperShader: false,
+                                    isStaticSnapshot: true
+                                )
+                                .frame(width: 40, height: 40)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 5) {
+                                    Circle()
+                                        .fill(AppTheme.vineGreen)
+                                        .frame(width: 7, height: 7)
+                                    Text("散步同行中 · \(stroll.sessionSteps.formatted()) 步")
+                                        .font(AppTheme.diegeticLabel(12))
+                                        .foregroundStyle(AppTheme.deepPineInk)
+                                }
+                                Text(stroll.packedCharm == .none ? "空手輕鬆漫步 · 隨停不扣物" : "帆布袋：\(stroll.packedCharm.title)")
+                                    .font(AppTheme.serifBody(11))
+                                    .foregroundStyle(AppTheme.forestTeal)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 4)
+                            WoodPlaqueButton(
+                                title: "回到家了",
+                                systemImage: "flag.checkered",
+                                tone: .terracotta,
+                                fontSize: 11.5,
+                                horizontalPadding: 10,
+                                verticalPadding: 6
+                            ) {
+                                _ = coordinator.endStrollSession()
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
 
                 if coordinator.showOnboardingPaperSlip {
                     TornPaperSlipView(
@@ -362,26 +412,69 @@ struct StreetOverworldView: View {
 
                     Spacer()
 
-                    WoodPlaqueButton(
-                        title: "前方 60m 釘選街角",
-                        systemImage: "mappin.and.ellipse",
-                        tone: .forestTeal,
-                        fontSize: 12,
-                        horizontalPadding: 14,
-                        verticalPadding: 11
-                    ) {
-                        CozySoundEngine.shared.playPaperFlip()
-                        if let pinned = coordinator.pinFamiliarCornerAhead() {
-                            withAnimation(.easeInOut(duration: 0.5)) {
-                                cameraPosition = .region(
-                                    MKCoordinateRegion(
-                                        center: CLLocationCoordinate2D(latitude: pinned.lat, longitude: pinned.lon),
-                                        latitudinalMeters: 320,
-                                        longitudinalMeters: 320
-                                    )
-                                )
+                    // 中央主操作：未出發顯示「出發散步」儀式鈕；出發中顯示「記下此處 / 模擬散步」＋旁側小釘選鈕
+                    HStack(spacing: 8) {
+                        if coordinator.activeStroll == nil {
+                            WoodPlaqueButton(
+                                title: "出發散步",
+                                systemImage: "figure.walk",
+                                tone: .brassGold,
+                                fontSize: 13.5,
+                                horizontalPadding: 16,
+                                verticalPadding: 11
+                            ) {
+                                CozySoundEngine.shared.playPaperFlip()
+                                showStartStrollSheet = true
+                            }
+                        } else {
+                            WoodPlaqueButton(
+                                title: "結束散步",
+                                systemImage: "checkmark.seal.fill",
+                                tone: .terracotta,
+                                fontSize: 13,
+                                horizontalPadding: 14,
+                                verticalPadding: 11
+                            ) {
+                                _ = coordinator.endStrollSession()
                             }
                         }
+
+                        // 旁側精巧「前方 60m 釘選熟悉街角」木牌鈕
+                        Button {
+                            CozySoundEngine.shared.playPaperFlip()
+                            HapticsEngine.shared.playBrushStrokeTick()
+                            if let pinned = coordinator.pinFamiliarCornerAhead() {
+                                withAnimation(.easeInOut(duration: 0.5)) {
+                                    cameraPosition = .region(
+                                        MKCoordinateRegion(
+                                            center: CLLocationCoordinate2D(latitude: pinned.lat, longitude: pinned.lon),
+                                            latitudinalMeters: 320,
+                                            longitudinalMeters: 320
+                                        )
+                                    )
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "mappin.and.ellipse")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 42, height: 42)
+                                .background(
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                            .fill(Color(hex: "#102E31"))
+                                            .offset(y: 3)
+                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                            .fill(AppTheme.forestTeal)
+                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                            .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                                    }
+                                )
+                                .padding(.bottom, 3)
+                                .shadow(color: AppTheme.deepPineInk.opacity(0.22), radius: 5, y: 3)
+                        }
+                        .buttonStyle(TactileGameButtonStyle())
+                        .accessibilityLabel("前方 60 公尺釘選熟悉街角")
                     }
                     .padding(.bottom, 16)
 
@@ -410,6 +503,18 @@ struct StreetOverworldView: View {
         .sheet(isPresented: $coordinator.showAccessibleNearbyList) {
             AccessibleNearbyListSheet(coordinator: coordinator)
                 .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showStartStrollSheet) {
+            StartStrollSatchelSheet(coordinator: coordinator)
+                .presentationDetents([.large])
+        }
+        .sheet(item: $coordinator.completedStrollSummary) { summary in
+            StrollSummaryPostcardSheet(
+                summary: summary,
+                weather: coordinator.activeWeather,
+                onDismiss: { coordinator.completedStrollSummary = nil }
+            )
+            .presentationDetents([.large])
         }
         .onChange(of: coordinator.locationService.currentLocation) { _, newLoc in
             if !coordinator.locationService.useSimulatedPosition && !hasCenteredOnRealGPS {
@@ -458,13 +563,14 @@ struct StreetOverworldView: View {
 }
 
 private struct PlayerLanternMapPinView: View {
+    var walkingCompanion: PetSpec? = nil
     @State private var pulse = false
 
     var body: some View {
         ZStack {
             Circle()
                 .fill(AppTheme.forestTeal.opacity(pulse ? 0.08 : 0.26))
-                .frame(width: pulse ? 42 : 24, height: pulse ? 42 : 24)
+                .frame(width: pulse ? 44 : 24, height: pulse ? 44 : 24)
 
             Circle()
                 .fill(AppTheme.warmPaper)
@@ -480,9 +586,27 @@ private struct PlayerLanternMapPinView: View {
                 .fill(Color.white.opacity(0.65))
                 .frame(width: 4, height: 4)
                 .offset(x: -2.5, y: -2.5)
+
+            // 出發散步時，同行奇幻夥伴的小頭像跟在你的提燈旁一起漫步！
+            if let comp = walkingCompanion {
+                ProceduralPetRigView(
+                    pet: comp,
+                    pose: .notice,
+                    applyMetalPaperShader: false,
+                    isStaticSnapshot: true
+                )
+                .frame(width: 34, height: 34)
+                .background(
+                    Circle()
+                        .fill(AppTheme.warmPaper)
+                        .overlay(Circle().stroke(AppTheme.pawStrollChain, lineWidth: 1.5))
+                        .shadow(color: AppTheme.deepPineInk.opacity(0.24), radius: 3, y: 2)
+                )
+                .offset(x: 22, y: pulse ? -16 : -12)
+            }
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
                 pulse = true
             }
         }

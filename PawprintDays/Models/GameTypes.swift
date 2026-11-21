@@ -139,25 +139,150 @@ enum PawState: String, Sendable {
 }
 
 enum PetSpeciesKind: String, Codable, Sendable {
-    case ordinaryCat = "普通貓"
-    case dragonCat = "屋瓦龍貓"
-    case batCat = "莢翼蝠貓"
-    case ordinaryDog = "普通狗"
-    case marshHound = "沼澤獵犬"
+    case ordinaryCat = "街角虎斑貓"
+    case demonCat = "黑曜惡魔貓"
+    case dragonCat = "赤瓦龍貓"
+    case batCat = "暮光夜魔貓"
+    case ordinaryDog = "巷口暖金犬"
+    case impHound = "墨玉小魔犬"
+    case spiritHound = "銀月星靈犬"
+    case marshHound = "鹿角森靈犬"
 
     var isCatFamily: Bool {
         switch self {
-        case .ordinaryCat, .dragonCat, .batCat: return true
-        case .ordinaryDog, .marshHound: return false
+        case .ordinaryCat, .demonCat, .dragonCat, .batCat: return true
+        case .ordinaryDog, .impHound, .spiritHound, .marshHound: return false
         }
     }
 
     var isMagical: Bool {
         switch self {
-        case .dragonCat, .batCat, .marshHound: return true
+        case .demonCat, .dragonCat, .batCat, .impHound, .spiritHound, .marshHound: return true
         case .ordinaryCat, .ordinaryDog: return false
         }
     }
+
+    /// 《貓與龍》風格奇幻物種分類徽章
+    var folkloreCategoryTag: String {
+        switch self {
+        case .ordinaryCat: return "森町常住貓"
+        case .demonCat:    return "貓型惡魔"
+        case .dragonCat:   return "貓型火龍"
+        case .batCat:      return "貓型夜翼"
+        case .ordinaryDog: return "街角守護犬"
+        case .impHound:    return "犬型小魔"
+        case .spiritHound: return "銀月星靈"
+        case .marshHound:  return "鹿角森靈"
+        }
+    }
+
+    var badgeSymbol: String {
+        switch self {
+        case .ordinaryCat: return "pawprint.fill"
+        case .demonCat:    return "flame.fill"
+        case .dragonCat:   return "sparkles"
+        case .batCat:      return "moon.stars.fill"
+        case .ordinaryDog: return "sun.max.fill"
+        case .impHound:    return "bolt.heart.fill"
+        case .spiritHound: return "cloud.fill"
+        case .marshHound:  return "leaf.fill"
+        }
+    }
+
+    var badgeHex: String {
+        switch self {
+        case .ordinaryCat: return "#5A7276"
+        case .demonCat:    return "#7D3554"
+        case .dragonCat:   return "#C85A32"
+        case .batCat:      return "#5D4B7A"
+        case .ordinaryDog: return "#B68246"
+        case .impHound:    return "#49476B"
+        case .spiritHound: return "#6E8596"
+        case .marshHound:  return "#3F7356"
+        }
+    }
+}
+
+/// 選用的「單趟帆布散步袋」輕小物（按趟觸發，停下來或忘記關絕不空燒！）
+enum StrollSatchelCharm: String, Codable, CaseIterable, Identifiable, Sendable {
+    case none = "satchel.none"
+    case picnicBread = "satchel.picnic_bread"
+    case forageSachet = "satchel.forage_sachet"
+    case gingerThermos = "satchel.ginger_thermos"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .none:          return "空手輕鬆散步"
+        case .picnicBread:   return "手工野餐麵包袋"
+        case .forageSachet:  return "草本拾遺香包"
+        case .gingerThermos: return "雨天暖薑茶壺"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .none:          return "零消耗，步數與街角相遇完全照常進行。"
+        case .picnicBread:   return "街角更容易吸引第二位奇幻夥伴來串門子，留下雙寵明信片。"
+        case .forageSachet:  return "散步時嗅覺加成 ×1.35，更快累積口袋拾遺進度。"
+        case .gingerThermos: return "為這趟散步添上暖意手記，返家結算額外回贈 +2 步數幣。"
+        }
+    }
+
+    var priceCoins: Int {
+        switch self {
+        case .none:          return 0
+        case .picnicBread:   return 5
+        case .forageSachet:  return 6
+        case .gingerThermos: return 6
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .none:          return "figure.walk"
+        case .picnicBread:   return "basket.fill"
+        case .forageSachet:  return "leaf.fill"
+        case .gingerThermos: return "cup.and.saucer.fill"
+        }
+    }
+
+    var tintHex: String {
+        switch self {
+        case .none:          return "#5A7276"
+        case .picnicBread:   return "#C85A32"
+        case .forageSachet:  return "#4B7A54"
+        case .gingerThermos: return "#C98D26"
+        }
+    }
+}
+
+struct ActiveStrollSession: Sendable {
+    var sessionID: UUID = UUID()
+    var startedAt: Date = Date()
+    var localDateISO: String
+    var companionPetID: String?
+    var packedCharm: StrollSatchelCharm
+    var sessionSteps: Int = 0
+    var sessionCoinsEarned: Int = 0
+    var sessionEncountersCount: Int = 0
+    var sessionCuriosFound: [String] = []
+    var routePoints: [CoordinatePoint] = []
+}
+
+struct CompletedStrollSummary: Identifiable, Sendable {
+    let id: UUID
+    let localDateISO: String
+    let durationMinutes: Int
+    let companionPetID: String?
+    let packedCharm: StrollSatchelCharm
+    let totalSteps: Int
+    let coinsEarned: Int
+    let encountersCount: Int
+    let curiosFoundIDs: [String]
+    let routePoints: [CoordinatePoint]
+    let bonusNote: String?
 }
 
 enum HabitFamily: String, Codable, CaseIterable, Sendable {

@@ -37,6 +37,7 @@
 		CA8581F4D6976F1140243EA6 /* RootStageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA4F7120974E6DAA6C348D1B /* RootStageView.swift */; };
 		D03F5B5256D397DB58C261A1 /* StorybookGameUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9131649D46AD6C948295A1D7 /* StorybookGameUI.swift */; };
 		D61598D9F86F05DED885F12B /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514894921375578990F18305 /* AppTheme.swift */; };
+		D831966FC956CB4BAE66930C /* StrollRitualSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 577B6815AA46FB69A029BEF6 /* StrollRitualSheets.swift */; };
 		DDED72C953C9AC79544709AF /* GameCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93CFFA2DFDC1657DFAD6BE0 /* GameCoordinator.swift */; };
 		E20E7734E37C49E6BF10D31D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 294ECBE64107C69E3AE79B88 /* Assets.xcassets */; };
 		E2B720A0774F3E793E5340E2 /* AnchorRotationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FAA300ED020BC39BC83F973 /* AnchorRotationEngine.swift */; };
@@ -69,6 +70,7 @@
 		4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stage2To4VerificationTests.swift; sourceTree = "<group>"; };
 		4EF9FFDCCCDA69DD0153196B /* dog_ball_roll.ahap */ = {isa = PBXFileReference; path = dog_ball_roll.ahap; sourceTree = "<group>"; };
 		514894921375578990F18305 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		577B6815AA46FB69A029BEF6 /* StrollRitualSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrollRitualSheets.swift; sourceTree = "<group>"; };
 		5992DDFD7AC5C1C8E2CD7170 /* PawprintDays.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PawprintDays.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5A600ABFFADCDFB70A967183 /* GameTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTypes.swift; sourceTree = "<group>"; };
 		60C2DCCD080EBEEA8618B504 /* TactileCareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TactileCareView.swift; sourceTree = "<group>"; };
@@ -107,6 +109,7 @@
 				8D31E76984681A384C3B6706 /* SidewalkEncounterView.swift */,
 				E1F46AB30C29BDC7D91D29B7 /* Stage1FixtureDrawerView.swift */,
 				7E7D5485F75FC57B5EBD6075 /* StreetOverworldView.swift */,
+				577B6815AA46FB69A029BEF6 /* StrollRitualSheets.swift */,
 				60C2DCCD080EBEEA8618B504 /* TactileCareView.swift */,
 			);
 			path = Views;
@@ -356,6 +359,7 @@
 				D03F5B5256D397DB58C261A1 /* StorybookGameUI.swift in Sources */,
 				0437345AC7B1271F5FDA70B5 /* StorybookPropArt.swift in Sources */,
 				C965EDB14F54B1C970770E42 /* StreetOverworldView.swift in Sources */,
+				D831966FC956CB4BAE66930C /* StrollRitualSheets.swift in Sources */,
 				369D3BD8F3426939791248D1 /* SwiftDataModels.swift in Sources */,
 				15CE874DE2B01B22BA78CC3B /* TactileCareView.swift in Sources */,
 			);

@@ -32,6 +32,8 @@ final class GameCoordinator {
     var isDiscoveringAnchors: Bool = false
     var activeQuietRevisit: QuietRevisitMoment? = nil
     var newlyUnpackedCurio: ForagedCurioEntry? = nil
+    var activeStroll: ActiveStrollSession? = nil
+    var completedStrollSummary: CompletedStrollSummary? = nil
 
     var anchors: [AnchorSiteRecord] = []
     var residents: [PetResidentState] = []
@@ -625,8 +627,18 @@ final class GameCoordinator {
             return existing
         }
 
-        let secondarySpec = companionStreetPetID.map(PetCatalog.pet(id:))
-        let secondaryOutfit = companionStreetPetID.flatMap { resident(for: $0)?.activeOutfitID }
+        var resolvedSecondaryPetID = companionStreetPetID
+        // 若正帶著「手工野餐麵包袋」出門散步，街角會悄悄吸引另一位已入住的奇幻夥伴來串門子！
+        if resolvedSecondaryPetID == nil,
+           activeStroll?.packedCharm == .picnicBread {
+            let otherInvited = residents.filter { $0.inviteState == .invitedHome && $0.petID != petID }
+            if let cameo = otherInvited.first(where: { $0.petID == activeStroll?.companionPetID }) ?? otherInvited.first {
+                resolvedSecondaryPetID = cameo.petID
+            }
+        }
+
+        let secondarySpec = resolvedSecondaryPetID.map(PetCatalog.pet(id:))
+        let secondaryOutfit = resolvedSecondaryPetID.flatMap { resident(for: $0)?.activeOutfitID }
         let activePack = ledger.activeOutingPack
         let isWideSpread = (activePack == .sketchbookCharcoal)
 
@@ -681,7 +693,7 @@ final class GameCoordinator {
             localDateISO: dateISO,
             timeZoneID: TimeZone.current.identifier,
             petID: petID,
-            secondaryPetID: companionStreetPetID,
+            secondaryPetID: resolvedSecondaryPetID,
             sceneRevisionID: selection.sceneRevisionID,
             gestureChosen: gesture,
             equippedOutfitSnapshotID: frozenOutfitID,
@@ -749,9 +761,110 @@ final class GameCoordinator {
             now: currentSimulatedDate
         )
 
+        if var stroll = activeStroll {
+            stroll.sessionEncountersCount += 1
+            stroll.routePoints = locationService.liveTrail
+            activeStroll = stroll
+        }
+
         try? modelContext.save()
         reloadAll()
         return log
+    }
+
+    // MARK: - 選用「出發散步」儀式與帆布散步袋（不開也能自動計步；開啟後可畫路線、帶單趟輕小物並領結算明信片）
+    @discardableResult
+    func startStrollSession(companionPetID: String?, charm: StrollSatchelCharm) -> Bool {
+        if charm.priceCoins > 0 {
+            guard ledger.coinBalance >= charm.priceCoins else {
+                showWhisper("需要 \(charm.priceCoins) 步數幣才能裝進「\(charm.title)」（目前有 \(ledger.coinBalance) 幣）。")
+                return false
+            }
+            ledger.coinBalance -= charm.priceCoins
+        }
+
+        let day = todayDiaryRecord()
+        if let companionPetID {
+            day.companionPetID = companionPetID
+        }
+
+        let initialCoord = locationService.currentLocation.coordinate
+        let startPoint = CoordinatePoint(latitude: initialCoord.latitude, longitude: initialCoord.longitude, timestamp: currentSimulatedDate)
+        activeStroll = ActiveStrollSession(
+            startedAt: currentSimulatedDate,
+            localDateISO: currentLocalDateISO,
+            companionPetID: day.companionPetID,
+            packedCharm: charm,
+            routePoints: [startPoint]
+        )
+
+        CozySoundEngine.shared.playCompassChime()
+        HapticsEngine.shared.playPawRangeCue()
+        let companionName = day.companionPetID.map { PetCatalog.pet(id: $0).name } ?? "小動物夥伴"
+        if charm == .none {
+            showWhisper("已和\(companionName)輕鬆出發！沿途會記下水彩足跡，停下休息絕不浪費任何物品。")
+        } else {
+            showWhisper("已將「\(charm.title)」放進帆布袋，和\(companionName)出發散步囉！")
+        }
+        try? modelContext.save()
+        reloadAll()
+        return true
+    }
+
+    @discardableResult
+    func endStrollSession(autoArchived: Bool = false) -> CompletedStrollSummary? {
+        guard let stroll = activeStroll else { return nil }
+        activeStroll = nil
+
+        var finalCoins = stroll.sessionCoinsEarned
+        var bonusNote: String? = nil
+        let day = todayDiaryRecord()
+
+        if stroll.packedCharm == .gingerThermos && (stroll.sessionSteps > 0 || stroll.sessionEncountersCount > 0) {
+            ledger.coinBalance += 2
+            finalCoins += 2
+            let note = "散步返家喝了暖呼呼的薑茶（暖薑茶壺回禮 +2 步數幣）"
+            bonusNote = note
+            if !day.revisitNotes.contains(note) {
+                day.revisitNotes.append(note)
+            }
+        } else if stroll.packedCharm == .picnicBread && stroll.sessionEncountersCount > 0 {
+            bonusNote = "手工麵包香引來了熟悉的小夥伴在街角串門子！"
+        } else if stroll.packedCharm == .forageSachet && stroll.sessionSteps > 0 {
+            bonusNote = "草本香包讓這趟散步的口袋拾遺嗅覺提升了 35%。"
+        }
+
+        let mergedRoute = locationService.liveTrail.count >= stroll.routePoints.count
+            ? locationService.liveTrail
+            : stroll.routePoints
+        if let trail = locationService.encodeTrailGeoJSON() {
+            day.routeTrackGeoJSON = trail
+        }
+
+        let minutes = max(1, Int(currentSimulatedDate.timeIntervalSince(stroll.startedAt) / 60.0))
+        let summary = CompletedStrollSummary(
+            id: stroll.sessionID,
+            localDateISO: stroll.localDateISO,
+            durationMinutes: minutes,
+            companionPetID: stroll.companionPetID,
+            packedCharm: stroll.packedCharm,
+            totalSteps: stroll.sessionSteps,
+            coinsEarned: finalCoins,
+            encountersCount: stroll.sessionEncountersCount,
+            curiosFoundIDs: stroll.sessionCuriosFound,
+            routePoints: mergedRoute,
+            bonusNote: bonusNote
+        )
+
+        try? modelContext.save()
+        reloadAll()
+
+        if !autoArchived {
+            completedStrollSummary = summary
+            CozySoundEngine.shared.playPaperFlip()
+            HapticsEngine.shared.playCurioUnpack()
+        }
+        return summary
     }
 
     // MARK: - Steps, Coins, Shop, Treats & Outings
@@ -783,6 +896,47 @@ final class GameCoordinator {
 
         if result.newlyAcceptedSteps > 0 {
             advanceMentorshipSteps(by: result.newlyAcceptedSteps)
+        }
+
+        var newlyForagedIDs = result.newCuriosForaged.map(\.curioID)
+
+        // 若正在進行「出發散步」：累積本趟步數與路線；若帶了「草本拾遺香包」享額外 +35% 拾遺嗅覺進度
+        if var stroll = activeStroll {
+            stroll.sessionSteps += result.newlyAcceptedSteps
+            stroll.sessionCoinsEarned += result.coinsAwarded
+            stroll.routePoints = locationService.liveTrail
+
+            if stroll.packedCharm == .forageSachet && result.newlyAcceptedSteps > 0 && day.companionPetID != nil {
+                let bonusForage = Int(Double(result.newlyAcceptedSteps) * 0.35)
+                if bonusForage > 0 {
+                    ledger.pocketFindStepProgress += bonusForage
+                    while ledger.pocketFindStepProgress >= StepCoinLedgerEngine.stepsPerPocketFind {
+                        ledger.pocketFindStepProgress -= StepCoinLedgerEngine.stepsPerPocketFind
+                        let curio = CurioCatalog.pickFor(
+                            weather: activeWeather,
+                            placeLabel: placeLabel,
+                            seed: ledger.foragedCurios.count + bonusForage
+                        )
+                        let entry = ForagedCurioEntry(
+                            curioID: curio.id,
+                            placeLabel: placeLabel,
+                            weatherCode: activeWeather.rawValue,
+                            localDateISO: currentLocalDateISO
+                        )
+                        var existing = ledger.foragedCurios
+                        existing.insert(entry, at: 0)
+                        ledger.foragedCurios = existing
+                        newlyForagedIDs.append(entry.curioID)
+                        newlyUnpackedCurio = entry
+                        HapticsEngine.shared.playCurioUnpack()
+                        CozySoundEngine.shared.playPaperFlip()
+                        showWhisper("香包嗅覺加成！撿到口袋拾遺：\(curio.name)")
+                    }
+                }
+            }
+
+            stroll.sessionCuriosFound.append(contentsOf: newlyForagedIDs)
+            activeStroll = stroll
         }
 
         if let firstCurio = result.newCuriosForaged.first {
@@ -1046,6 +1200,10 @@ final class GameCoordinator {
 
     // MARK: - 14-Day Fast-Forward Deterministic Verification Fixture
     func advanceSimulatedDays(_ days: Int) {
+        if activeStroll != nil {
+            // 跨日防呆：忘記按結束也不浪費任何資源，自動溫柔歸檔進前一天日記
+            _ = endStrollSession(autoArchived: true)
+        }
         if let next = Calendar(identifier: .gregorian).date(byAdding: .day, value: days, to: currentSimulatedDate) {
             currentSimulatedDate = next
             _ = todayDiaryRecord()

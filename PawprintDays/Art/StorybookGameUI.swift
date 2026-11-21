@@ -582,3 +582,31 @@ struct LiveTouchSparkleLayer: View {
         .allowsHitTesting(false)
     }
 }
+
+// MARK: - 10. 《貓與龍》奇幻物種徽章（貓型火龍、貓型惡魔、貓型夜翼、鹿角森靈等）
+struct SpeciesFolkloreBadgeView: View {
+    let kind: PetSpeciesKind
+    var showFullName: Bool = true
+
+    var body: some View {
+        let tint = Color(hex: kind.badgeHex)
+        HStack(spacing: 4) {
+            Image(systemName: kind.badgeSymbol)
+                .font(.system(size: 10.5, weight: .bold))
+            Text(showFullName ? "\(kind.folkloreCategoryTag) · \(kind.rawValue)" : kind.folkloreCategoryTag)
+                .font(AppTheme.diegeticLabel(10.5))
+        }
+        .foregroundStyle(kind.isMagical ? Color(hex: "#FFFDF7") : AppTheme.deepPineInk)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(
+            Capsule()
+                .fill(kind.isMagical ? tint : AppTheme.warmPaper.opacity(0.95))
+                .overlay(
+                    Capsule()
+                        .stroke(kind.isMagical ? Color.white.opacity(0.32) : tint.opacity(0.55), lineWidth: 1)
+                )
+        )
+        .shadow(color: tint.opacity(0.22), radius: 3, y: 1)
+    }
+}

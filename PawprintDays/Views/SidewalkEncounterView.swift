@@ -122,6 +122,9 @@ struct SidewalkEncounterView: View {
                     }
                 }
 
+                SpeciesFolkloreBadgeView(kind: petSpec.kind)
+                    .padding(.top, 2)
+
                 TornPaperSlipView(
                     text: slipText.isEmpty ? openingWhisper : slipText,
                     subtitle: subtitleLabel
