@@ -1,52 +1,116 @@
 import SwiftUI
 
-/// 黃銅懷錶羅盤（左下角實體道具）
+/// 黃銅懷錶羅盤（左下角實體道具 — 含微幅擺動指針、弧面玻璃反光與彈跳按壓手感）
 struct BrassPocketCompassButton: View {
     let destinationLabel: String
     let iconSystemName: String
     let onTap: () -> Void
     let onLongPress: () -> Void
 
+    @State private var isPressed = false
+
     var body: some View {
-        ZStack {
-            // 懷錶吊環
-            Circle()
-                .stroke(AppTheme.brassDark, lineWidth: 2.5)
-                .frame(width: 14, height: 14)
-                .offset(y: -31)
+        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            let needleSwing = sin(t * 1.6) * 8.0
 
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [AppTheme.brassLight, AppTheme.brassDark],
-                        center: .topLeading,
-                        startRadius: 4,
-                        endRadius: 34
-                    )
-                )
-                .frame(width: 58, height: 58)
-                .shadow(color: AppTheme.deepPineInk.opacity(0.28), radius: 6, y: 3)
+            VStack(spacing: 3) {
+                ZStack {
+                    // 懷錶吊環與黃銅錶冠
+                    Circle()
+                        .stroke(AppTheme.brassDark, lineWidth: 2.8)
+                        .frame(width: 15, height: 15)
+                        .offset(y: -32)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(AppTheme.brassLight)
+                        .frame(width: 8, height: 5)
+                        .overlay(RoundedRectangle(cornerRadius: 2).stroke(AppTheme.brassDark, lineWidth: 0.9))
+                        .offset(y: -27)
 
-            Circle()
-                .fill(AppTheme.warmPaper)
-                .frame(width: 46, height: 46)
-                .overlay(Circle().stroke(AppTheme.brassDark.opacity(0.55), lineWidth: 1.2))
+                    // 立體底座陰影唇邊
+                    Circle()
+                        .fill(Color(hex: "#5A3F13"))
+                        .frame(width: 60, height: 60)
+                        .offset(y: 3)
 
-            ForEach(0..<4, id: \.self) { idx in
-                Rectangle()
-                    .fill(AppTheme.deepPineInk.opacity(0.45))
-                    .frame(width: 1.5, height: 5)
-                    .offset(y: -18)
-                    .rotationEffect(.degrees(Double(idx) * 90))
+                    // 黃銅外殼
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color(hex: "#F0D38E"), AppTheme.brassLight, AppTheme.brassDark],
+                                center: .topLeading,
+                                startRadius: 3,
+                                endRadius: 36
+                            )
+                        )
+                        .frame(width: 60, height: 60)
+                        .overlay(Circle().stroke(AppTheme.deepPineInk.opacity(0.28), lineWidth: 1.1))
+                        .shadow(color: AppTheme.deepPineInk.opacity(0.26), radius: 6, y: 3)
+
+                    // 象牙白羅盤面
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Color(hex: "#FFFDF7"), AppTheme.warmPaper, Color(hex: "#EAE0CA")],
+                                center: .center,
+                                startRadius: 4,
+                                endRadius: 26
+                            )
+                        )
+                        .frame(width: 48, height: 48)
+                        .overlay(Circle().stroke(AppTheme.brassDark.opacity(0.65), lineWidth: 1.3))
+
+                    // 八方位刻度
+                    ForEach(0..<8, id: \.self) { idx in
+                        Rectangle()
+                            .fill(idx % 2 == 0 ? AppTheme.deepPineInk.opacity(0.55) : AppTheme.timberWarm.opacity(0.45))
+                            .frame(width: idx % 2 == 0 ? 1.6 : 1.0, height: idx % 2 == 0 ? 5 : 3)
+                            .offset(y: -19)
+                            .rotationEffect(.degrees(Double(idx) * 45))
+                    }
+
+                    // 微微晃動的古銅羅盤針
+                    Capsule()
+                        .fill(AppTheme.clothBookmark.opacity(0.42))
+                        .frame(width: 3, height: 32)
+                        .rotationEffect(.degrees(28 + needleSwing))
+
+                    Image(systemName: iconSystemName)
+                        .font(.system(size: 19, weight: .bold))
+                        .foregroundStyle(AppTheme.forestTeal)
+
+                    // 弧面玻璃高光
+                    Ellipse()
+                        .fill(Color.white.opacity(0.35))
+                        .frame(width: 24, height: 10)
+                        .rotationEffect(.degrees(-25))
+                        .offset(x: -7, y: -13)
+                }
+                .frame(width: 68, height: 68)
+                .scaleEffect(isPressed ? 0.92 : 1.0)
+                .offset(y: isPressed ? 2.5 : 0)
+                .animation(.spring(response: 0.22, dampingFraction: 0.65), value: isPressed)
+
+                Text(iconSystemName == "house.fill" ? "回陽光室" : "去散步")
+                    .font(AppTheme.diegeticLabel(11))
+                    .foregroundStyle(AppTheme.deepPineInk)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(AppTheme.warmPaper.opacity(0.94), in: Capsule())
+                    .overlay(Capsule().stroke(AppTheme.brassDark.opacity(0.45), lineWidth: 0.9))
+                    .shadow(color: AppTheme.deepPineInk.opacity(0.14), radius: 3, y: 1)
             }
-
-            Image(systemName: iconSystemName)
-                .font(.system(size: 19, weight: .semibold))
-                .foregroundStyle(AppTheme.forestTeal)
         }
-        .frame(width: 68, height: 68)
-        .contentShape(Circle())
-        .onTapGesture(perform: onTap)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isPressed = true
+            HapticsEngine.shared.playBrushStrokeTick()
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(110))
+                isPressed = false
+                onTap()
+            }
+        }
         .onLongPressGesture(minimumDuration: 0.9, perform: onLongPress)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(destinationLabel)
@@ -69,57 +133,93 @@ struct CompanionMedallionView: View {
         min(1.0, Double(progressSteps) / Double(StepCoinLedgerEngine.stepsPerPocketFind))
     }
 
+    private var remainingSteps: Int {
+        StepCoinLedgerEngine.stepsRemainingForPocketFind(progress: progressSteps)
+    }
+
     var body: some View {
-        Button(action: onTap) {
-            ZStack {
-                if isNearFind {
+        Button {
+            HapticsEngine.shared.playBrushStrokeTick()
+            onTap()
+        } label: {
+            VStack(spacing: 3) {
+                ZStack {
+                    if isNearFind {
+                        Circle()
+                            .fill(AppTheme.pawStrollChain.opacity(pulse ? 0.42 : 0.16))
+                            .frame(width: 74, height: 74)
+                            .scaleEffect(pulse ? 1.14 : 0.95)
+                    }
+
+                    // 溫潤木紋外框底影
                     Circle()
-                        .fill(AppTheme.pawStrollChain.opacity(pulse ? 0.38 : 0.16))
-                        .frame(width: 72, height: 72)
-                        .scaleEffect(pulse ? 1.12 : 0.96)
+                        .fill(AppTheme.timberDeep.opacity(0.32))
+                        .frame(width: 62, height: 62)
+                        .offset(y: 3)
+
+                    Circle()
+                        .fill(AppTheme.warmPaper)
+                        .frame(width: 62, height: 62)
+                        .shadow(color: AppTheme.deepPineInk.opacity(0.24), radius: 5, y: 3)
+
+                    Circle()
+                        .stroke(AppTheme.timberWarm.opacity(0.30), lineWidth: 5)
+                        .frame(width: 58, height: 58)
+
+                    Circle()
+                        .trim(from: 0, to: max(0.06, progressFraction))
+                        .stroke(
+                            isNearFind ? AppTheme.pawStrollChain : AppTheme.vineGreen,
+                            style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: 58, height: 58)
+
+                    // 藤蔓小嫩葉點綴在進度端點
+                    Image(systemName: isNearFind ? "sparkles" : "leaf.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(isNearFind ? AppTheme.pawStrollChain : AppTheme.vineGreen)
+                        .padding(3)
+                        .background(AppTheme.warmPaper, in: Circle())
+                        .offset(y: -29)
+                        .rotationEffect(.degrees(progressFraction * 360.0))
+
+                    if let pet {
+                        ProceduralPetRigView(
+                            pet: pet,
+                            outfitID: outfitID,
+                            pose: .notice,
+                            isHappySquint: isNearFind,
+                            applyMetalPaperShader: false,
+                            isStaticSnapshot: true
+                        )
+                        .frame(width: 68, height: 68)
+                        .offset(y: 12)
+                        .frame(width: 48, height: 48)
+                        .clipShape(Circle())
+                        .offset(y: isNearFind && pulse ? -1.5 : 0)
+                    } else {
+                        Image(systemName: "pawprint.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(AppTheme.forestTeal.opacity(0.75))
+                    }
                 }
+                .frame(width: 68, height: 68)
 
-                Circle()
-                    .fill(AppTheme.warmPaper)
-                    .frame(width: 60, height: 60)
-                    .shadow(color: AppTheme.deepPineInk.opacity(0.24), radius: 5, y: 3)
-
-                Circle()
-                    .stroke(AppTheme.timberWarm.opacity(0.28), lineWidth: 4.5)
-                    .frame(width: 58, height: 58)
-
-                Circle()
-                    .trim(from: 0, to: max(0.06, progressFraction))
-                    .stroke(
-                        isNearFind ? AppTheme.pawStrollChain : AppTheme.vineGreen,
-                        style: StrokeStyle(lineWidth: 4.5, lineCap: .round)
+                Text(isNearFind ? "快拾獲啦!" : (pet != nil ? "\(pet!.name) · \(remainingSteps)步" : "散步夥伴"))
+                    .font(AppTheme.diegeticLabel(10))
+                    .foregroundStyle(isNearFind ? Color(hex: "#FFFDF7") : AppTheme.deepPineInk)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(
+                        (isNearFind ? AppTheme.pawStrollChain : AppTheme.warmPaper.opacity(0.94)),
+                        in: Capsule()
                     )
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: 58, height: 58)
-
-                if let pet {
-                    ProceduralPetRigView(
-                        pet: pet,
-                        outfitID: outfitID,
-                        pose: .notice,
-                        isHappySquint: isNearFind,
-                        applyMetalPaperShader: false,
-                        isStaticSnapshot: true
-                    )
-                    .frame(width: 68, height: 68)
-                    .offset(y: 12)
-                    .frame(width: 48, height: 48)
-                    .clipShape(Circle())
-                    .offset(y: isNearFind && pulse ? -1.5 : 0)
-                } else {
-                    Image(systemName: "pawprint.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(AppTheme.forestTeal.opacity(0.7))
-                }
+                    .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 0.9))
+                    .shadow(color: AppTheme.deepPineInk.opacity(0.14), radius: 3, y: 1)
             }
-            .frame(width: 68, height: 68)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TactileGameButtonStyle())
         .onAppear {
             withAnimation(.easeInOut(duration: 1.3).repeatForever(autoreverses: true)) {
                 pulse = true
@@ -127,7 +227,7 @@ struct CompanionMedallionView: View {
         }
         .accessibilityLabel(
             pet != nil
-            ? "\(pet!.name) 散步夥伴圓章。再走 \(StepCoinLedgerEngine.stepsRemainingForPocketFind(progress: progressSteps)) 步就能撿到口袋拾遺。"
+            ? "\(pet!.name) 散步夥伴圓章。再走 \(remainingSteps) 步就能撿到口袋拾遺。"
             : "打開精裝速寫日記與選擇散步夥伴。"
         )
     }
@@ -210,7 +310,7 @@ struct DeckledPaperVignetteOverlay: View {
     }
 }
 
-/// 手撕棉紙低語條（WCAG AAA 11.4:1 戶外高對比）
+/// 手撕棉紙低語條（WCAG AAA 11.4:1 戶外高對比 ＋ GPU 冷壓棉紙肌理 ＋ 縫線邊框）
 struct TornPaperSlipView: View {
     @Environment(\.colorSchemeContrast) private var contrast
     let text: String
@@ -218,87 +318,149 @@ struct TornPaperSlipView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(text)
-                .font(AppTheme.serifBody(16))
-                .foregroundStyle(AppTheme.deepPineInk)
-                .fixedSize(horizontal: false, vertical: true)
-            if let subtitle {
-                Text(subtitle)
-                    .font(AppTheme.diegeticLabel(12))
-                    .foregroundStyle(AppTheme.forestTeal)
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "sparkle")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(AppTheme.pawStrollChain)
+                    .padding(.top, 4)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(text)
+                        .font(AppTheme.serifBody(15.5))
+                        .foregroundStyle(AppTheme.deepPineInk)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(AppTheme.diegeticLabel(11.5))
+                            .foregroundStyle(AppTheme.forestTeal)
+                    }
+                }
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 13)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(contrast == .increased ? Color.white : AppTheme.warmPaper.opacity(0.96))
-                .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 8, y: 4)
+            ZStack {
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .fill(contrast == .increased ? Color.white : AppTheme.warmPaper.opacity(0.97))
+                    .colorEffect(ShaderLibrary.storybookPaperSurface())
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .stroke(AppTheme.timberWarm.opacity(0.24), style: StrokeStyle(lineWidth: 0.9, dash: [4, 3]))
+                    .padding(3.5)
+            }
+            .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 8, y: 4)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 15, style: .continuous)
                 .stroke(
-                    contrast == .increased ? AppTheme.deepPineInk : AppTheme.timberWarm.opacity(0.45),
-                    lineWidth: contrast == .increased ? 2.0 : 1.0
+                    contrast == .increased ? AppTheme.deepPineInk : AppTheme.timberWarm.opacity(0.55),
+                    lineWidth: contrast == .increased ? 2.0 : 1.2
                 )
         )
     }
 }
 
-/// 頂部布書籤列（日記本、拾遺木格與步數幣袋、測試工具）
+/// 頂部繪本遊戲書籤列（手繪天氣木牌、刺繡步數幣袋、硬殼日記本按鈕）
 struct ClothBookmarkBar: View {
     let onOpenSketchbook: () -> Void
     let onOpenCubbies: () -> Void
     let onOpenFixture: () -> Void
     let dayTitle: String
     let weather: WeatherMode
+    var coinBalance: Int? = nil
 
     var body: some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: weather.sfSymbol)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(AppTheme.forestTeal)
-                Text(dayTitle)
-                    .font(AppTheme.serifBody(13))
-                    .foregroundStyle(AppTheme.deepPineInk)
-                    .lineLimit(1)
+        HStack(spacing: 8) {
+            // 左側：手繪天氣與日期木牌（點擊可開啟天氣與時間光影面板）
+            Button {
+                HapticsEngine.shared.playBrushStrokeTick()
+                onOpenFixture()
+            } label: {
+                HStack(spacing: 6) {
+                    ZStack {
+                        Circle()
+                            .fill(weatherBadgeTint.opacity(0.22))
+                            .frame(width: 24, height: 24)
+                        Image(systemName: weather.sfSymbol)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(weatherBadgeTint)
+                    }
+                    Text(dayTitle)
+                        .font(AppTheme.serifBody(13))
+                        .fontWeight(.semibold)
+                        .foregroundStyle(AppTheme.deepPineInk)
+                        .lineLimit(1)
+                }
+                .padding(.leading, 6)
+                .padding(.trailing, 12)
+                .padding(.vertical, 5)
+                .background(
+                    ZStack {
+                        Capsule().fill(Color(hex: "#C8B392")).offset(y: 2.5)
+                        Capsule().fill(AppTheme.warmPaper.opacity(0.97))
+                        Capsule().stroke(AppTheme.timberWarm.opacity(0.55), lineWidth: 1.1)
+                    }
+                )
+                .padding(.bottom, 2.5)
+                .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 4, y: 2)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(AppTheme.warmPaper.opacity(0.94), in: Capsule())
-            .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.38), lineWidth: 1))
-            .onTapGesture(perform: onOpenFixture)
+            .buttonStyle(TactileGameButtonStyle(pressScale: 0.95, pressOffsetY: 1.5))
             .accessibilityLabel("\(dayTitle)，\(weather.displayName)。點擊開啟測試與天氣切換面板。")
 
-            Spacer()
+            Spacer(minLength: 4)
 
-            Button(action: onOpenSketchbook) {
-                HStack(spacing: 5) {
-                    Image(systemName: "book.closed.fill")
-                        .font(.system(size: 13))
-                    Text("日記")
-                        .font(AppTheme.diegeticLabel(12))
+            // 右側 1：刺繡步數幣袋與拾遺木格按鈕
+            Button {
+                CozySoundEngine.shared.playPaperFlip()
+                HapticsEngine.shared.playBrushStrokeTick()
+                onOpenCubbies()
+            } label: {
+                HStack(spacing: 4) {
+                    PaintedPouchIconView(size: 22)
+                    if let coinBalance {
+                        Text("\(coinBalance)")
+                            .font(.system(size: 13, weight: .bold, design: .serif))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                    }
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(AppTheme.forestTeal, in: Capsule())
-                .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 4, y: 2)
+                .padding(.horizontal, coinBalance != nil ? 10 : 8)
+                .padding(.vertical, 6)
+                .background(
+                    ZStack {
+                        Capsule().fill(Color(hex: "#B59563")).offset(y: 2.5)
+                        Capsule().fill(AppTheme.warmPaper.opacity(0.97))
+                        Capsule().stroke(AppTheme.brassDark.opacity(0.55), lineWidth: 1.1)
+                    }
+                )
+                .padding(.bottom, 2.5)
+                .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 4, y: 2)
             }
-            .buttonStyle(.plain)
-
-            Button(action: onOpenCubbies) {
-                Image(systemName: "square.grid.2x2.fill")
-                    .font(.system(size: 14))
-                    .foregroundStyle(AppTheme.deepPineInk)
-                    .frame(width: 36, height: 36)
-                    .background(AppTheme.warmPaper.opacity(0.94), in: Circle())
-                    .overlay(Circle().stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 1))
-            }
-            .buttonStyle(.plain)
+            .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1.5))
             .accessibilityLabel("拾遺木格與步數幣袋")
+
+            // 右側 2：精裝日記本縫線書籤鈕
+            WoodPlaqueButton(
+                title: "日記",
+                systemImage: "book.closed.fill",
+                tone: .forestTeal,
+                fontSize: 12,
+                horizontalPadding: 12,
+                verticalPadding: 7,
+                action: {
+                    CozySoundEngine.shared.playPaperFlip()
+                    onOpenSketchbook()
+                }
+            )
         }
         .padding(.horizontal, 16)
+    }
+
+    private var weatherBadgeTint: Color {
+        switch weather {
+        case .clearMorning: return AppTheme.pawStrollChain
+        case .lightRain, .postRain: return AppTheme.forestTeal
+        case .dusk: return AppTheme.pawInRange
+        case .overcast: return AppTheme.softInk
+        }
     }
 }

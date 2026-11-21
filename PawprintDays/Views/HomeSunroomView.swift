@@ -9,6 +9,17 @@ struct HomeSunroomView: View {
     @State private var showTeapotDrawer: Bool = false
     @State private var showPetRibbonDrawer: Bool = false
     @State private var teaSteaming: Bool = false
+    @State private var bouncingPetID: String? = nil
+    @State private var activeWhisperSpotIndex: Int = 1
+
+    private static let ambientPetWhispers: [String] = [
+        "窗邊好暖和～",
+        "呼嚕呼嚕…",
+        "聞到麵包香了",
+        "等一下去散步嗎？",
+        "這條毯子最軟了",
+        "陽光曬到肚皮了"
+    ]
 
     private var maxPan: CGFloat {
         coordinator.ledger.verandaUnlocked ? 240 : 140
@@ -73,13 +84,28 @@ struct HomeSunroomView: View {
                                         spot: spot,
                                         activeMentorship: spotMentorship,
                                         coordinator: coordinator,
+                                        bouncingPetID: bouncingPetID,
+                                        ambientBubbleText: (spot.spotIndex == activeWhisperSpotIndex && !spot.currentOccupantPetIDs.isEmpty)
+                                            ? Self.ambientPetWhispers[(spot.spotIndex + coordinator.ledger.coinBalance) % Self.ambientPetWhispers.count]
+                                            : nil,
                                         onTapPet: { petID in
-                                            coordinator.currentScreen = .tactileCare(petID: petID)
+                                            HapticsEngine.shared.playPawRangeCue()
+                                            CozySoundEngine.shared.playCompassChime()
+                                            withAnimation(.spring(response: 0.22, dampingFraction: 0.45)) {
+                                                bouncingPetID = petID
+                                            }
+                                            Task { @MainActor in
+                                                try? await Task.sleep(for: .milliseconds(160))
+                                                withAnimation(.easeOut(duration: 0.15)) { bouncingPetID = nil }
+                                                coordinator.currentScreen = .tactileCare(petID: petID)
+                                            }
                                         },
                                         onTapEmptySpot: {
+                                            CozySoundEngine.shared.playPaperFlip()
                                             showWickerDrawer = true
                                         },
                                         onCompleteMentorship: { intention in
+                                            CozySoundEngine.shared.playCompassChime()
                                             coordinator.completeMentorshipLesson(intentionUUID: intention.intentionUUID)
                                         }
                                     )
@@ -122,49 +148,63 @@ struct HomeSunroomView: View {
                     onOpenCubbies: { coordinator.currentScreen = .curioCubbies },
                     onOpenFixture: { coordinator.showFixtureDrawer = true },
                     dayTitle: "陽光室 · \(coordinator.homeSpots.count) 處角落",
-                    weather: coordinator.activeWeather
+                    weather: coordinator.activeWeather,
+                    coinBalance: coordinator.ledger.coinBalance
                 )
                 .padding(.top, 8)
 
-                HStack {
-                    Button {
-                        showPetRibbonDrawer = true
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "bookmark.fill")
-                                .font(.system(size: 12))
-                            Text(invitedPets.isEmpty ? "到街角遇見第一位室友吧" : "家中室友 (\(invitedPets.count)/8)")
-                                .font(AppTheme.diegeticLabel(12))
+                HStack(spacing: 8) {
+                    WoodPlaqueButton(
+                        title: invitedPets.isEmpty ? "到街角遇見室友" : "家中室友 \(invitedPets.count)/8",
+                        systemImage: "bookmark.fill",
+                        tone: .terracotta,
+                        fontSize: 12,
+                        horizontalPadding: 12,
+                        verticalPadding: 6,
+                        action: {
+                            CozySoundEngine.shared.playPaperFlip()
+                            showPetRibbonDrawer = true
                         }
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.clothBookmark, in: Capsule())
-                        .shadow(color: AppTheme.deepPineInk.opacity(0.20), radius: 4, y: 2)
-                    }
-                    .buttonStyle(.plain)
+                    )
 
-                    Spacer()
+                    // 一鍵切換陽光室光影（晨光 / 細雨 / 黃昏）— 隨時沉浸不同繪本氛圍
+                    WoodPlaqueButton(
+                        title: coordinator.activeWeather.displayName,
+                        systemImage: coordinator.activeWeather.sfSymbol,
+                        tone: .warmCream,
+                        fontSize: 11.5,
+                        horizontalPadding: 10,
+                        verticalPadding: 6,
+                        action: {
+                            let cycle: [WeatherMode] = [.clearMorning, .lightRain, .dusk, .overcast]
+                            let currentIdx = cycle.firstIndex(of: coordinator.activeWeather) ?? 0
+                            let nextWeather = cycle[(currentIdx + 1) % cycle.count]
+                            withAnimation(.easeInOut(duration: 0.45)) {
+                                coordinator.activeWeather = nextWeather
+                            }
+                            CozySoundEngine.shared.playPaperFlip()
+                        }
+                    )
+
+                    Spacer(minLength: 4)
 
                     if let ready = readyMentorships.first {
-                        Button {
-                            coordinator.completeMentorshipLesson(intentionUUID: ready.intentionUUID)
-                        } label: {
-                            HStack(spacing: 5) {
-                                Image(systemName: "sparkles")
-                                Text("觀摩傳承練習")
-                                    .font(AppTheme.diegeticLabel(12))
+                        WoodPlaqueButton(
+                            title: "觀摩傳承",
+                            systemImage: "sparkles",
+                            tone: .brassGold,
+                            fontSize: 12,
+                            horizontalPadding: 11,
+                            verticalPadding: 6,
+                            action: {
+                                CozySoundEngine.shared.playCompassChime()
+                                coordinator.completeMentorshipLesson(intentionUUID: ready.intentionUUID)
                             }
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(AppTheme.pawStrollChain, in: Capsule())
-                        }
-                        .buttonStyle(.plain)
+                        )
                     }
                 }
-                .padding(.horizontal, 18)
-                .padding(.top, 6)
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
 
                 if let whisper = coordinator.transientWhisper {
                     TornPaperSlipView(text: whisper)
@@ -211,6 +251,21 @@ struct HomeSunroomView: View {
         }
         .onAppear {
             CozySoundEngine.shared.setRainAmbience(active: coordinator.activeWeather.isRainy)
+            if let firstOccupied = coordinator.homeSpots.first(where: { !$0.currentOccupantPetIDs.isEmpty }) {
+                activeWhisperSpotIndex = firstOccupied.spotIndex
+            }
+        }
+        .task {
+            // 陽光室日常生氣：每隔幾秒讓不同角落的毛孩冒出一句溫馨小念頭
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5.5))
+                let occupied = coordinator.homeSpots.filter { !$0.currentOccupantPetIDs.isEmpty }
+                if let next = occupied.randomElement() {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
+                        activeWhisperSpotIndex = next.spotIndex
+                    }
+                }
+            }
         }
         .onChange(of: coordinator.activeWeather) { _, newWeather in
             CozySoundEngine.shared.setRainAmbience(active: newWeather.isRainy)
@@ -255,6 +310,8 @@ private struct HomeSpotDioramaNode: View {
     let spot: HomeSpotPlacement
     let activeMentorship: TeachingIntention?
     @Bindable var coordinator: GameCoordinator
+    let bouncingPetID: String?
+    let ambientBubbleText: String?
     let onTapPet: (String) -> Void
     let onTapEmptySpot: () -> Void
     let onCompleteMentorship: (TeachingIntention) -> Void
@@ -268,19 +325,19 @@ private struct HomeSpotDioramaNode: View {
     }
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             if let intention = activeMentorship, intention.state == .demonstrated {
-                Button {
-                    onCompleteMentorship(intention)
-                } label: {
-                    Text("輕點記下這份溫柔")
-                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4)
-                        .background(AppTheme.pawStrollChain, in: Capsule())
-                }
-                .buttonStyle(.plain)
+                WoodPlaqueButton(
+                    title: "輕點記下溫柔",
+                    systemImage: "sparkles",
+                    tone: .brassGold,
+                    fontSize: 10.5,
+                    horizontalPadding: 9,
+                    verticalPadding: 4,
+                    action: { onCompleteMentorship(intention) }
+                )
+            } else if let bubble = ambientBubbleText {
+                SunroomPetSpeechBubble(text: bubble)
             }
 
             if !spot.currentOccupantPetIDs.isEmpty {
@@ -296,10 +353,11 @@ private struct HomeSpotDioramaNode: View {
                                 outfitID: res?.activeOutfitID,
                                 pose: spot.spotIndex == 1 ? .resting : .notice,
                                 weatherMode: coordinator.activeWeather,
-                                isHappySquint: spot.currentOccupantPetIDs.count > 1,
-                                mentorshipParticle: mentorshipHabit
+                                isHappySquint: spot.currentOccupantPetIDs.count > 1 || bouncingPetID == petID,
+                                mentorshipParticle: mentorshipHabit,
+                                tapBounceScale: bouncingPetID == petID ? 1.0 : 0.0
                             )
-                            .frame(width: 118, height: 118)
+                            .frame(width: 122, height: 122)
                         }
                         .buttonStyle(.plain)
                     }
@@ -309,14 +367,14 @@ private struct HomeSpotDioramaNode: View {
                     VStack(spacing: 4) {
                         Image(systemName: spot.spotIndex >= 6 ? "cloud.drizzle" : "sparkles")
                             .font(.system(size: 16))
-                            .foregroundStyle(AppTheme.timberDeep.opacity(0.55))
-                        Text("空出的角落")
+                            .foregroundStyle(AppTheme.timberDeep.opacity(0.65))
+                        Text("佈置角落")
                             .font(AppTheme.handwritten(12))
-                            .foregroundStyle(AppTheme.softInk)
+                            .foregroundStyle(AppTheme.deepPineInk.opacity(0.75))
                     }
                     .frame(width: 96, height: 86)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(TactileGameButtonStyle())
             }
 
             // 精繪台灣繪本水彩家飾物（含毛毯流蘇、紙箱折翼、拼布球縫線、25 次歲月爪痕與手工補丁）
@@ -329,14 +387,20 @@ private struct HomeSpotDioramaNode: View {
             .offset(y: -12)
             .onTapGesture(perform: onTapEmptySpot)
 
-            Text(spot.hasLovedPatina ? "\(spot.spotName) · 歲月溫潤" : spot.spotName)
-                .font(AppTheme.diegeticLabel(10))
-                .foregroundStyle(AppTheme.deepPineInk.opacity(0.85))
-                .padding(.horizontal, 7)
-                .padding(.vertical, 2)
-                .background(AppTheme.warmPaper.opacity(0.86), in: Capsule())
+            // 小木牌角落名牌
+            Text(spot.hasLovedPatina ? "✦ \(spot.spotName)" : spot.spotName)
+                .font(AppTheme.diegeticLabel(10.5))
+                .foregroundStyle(AppTheme.deepPineInk)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 3)
+                .background(
+                    Capsule()
+                        .fill(AppTheme.warmPaper.opacity(0.94))
+                        .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.55), lineWidth: 1.0))
+                        .shadow(color: AppTheme.deepPineInk.opacity(0.14), radius: 3, y: 1)
+                )
         }
-        .frame(minWidth: 118)
+        .frame(minWidth: 122)
     }
 }
 
