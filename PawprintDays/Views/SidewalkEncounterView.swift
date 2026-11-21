@@ -23,11 +23,8 @@ struct SidewalkEncounterView: View {
 
     var body: some View {
         ZStack {
-            SidewalkVignetteBackdrop(
-                weather: coordinator.activeWeather,
-                placeLabel: anchor?.customLabel ?? "麵包店巷口"
-            )
-            .ignoresSafeArea()
+            TaiwaneseBakeryStorybookBackdrop(weather: coordinator.activeWeather)
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 HStack {

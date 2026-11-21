@@ -3,6 +3,16 @@ import SwiftData
 import CoreLocation
 import Observation
 
+struct QuietRevisitMoment: Identifiable, Equatable, Sendable {
+    let id = UUID()
+    let siteLabel: String
+    let petID: String
+    let secondaryPetID: String?
+    let timeBandLabel: String
+    let familiarityLabel: String
+    let vignetteLine: String
+}
+
 @MainActor
 @Observable
 final class GameCoordinator {
@@ -20,6 +30,8 @@ final class GameCoordinator {
     var transientWhisper: String? = nil
     var latestFixtureReport: Stage1VerificationSummary? = nil
     var isDiscoveringAnchors: Bool = false
+    var activeQuietRevisit: QuietRevisitMoment? = nil
+    var newlyUnpackedCurio: ForagedCurioEntry? = nil
 
     var anchors: [AnchorSiteRecord] = []
     var residents: [PetResidentState] = []
@@ -426,9 +438,104 @@ final class GameCoordinator {
         case .movingTooFast:
             showWhisper("放慢至步行速度（12 km/h 以下）就能和街角夥伴打招呼。")
         case .alreadyMetToday:
-            showWhisper("今天已經在「\(anchor.customLabel)」打過招呼囉。")
+            let dist = distanceMeters(to: anchor)
+            if dist <= AnchorRotationEngine.maxActivationRadiusM {
+                performQuietRevisit(anchor: anchor)
+            } else {
+                showWhisper("今天已在「\(anchor.customLabel)」打過招呼；走近 75m 內可順路看看牠在做什麼。")
+            }
         }
         return check
+    }
+
+    /// 給常在自家附近反覆散步的使用者：當日已互動過的街角，在不同時段或再次經過時，
+    /// 可開啟 5 秒溫馨「順路探望小札」（不重複計算相伴天數、零農度壓力，卻讓熟悉街區永遠有生命力）。
+    @discardableResult
+    func performQuietRevisit(anchor: AnchorSiteRecord, now: Date = Date()) -> QuietRevisitMoment {
+        let hour = Calendar.current.component(.hour, from: now)
+        let (bandKey, bandLabel): (String, String) = {
+            switch hour {
+            case 5..<11: return ("morning", "晨間順路")
+            case 11..<17: return ("afternoon", "午後小歇")
+            default: return ("evening", "傍晚歸途")
+            }
+        }()
+
+        let petID = anchor.regularPetID
+        let spec = PetCatalog.pet(id: petID)
+
+        // 熟識度達到「常去轉角」(>=3次) 時，有機會遇見另一位已邀請的室友在街角結伴！
+        let otherInvited = residents.filter { $0.inviteState == .invitedHome && $0.petID != petID }
+        let friendID = (anchor.totalVisitsCount >= 2 && !otherInvited.isEmpty)
+            ? otherInvited[(anchor.totalVisitsCount + hour) % otherInvited.count].petID
+            : nil
+
+        let line: String
+        if let friendID {
+            let friendSpec = PetCatalog.pet(id: friendID)
+            line = "\(bandLabel)經過「\(anchor.customLabel)」時，看見\(spec.name)正和\(friendSpec.name)並肩躲在屋簷下看路人。"
+        } else {
+            switch bandKey {
+            case "morning":
+                line = "\(spec.name)正在「\(anchor.customLabel)」的暖陽石階上伸了個懶腰，眼神安穩地目送你去上班。"
+            case "afternoon":
+                line = "\(spec.name)把下巴墊在前掌上，在「\(anchor.customLabel)」的木凳旁半瞇著眼打盹。"
+            default:
+                line = "街燈剛亮起，\(spec.name)仍在「\(anchor.customLabel)」的燈籠暖光下安靜等著晚歸的腳步。"
+            }
+        }
+
+        if anchor.lastRevisitTimeBand != "\(currentLocalDateISO)|\(bandKey)" {
+            anchor.lastRevisitTimeBand = "\(currentLocalDateISO)|\(bandKey)"
+            let day = todayDiaryRecord()
+            if !day.revisitNotes.contains(line) {
+                day.revisitNotes.append(line)
+            }
+            try? modelContext.save()
+            reloadAll()
+        }
+
+        let moment = QuietRevisitMoment(
+            siteLabel: anchor.customLabel,
+            petID: petID,
+            secondaryPetID: friendID,
+            timeBandLabel: bandLabel,
+            familiarityLabel: anchor.familiarityTitle,
+            vignetteLine: line
+        )
+        activeQuietRevisit = moment
+        HapticsEngine.shared.playPawRangeCue()
+        return moment
+    }
+
+    /// 合併相鄰重複偵測的街角停靠點（藍圖第四章：允許合併相鄰偵測點）
+    func mergeAnchor(sourceSiteID: String, intoTargetSiteID targetSiteID: String) {
+        guard sourceSiteID != targetSiteID,
+              let source = anchors.first(where: { $0.siteID == sourceSiteID }),
+              let target = anchors.first(where: { $0.siteID == targetSiteID }) else { return }
+
+        target.totalVisitsCount += source.totalVisitsCount
+        for enc in encounters where enc.siteID == sourceSiteID {
+            if !enc.placeRedacted {
+                enc.siteDisplayLabel = target.customLabel
+            }
+        }
+        source.isHiddenByUser = true
+        try? modelContext.save()
+        reloadAll()
+        showWhisper("已將「\(source.customLabel)」合併至「\(target.customLabel)」。")
+    }
+
+    /// 里程碑 4（第 10 天 · 心照不宣）：雙選觸覺習慣練習（藍圖第四章）
+    func completeKindredHabitPractice(petID: String, choiceTitle: String) {
+        guard let pet = resident(for: petID) else { return }
+        let spec = PetCatalog.pet(id: petID)
+        pet.kindredPracticeCompleted = true
+        pet.kindredChoiceNote = "心照不宣練習：陪\(spec.name)以「\(choiceTitle)」練習了\(spec.signatureHabitTitle)。"
+        try? modelContext.save()
+        reloadAll()
+        HapticsEngine.shared.playCurioUnpack()
+        showWhisper("\(spec.name)記住了這份溫柔，以後在家會自主展現「\(spec.signatureHabitTitle)」！")
     }
 
     @discardableResult
@@ -601,6 +708,7 @@ final class GameCoordinator {
             localDateISO: dateISO,
             ledger: ledger
         )
+        anchor.totalVisitsCount += 1
 
         let day = todayDiaryRecord()
         day.weatherCode = activeWeather.rawValue
@@ -609,6 +717,13 @@ final class GameCoordinator {
         }
         if day.companionPetID == nil && pet.inviteState == .invitedHome {
             day.companionPetID = pet.petID
+        }
+
+        // 單日走訪 3 個以上不同街角 -> 蓋上「今日街區巡禮」紀念章（給常散步玩家的靜謐彩蛋，無任何錯過懲罰）
+        let distinctSitesToday = Set(encounters.filter { $0.localDateISO == dateISO }.map(\.siteID)).union([siteID])
+        if distinctSitesToday.count >= 3 && !day.completedNeighborhoodLoop {
+            day.completedNeighborhoodLoop = true
+            showWhisper("完成今日街區巡禮！已在日記頁蓋上散步紀念章。")
         }
 
         resolveMentorshipsOnNewDay(dateISO: dateISO)
@@ -657,9 +772,10 @@ final class GameCoordinator {
             advanceMentorshipSteps(by: result.newlyAcceptedSteps)
         }
 
-        if !result.newCuriosForaged.isEmpty {
+        if let firstCurio = result.newCuriosForaged.first {
             HapticsEngine.shared.playCurioUnpack()
-            let curioName = CurioCatalog.curio(id: result.newCuriosForaged[0].curioID).name
+            newlyUnpackedCurio = firstCurio
+            let curioName = CurioCatalog.curio(id: firstCurio.curioID).name
             showWhisper("撿到口袋拾遺：\(curioName)")
         }
 

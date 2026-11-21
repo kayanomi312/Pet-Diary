@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0437345AC7B1271F5FDA70B5 /* StorybookPropArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8C1C754DD8A26DFF8DBC7EB /* StorybookPropArt.swift */; };
 		0640173307935006252D0A68 /* PaperGrainAndLUT.metal in Sources */ = {isa = PBXBuildFile; fileRef = BDA681F6E122D4646A6AFCF5 /* PaperGrainAndLUT.metal */; };
 		15CE874DE2B01B22BA78CC3B /* TactileCareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C2DCCD080EBEEA8618B504 /* TactileCareView.swift */; };
 		16C9C08A49526F6F6575C241 /* Stage1FixtureDrawerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F46AB30C29BDC7D91D29B7 /* Stage1FixtureDrawerView.swift */; };
@@ -85,6 +86,7 @@
 		B209268D8883F60AFD479A29 /* PetCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PetCatalog.swift; sourceTree = "<group>"; };
 		BDA681F6E122D4646A6AFCF5 /* PaperGrainAndLUT.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = PaperGrainAndLUT.metal; sourceTree = "<group>"; };
 		C1BB69ACCDDB09346B6CD70E /* HomeSunroomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeSunroomView.swift; sourceTree = "<group>"; };
+		C8C1C754DD8A26DFF8DBC7EB /* StorybookPropArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorybookPropArt.swift; sourceTree = "<group>"; };
 		CA4F7120974E6DAA6C348D1B /* RootStageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootStageView.swift; sourceTree = "<group>"; };
 		E0B2764B24738456F6E6AFF4 /* MapKitAnchorDiscoveryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitAnchorDiscoveryService.swift; sourceTree = "<group>"; };
 		E1F46AB30C29BDC7D91D29B7 /* Stage1FixtureDrawerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stage1FixtureDrawerView.swift; sourceTree = "<group>"; };
@@ -139,6 +141,7 @@
 			children = (
 				071983DCB25BE655FF909410 /* DiegeticProps.swift */,
 				AFF60970FD6466DF84DA9D35 /* PlaceholderAssetGenerator.swift */,
+				C8C1C754DD8A26DFF8DBC7EB /* StorybookPropArt.swift */,
 				EEA141F93210351F30F0F3DA /* Shaders */,
 			);
 			path = Art;
@@ -343,6 +346,7 @@
 				7C018745BC28708B329A0467 /* SidewalkEncounterView.swift in Sources */,
 				16C9C08A49526F6F6575C241 /* Stage1FixtureDrawerView.swift in Sources */,
 				1EA24F4C854908AC4C4ACEBE /* StepCoinLedgerEngine.swift in Sources */,
+				0437345AC7B1271F5FDA70B5 /* StorybookPropArt.swift in Sources */,
 				C965EDB14F54B1C970770E42 /* StreetOverworldView.swift in Sources */,
 				369D3BD8F3426939791248D1 /* SwiftDataModels.swift in Sources */,
 				15CE874DE2B01B22BA78CC3B /* TactileCareView.swift in Sources */,

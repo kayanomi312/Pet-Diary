@@ -112,7 +112,8 @@ struct HardcoverSketchbookView: View {
                     AnnualTraditionsRibbonView(
                         starredDays: starredDays,
                         allEncounters: coordinator.encounters,
-                        latestDay: coordinator.diaryDays.first
+                        latestDay: coordinator.diaryDays.first,
+                        pillarPets: coordinator.residents.filter { $0.milestoneTier >= 6 }
                     )
                 }
             }
@@ -284,10 +285,50 @@ private struct AnnualTraditionsRibbonView: View {
     let starredDays: [DiaryDayRecord]
     let allEncounters: [EncounterLog]
     let latestDay: DiaryDayRecord?
+    let pillarPets: [PetResidentState]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                // 里程碑 6（第 25 天 · 街角柱石）週年紀念跨頁（回連至第一天相遇日期）
+                if !pillarPets.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("街角柱石 · 相伴紀念跨頁")
+                            .font(AppTheme.serifTitle(19))
+                            .foregroundStyle(AppTheme.forestTeal)
+                        ForEach(pillarPets, id: \.petID) { pet in
+                            let spec = PetCatalog.pet(id: pet.petID)
+                            HStack(spacing: 12) {
+                                ProceduralPetRigView(
+                                    pet: spec,
+                                    outfitID: pet.activeOutfitID,
+                                    pose: .respond,
+                                    applyMetalPaperShader: false,
+                                    isStaticSnapshot: true
+                                )
+                                .frame(width: 72, height: 72)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("\(spec.name) · 相伴 \(pet.sharedDaysCount) 天")
+                                        .font(AppTheme.serifTitle(16))
+                                        .foregroundStyle(AppTheme.deepPineInk)
+                                    if let firstISO = pet.firstMetDateISO {
+                                        Text("初遇於 \(CivilCalendarHelper.displayDate(from: firstISO))")
+                                            .font(AppTheme.diegeticLabel(11))
+                                            .foregroundStyle(AppTheme.forestTeal)
+                                    }
+                                    Text(spec.matureKindness)
+                                        .font(AppTheme.handwritten(13))
+                                        .foregroundStyle(AppTheme.softInk)
+                                }
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.pawStrollChain.opacity(0.55), lineWidth: 1.5))
+                        }
+                    }
+                }
+
                 Text("「改天再來一次」年度約定")
                     .font(AppTheme.serifTitle(20))
                     .foregroundStyle(AppTheme.deepPineInk)
@@ -383,6 +424,10 @@ private struct SketchbookDayPageCard: View {
                         if day.acceptedSteps > 0 {
                             Text("· \(day.acceptedSteps.formatted()) 步")
                         }
+                        if day.completedNeighborhoodLoop {
+                            Text("· 街區巡禮章")
+                                .foregroundStyle(AppTheme.forestTeal)
+                        }
                         if day.deletionState == .placeErased {
                             Text("· 已抹除地點")
                                 .foregroundStyle(AppTheme.clothBookmark)
@@ -465,13 +510,29 @@ private struct SketchbookDayPageCard: View {
                 }
             }
 
+            if !day.revisitNotes.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("順路探望小札")
+                        .font(AppTheme.diegeticLabel(11))
+                        .foregroundStyle(AppTheme.timberDeep)
+                    ForEach(day.revisitNotes, id: \.self) { note in
+                        Text("• \(note)")
+                            .font(AppTheme.serifBody(13))
+                            .foregroundStyle(AppTheme.softInk)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(AppTheme.parchmentTray.opacity(0.6), in: RoundedRectangle(cornerRadius: 10))
+            }
+
             if !curios.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(curios) { entry in
                             let spec = CurioCatalog.curio(id: entry.curioID)
                             HStack(spacing: 5) {
-                                Circle().fill(Color(hex: spec.stampHex)).frame(width: 10, height: 10)
+                                PaintedCurioStampView(curioID: entry.curioID, size: 22)
                                 Text(spec.name)
                                     .font(AppTheme.diegeticLabel(11))
                                     .foregroundStyle(AppTheme.deepPineInk)

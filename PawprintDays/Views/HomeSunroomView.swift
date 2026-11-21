@@ -305,43 +305,14 @@ private struct HomeSpotDioramaNode: View {
                 .buttonStyle(.plain)
             }
 
-            // 精繪家飾物底座（含毛毯流蘇、紙箱折翼、25 次歲月痕跡與手工補丁）
-            ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: goodie?.swatchHex ?? "#E3D9C7"), Color(hex: goodie?.secondaryHex ?? "#C9B99F").opacity(0.65)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(width: spot.currentOccupantPetIDs.count > 1 ? 148 : 114, height: 38)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(
-                                spot.hasLovedPatina ? AppTheme.timberDeep.opacity(0.6) : AppTheme.deepPineInk.opacity(0.32),
-                                style: StrokeStyle(lineWidth: 1.4, dash: spot.hasLovedPatina && !spot.hasStitchedPatch ? [4, 3] : [])
-                            )
-                    )
-                    .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 4, y: 2)
-
-                if spot.hasStitchedPatch {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(AppTheme.pawInRange)
-                        .frame(width: 18, height: 13)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(AppTheme.warmPaper, style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
-                        )
-                        .offset(x: 34, y: -5)
-                }
-
-                Text(goodie?.name ?? spot.spotName)
-                    .font(.system(size: 10, weight: .semibold, design: .serif))
-                    .foregroundStyle(AppTheme.deepPineInk)
-                    .lineLimit(1)
-                    .padding(.horizontal, 6)
-            }
+            // 精繪台灣繪本水彩家飾物（含毛毯流蘇、紙箱折翼、拼布球縫線、25 次歲月爪痕與手工補丁）
+            PaintedGoodiePropView(
+                goodieID: spot.equippedGoodieID,
+                hasLovedPatina: spot.hasLovedPatina,
+                hasStitchedPatch: spot.hasStitchedPatch,
+                isWide: spot.currentOccupantPetIDs.count > 1
+            )
+            .offset(y: -12)
             .onTapGesture(perform: onTapEmptySpot)
 
             Text(spot.hasLovedPatina ? "\(spot.spotName) · 歲月溫潤" : spot.spotName)

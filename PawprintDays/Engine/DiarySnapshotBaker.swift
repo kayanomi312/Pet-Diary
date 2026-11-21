@@ -45,48 +45,7 @@ private struct BakedPostcardCanvas: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: backdropColors, startPoint: .topLeading, endPoint: .bottomTrailing)
-
-            // 台灣老街暖木窗與騎樓石階剪影
-            VStack {
-                HStack(spacing: 0) {
-                    ForEach(0..<6, id: \.self) { idx in
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(idx.isMultiple(of: 2) ? AppTheme.forestTeal.opacity(0.55) : AppTheme.warmPaper.opacity(0.65))
-                            .frame(height: 24)
-                    }
-                }
-                .offset(y: -6)
-                Spacer()
-                Rectangle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: "#C5BEB2").opacity(0.65), Color(hex: "#A89F92").opacity(0.75)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(height: 68)
-            }
-
-            // 暖黃紙燈籠柔光
-            Circle()
-                .fill(AppTheme.duskAmber.opacity(weather == .dusk ? 0.34 : 0.18))
-                .frame(width: 110, height: 110)
-                .offset(x: -canvasWidth * 0.28, y: -48)
-
-            if weather.isRainy {
-                Canvas { ctx, size in
-                    for i in 0..<28 {
-                        let x = CGFloat((i * 37) % Int(max(1, size.width)))
-                        let y = CGFloat((i * 23) % Int(max(1, size.height - 60)))
-                        var drop = Path()
-                        drop.move(to: CGPoint(x: x, y: y))
-                        drop.addLine(to: CGPoint(x: x - 6, y: y + 18))
-                        ctx.stroke(drop, with: .color(AppTheme.rainySlate.opacity(0.34)), lineWidth: 1.2)
-                    }
-                }
-            }
+            TaiwaneseBakeryStorybookBackdrop(weather: weather, isStatic: true)
 
             if let secondaryPet {
                 HStack(spacing: -24) {

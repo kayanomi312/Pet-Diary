@@ -88,14 +88,7 @@ struct CurioCubbiesView: View {
                                     let spec = CurioCatalog.curio(id: entry.curioID)
                                     VStack(alignment: .leading, spacing: 6) {
                                         HStack {
-                                            Circle()
-                                                .fill(Color(hex: spec.stampHex))
-                                                .frame(width: 24, height: 24)
-                                                .overlay(
-                                                    Image(systemName: spec.weatherTag.sfSymbol)
-                                                        .font(.system(size: 11))
-                                                        .foregroundStyle(.white)
-                                                )
+                                            PaintedCurioStampView(curioID: entry.curioID, size: 38)
                                             Spacer()
                                             Text(entry.localDateISO)
                                                 .font(.system(size: 10, design: .monospaced))
