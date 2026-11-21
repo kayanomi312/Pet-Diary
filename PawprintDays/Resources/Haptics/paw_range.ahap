@@ -1,0 +1,29 @@
+{
+  "Version": 1.0,
+  "Metadata": {
+    "Project": "Pawprint Days",
+    "Description": "Entering 75m Paw Range — double 20ms soft tap"
+  },
+  "Pattern": [
+    {
+      "Event": {
+        "Time": 0.0,
+        "EventType": "HapticTransient",
+        "EventParameters": [
+          { "ParameterID": "HapticIntensity", "ParameterValue": 0.45 },
+          { "ParameterID": "HapticSharpness", "ParameterValue": 0.35 }
+        ]
+      }
+    },
+    {
+      "Event": {
+        "Time": 0.08,
+        "EventType": "HapticTransient",
+        "EventParameters": [
+          { "ParameterID": "HapticIntensity", "ParameterValue": 0.45 },
+          { "ParameterID": "HapticSharpness", "ParameterValue": 0.30 }
+        ]
+      }
+    }
+  ]
+}
