@@ -31,8 +31,8 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     nonisolated static let maxMobilityRollSpeedMPS: Double = 2.78 // 10 km/h (Mobility-Aid Roll Mode)
 
     private let manager = CLLocationManager()
-    private var monitor: CLMonitor?
-    private var monitorEventsTask: Task<Void, Never>?
+    private var monitoredGeofences: [(id: String, lat: Double, lon: Double, radius: Double)] = []
+    private var currentlyInsideGeofenceIDs: Set<String> = []
 
     var authorizationStatus: CLAuthorizationStatus = .notDetermined
     var useSimulatedPosition: Bool = true
@@ -99,14 +99,12 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
                         guard let self else { return }
                         self.isReducedAccuracy = (self.manager.accuracyAuthorization == .reducedAccuracy)
                         self.manager.startUpdatingLocation()
-                        self.manager.requestLocation()
                     }
                 }
             } else {
                 isReducedAccuracy = false
                 manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
                 manager.startUpdatingLocation()
-                manager.requestLocation()
             }
             if CLLocationManager.headingAvailable() {
                 manager.startUpdatingHeading()
@@ -141,7 +139,6 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
             manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
             manager.distanceFilter = 3.0
             manager.startUpdatingLocation()
-            manager.requestLocation()
             if CLLocationManager.headingAvailable() {
                 manager.startUpdatingHeading()
             }
@@ -150,13 +147,13 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         }
     }
 
-    /// Registers up to 20 rolling CLCircularRegionCondition geofences (75m) via iOS 17 CLMonitor
-    /// and observes enter events to play the 75m double-tap Core Haptics cue.
+    /// Maintains up to 20 closest rolling 75m geofence zones and evaluates entry live on every GPS update
+    /// (zero CLMonitor init crash risk, instant 75m Core Haptics double-tap cue).
     func syncRollingGeofences(for anchors: [AnchorSiteRecord]) {
         guard authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else {
             return
         }
-        let sorted = anchors
+        monitoredGeofences = anchors
             .filter { !$0.isHiddenByUser }
             .sorted { a, b in
                 let dA = currentLocation.distance(from: CLLocation(latitude: a.lat, longitude: a.lon))
@@ -164,50 +161,30 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
                 return dA < dB
             }
             .prefix(20)
-            .map { (id: $0.siteID, coord: CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lon), radius: min($0.radiusM, 75.0)) }
+            .map { (id: $0.siteID, lat: $0.lat, lon: $0.lon, radius: min($0.radiusM, 75.0)) }
 
-        Task {
-            let activeMonitor: CLMonitor
-            if let existing = self.monitor {
-                activeMonitor = existing
-            } else {
-                let created = await CLMonitor("com.pawprintdays.geofences")
-                self.monitor = created
-                activeMonitor = created
-                self.startListeningToMonitorEvents(created)
-            }
-
-            let existingIDs = await activeMonitor.identifiers
-            for oldID in existingIDs {
-                await activeMonitor.remove(oldID)
-            }
-            for item in sorted {
-                let condition = CLMonitor.CircularGeographicCondition(center: item.coord, radius: item.radius)
-                await activeMonitor.add(condition, identifier: item.id)
-            }
-        }
+        evaluateRollingGeofences(at: currentLocation)
     }
 
-    private func startListeningToMonitorEvents(_ monitor: CLMonitor) {
-        monitorEventsTask?.cancel()
-        monitorEventsTask = Task { [weak self] in
-            do {
-                for try await event in await monitor.events {
-                    if event.state == .satisfied {
-                        await MainActor.run {
-                            guard let self else { return }
-                            if self.lastRangeCueSiteID != event.identifier {
-                                self.lastRangeCueSiteID = event.identifier
-                                HapticsEngine.shared.playPawRangeCue()
-                                self.onEnteredAnchorGeofence?(event.identifier)
-                            }
-                        }
-                    }
+    private func evaluateRollingGeofences(at location: CLLocation) {
+        guard !isTravelingTooFastForPaws,
+              location.horizontalAccuracy >= 0,
+              location.horizontalAccuracy <= 40.0 else {
+            return
+        }
+        var nowInside = Set<String>()
+        for fence in monitoredGeofences {
+            let dist = location.distance(from: CLLocation(latitude: fence.lat, longitude: fence.lon))
+            if dist <= fence.radius {
+                nowInside.insert(fence.id)
+                if !currentlyInsideGeofenceIDs.contains(fence.id) && lastRangeCueSiteID != fence.id {
+                    lastRangeCueSiteID = fence.id
+                    HapticsEngine.shared.playPawRangeCue()
+                    onEnteredAnchorGeofence?(fence.id)
                 }
-            } catch {
-                // CLMonitor stream ended cleanly
             }
         }
+        currentlyInsideGeofenceIDs = nowInside
     }
 
     /// Smoothly moves the simulated walker to a target coordinate while recording pedestrian trail points.
@@ -413,6 +390,9 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
                 } else {
                     self.liveTrail.append(pt)
                 }
+
+                // Evaluate 75m rolling geofence entry cues live
+                self.evaluateRollingGeofences(at: acceptedLocation)
 
                 // Notify coordinator for Mobility-Aid Roll Mode & real-world anchor discovery
                 let isLowSpeedRoll = acceptedLocation.speed < 0 || acceptedLocation.speed <= Self.maxMobilityRollSpeedMPS
