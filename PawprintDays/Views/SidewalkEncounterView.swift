@@ -14,6 +14,8 @@ struct SidewalkEncounterView: View {
     @State private var fingerFocus: CGPoint? = nil
     @State private var committedLog: EncounterLog? = nil
     @State private var slipText: String = ""
+    @State private var petTapBounce: CGFloat = 0.0
+    @State private var holdRipplePulse: Bool = false
 
     private var petSpec: PetSpec { PetCatalog.pet(id: petID) }
     private var guideSpec: PetSpec? { companionStreetPetID.map(PetCatalog.pet(id:)) }
@@ -28,79 +30,96 @@ struct SidewalkEncounterView: View {
 
             VStack(spacing: 0) {
                 HStack {
-                    Button {
+                    WoodPlaqueButton(
+                        title: anchor?.customLabel ?? "街區地圖",
+                        systemImage: "chevron.left",
+                        tone: .warmCream,
+                        fontSize: 12.5,
+                        horizontalPadding: 12,
+                        verticalPadding: 7
+                    ) {
                         HapticsEngine.shared.stopHoldToGreetPurr()
                         coordinator.currentScreen = .street
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "chevron.left")
-                            Text(anchor?.customLabel ?? "街區地圖")
-                                .font(AppTheme.serifBody(14))
-                        }
-                        .foregroundStyle(AppTheme.deepPineInk)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(AppTheme.warmPaper.opacity(0.92), in: Capsule())
                     }
-                    .buttonStyle(.plain)
 
                     Spacer()
 
-                    Text(coordinator.activeWeather.displayName)
-                        .font(AppTheme.diegeticLabel(12))
-                        .foregroundStyle(AppTheme.deepPineInk)
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.warmPaper.opacity(0.88), in: Capsule())
+                    HStack(spacing: 5) {
+                        Image(systemName: coordinator.activeWeather.sfSymbol)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(AppTheme.forestTeal)
+                        Text(coordinator.activeWeather.displayName)
+                            .font(AppTheme.diegeticLabel(12))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(AppTheme.warmPaper.opacity(0.92), in: Capsule())
+                    .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 1))
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 12)
+                .padding(.top, 10)
 
                 Spacer()
 
-                if let guideSpec {
-                    HStack(spacing: -36) {
-                        ProceduralPetRigView(
-                            pet: guideSpec,
-                            outfitID: guideResident?.activeOutfitID,
-                            pose: .respond,
-                            weatherMode: coordinator.activeWeather,
-                            fingerFocusNormalized: fingerFocus,
-                            isHappySquint: committedLog != nil
-                        )
-                        .frame(width: 215, height: 215)
+                ZStack(alignment: .topTrailing) {
+                    if let guideSpec {
+                        HStack(spacing: -36) {
+                            ProceduralPetRigView(
+                                pet: guideSpec,
+                                outfitID: guideResident?.activeOutfitID,
+                                pose: .respond,
+                                weatherMode: coordinator.activeWeather,
+                                fingerFocusNormalized: fingerFocus,
+                                isHappySquint: committedLog != nil,
+                                tapBounceScale: petTapBounce
+                            )
+                            .frame(width: 215, height: 215)
 
+                            ProceduralPetRigView(
+                                pet: petSpec,
+                                outfitID: resident?.activeOutfitID,
+                                pose: committedLog != nil ? .respond : .notice,
+                                weatherMode: coordinator.activeWeather,
+                                fingerFocusNormalized: fingerFocus ?? (isHoldingCobblestone ? CGPoint(x: -0.5, y: 0.35) : nil),
+                                isHappySquint: committedLog != nil || holdProgress > 0.65,
+                                tapBounceScale: petTapBounce
+                            )
+                            .frame(width: 230, height: 230)
+                        }
+                    } else {
                         ProceduralPetRigView(
                             pet: petSpec,
                             outfitID: resident?.activeOutfitID,
                             pose: committedLog != nil ? .respond : .notice,
                             weatherMode: coordinator.activeWeather,
                             fingerFocusNormalized: fingerFocus ?? (isHoldingCobblestone ? CGPoint(x: -0.5, y: 0.35) : nil),
-                            isHappySquint: committedLog != nil || holdProgress > 0.65
+                            isHappySquint: committedLog != nil || holdProgress > 0.65,
+                            tapBounceScale: petTapBounce
                         )
-                        .frame(width: 230, height: 230)
+                        .frame(width: 280, height: 280)
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    let nx = (value.location.x / 280.0) * 2.0 - 1.0
+                                    let ny = (value.location.y / 280.0) * 2.0 - 1.0
+                                    fingerFocus = CGPoint(x: max(-1, min(1, nx)), y: max(-1, min(1, ny)))
+                                }
+                                .onEnded { _ in
+                                    withAnimation(.easeOut(duration: 0.4)) { fingerFocus = nil }
+                                }
+                        )
                     }
-                } else {
-                    ProceduralPetRigView(
-                        pet: petSpec,
-                        outfitID: resident?.activeOutfitID,
-                        pose: committedLog != nil ? .respond : .notice,
-                        weatherMode: coordinator.activeWeather,
-                        fingerFocusNormalized: fingerFocus ?? (isHoldingCobblestone ? CGPoint(x: -0.5, y: 0.35) : nil),
-                        isHappySquint: committedLog != nil || holdProgress > 0.65
-                    )
-                    .frame(width: 280, height: 280)
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { value in
-                                let nx = (value.location.x / 280.0) * 2.0 - 1.0
-                                let ny = (value.location.y / 280.0) * 2.0 - 1.0
-                                fingerFocus = CGPoint(x: max(-1, min(1, nx)), y: max(-1, min(1, ny)))
-                            }
-                            .onEnded { _ in
-                                withAnimation(.easeOut(duration: 0.4)) { fingerFocus = nil }
-                            }
-                    )
+
+                    // 問候完成時蓋下傳統朱紅印章「今日相遇 ✦」
+                    if committedLog != nil {
+                        HankoCelebrationStampView(
+                            title: "今日相遇 ✦",
+                            subtitle: "已貼進精裝日記",
+                            stampColor: AppTheme.clothBookmark
+                        )
+                        .offset(x: -6, y: 12)
+                    }
                 }
 
                 TornPaperSlipView(
@@ -132,35 +151,61 @@ struct SidewalkEncounterView: View {
                 if committedLog == nil {
                     VStack(spacing: 14) {
                         ZStack {
+                            // 長按共振波紋
+                            if isHoldingCobblestone {
+                                Circle()
+                                    .stroke(AppTheme.pawStrollChain.opacity(holdRipplePulse ? 0.0 : 0.72), lineWidth: 3)
+                                    .frame(width: holdRipplePulse ? 156 : 108, height: holdRipplePulse ? 156 : 108)
+                            }
+
+                            // 3D 黃銅石座底影
                             Circle()
-                                .fill(AppTheme.warmPaper.opacity(0.92))
-                                .frame(width: 110, height: 110)
-                                .shadow(color: AppTheme.deepPineInk.opacity(0.22), radius: 8, y: 4)
+                                .fill(AppTheme.timberDeep.opacity(0.35))
+                                .frame(width: 114, height: 114)
+                                .offset(y: 4)
+
+                            // 外層雕刻黃銅環
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [Color(hex: "#F2D794"), AppTheme.brassLight, AppTheme.brassDark],
+                                        center: .topLeading,
+                                        startRadius: 6,
+                                        endRadius: 64
+                                    )
+                                )
+                                .frame(width: 114, height: 114)
+                                .shadow(color: AppTheme.deepPineInk.opacity(0.26), radius: 8, y: 4)
+
+                            // 象牙棉紙圓盤面
+                            Circle()
+                                .fill(AppTheme.warmPaper)
+                                .frame(width: 102, height: 102)
 
                             Circle()
-                                .stroke(AppTheme.timberWarm.opacity(0.35), lineWidth: 5)
-                                .frame(width: 100, height: 100)
+                                .stroke(AppTheme.timberWarm.opacity(0.30), lineWidth: 5.5)
+                                .frame(width: 96, height: 96)
 
                             Circle()
                                 .trim(from: 0, to: holdProgress)
                                 .stroke(
                                     AppTheme.pawStrollChain,
-                                    style: StrokeStyle(lineWidth: 6, lineCap: .round)
+                                    style: StrokeStyle(lineWidth: 6.5, lineCap: .round)
                                 )
                                 .rotationEffect(.degrees(-90))
-                                .frame(width: 100, height: 100)
+                                .frame(width: 96, height: 96)
 
-                            VStack(spacing: 3) {
-                                Image(systemName: "hand.raised.fill")
-                                    .font(.system(size: 22))
-                                    .foregroundStyle(AppTheme.forestTeal)
-                                Text(isHoldingCobblestone ? "別急，保持輕放…" : "長按伸手招呼")
+                            VStack(spacing: 4) {
+                                Image(systemName: isHoldingCobblestone ? "sparkles" : "hand.raised.fill")
+                                    .font(.system(size: 24, weight: .bold))
+                                    .foregroundStyle(isHoldingCobblestone ? AppTheme.pawStrollChain : AppTheme.forestTeal)
+                                Text(isHoldingCobblestone ? "輕放感受呼嚕…" : "長按伸手招呼")
                                     .font(AppTheme.diegeticLabel(11))
                                     .foregroundStyle(AppTheme.deepPineInk)
                             }
                         }
-                        .scaleEffect(isHoldingCobblestone ? 1.06 : 1.0)
-                        .animation(.easeOut(duration: 0.2), value: isHoldingCobblestone)
+                        .scaleEffect(isHoldingCobblestone ? 1.07 : 1.0)
+                        .animation(.spring(response: 0.28, dampingFraction: 0.65), value: isHoldingCobblestone)
                         .onLongPressGesture(
                             minimumDuration: 2.5,
                             maximumDistance: 44,
@@ -178,11 +223,32 @@ struct SidewalkEncounterView: View {
                     }
                     .padding(.bottom, 26)
                 } else {
-                    ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 14) { departureButtons }
-                        VStack(spacing: 10) { departureButtons }
+                    VStack(spacing: 12) {
+                        // 剛印好的水彩明信片貼紙預覽（含和紙膠帶）
+                        if let data = committedLog?.bakedSnapshotPNGData, let img = UIImage(data: data) {
+                            ZStack(alignment: .top) {
+                                Image(uiImage: img)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxHeight: 92)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    .padding(5)
+                                    .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 8))
+                                    .shadow(color: AppTheme.deepPineInk.opacity(0.22), radius: 7, y: 3)
+
+                                WashiTapeStrip(color: Color(hex: "#E6CFA3"), angle: -2.0, width: 52)
+                                    .offset(y: -6)
+                            }
+                            .rotationEffect(.degrees(1.2))
+                            .transition(.scale(scale: 0.7).combined(with: .opacity))
+                        }
+
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 14) { departureButtons }
+                            VStack(spacing: 10) { departureButtons }
+                        }
                     }
-                    .padding(.bottom, 30)
+                    .padding(.bottom, 26)
                 }
             }
         }
@@ -208,75 +274,71 @@ struct SidewalkEncounterView: View {
 
     @ViewBuilder
     private var secondaryGestureButtons: some View {
-        Button {
+        WoodPlaqueButton(
+            title: "坐上木凳陪伴",
+            systemImage: "chair.lounge.fill",
+            tone: .warmCream,
+            fontSize: 12,
+            horizontalPadding: 14,
+            verticalPadding: 9
+        ) {
             HapticsEngine.shared.playPawRangeCue()
             completeGreeting(with: .crouchQuietly)
-        } label: {
-            Label("坐上木凳陪伴", systemImage: "chair.lounge.fill")
-                .font(AppTheme.diegeticLabel(12))
-                .foregroundStyle(AppTheme.deepPineInk)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(AppTheme.warmPaper.opacity(0.94), in: Capsule())
         }
-        .buttonStyle(.plain)
 
         if !petSpec.kind.isCatFamily {
-            Button {
+            WoodPlaqueButton(
+                title: "滾出縫布球",
+                systemImage: "circle.dashed.inset.filled",
+                tone: .forestTeal,
+                fontSize: 12,
+                horizontalPadding: 14,
+                verticalPadding: 9
+            ) {
                 HapticsEngine.shared.playDogBallRoll()
                 completeGreeting(with: .rollBall)
-            } label: {
-                Label("滾出縫布球", systemImage: "circle.dashed.inset.filled")
-                    .font(AppTheme.diegeticLabel(12))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(AppTheme.forestTeal, in: Capsule())
             }
-            .buttonStyle(.plain)
         } else if coordinator.activeWeather.isRainy {
-            Button {
+            WoodPlaqueButton(
+                title: "撐傘一起躲雨",
+                systemImage: "umbrella.fill",
+                tone: .forestTeal,
+                fontSize: 12,
+                horizontalPadding: 14,
+                verticalPadding: 9
+            ) {
                 HapticsEngine.shared.playPawRangeCue()
                 completeGreeting(with: .holdUmbrella)
-            } label: {
-                Label("撐傘一起躲雨", systemImage: "umbrella.fill")
-                    .font(AppTheme.diegeticLabel(12))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(AppTheme.forestTeal, in: Capsule())
             }
-            .buttonStyle(.plain)
         }
     }
 
     @ViewBuilder
     private var departureButtons: some View {
-        Button {
+        WoodPlaqueButton(
+            title: "邀請回家看看",
+            systemImage: "house.fill",
+            tone: .forestTeal,
+            fontSize: 13.5,
+            horizontalPadding: 18,
+            verticalPadding: 11
+        ) {
+            CozySoundEngine.shared.playCompassChime()
             coordinator.solveHomeRoomNow()
             coordinator.currentScreen = .home
-        } label: {
-            Label("邀請回家看看", systemImage: "house.fill")
-                .font(AppTheme.diegeticLabel(14))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 13)
-                .background(AppTheme.forestTeal, in: Capsule())
         }
-        .buttonStyle(.plain)
 
-        Button {
+        WoodPlaqueButton(
+            title: "收起日記繼續走",
+            systemImage: "map.fill",
+            tone: .warmCream,
+            fontSize: 13.5,
+            horizontalPadding: 16,
+            verticalPadding: 11
+        ) {
+            CozySoundEngine.shared.playPaperFlip()
             coordinator.currentScreen = .street
-        } label: {
-            Text("收起日記繼續走")
-                .font(AppTheme.diegeticLabel(14))
-                .foregroundStyle(AppTheme.deepPineInk)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 13)
-                .background(AppTheme.warmPaper.opacity(0.95), in: Capsule())
-                .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.5), lineWidth: 1))
         }
-        .buttonStyle(.plain)
     }
 
     private var subtitleLabel: String {
@@ -304,6 +366,10 @@ struct SidewalkEncounterView: View {
         guard committedLog == nil else { return }
         isHoldingCobblestone = true
         holdProgress = 0
+        holdRipplePulse = false
+        withAnimation(.easeOut(duration: 1.1).repeatForever(autoreverses: false)) {
+            holdRipplePulse = true
+        }
         HapticsEngine.shared.startHoldToGreetPurr()
         holdTask?.cancel()
         holdTask = Task { @MainActor in
@@ -317,6 +383,7 @@ struct SidewalkEncounterView: View {
 
     private func cancelCobblestoneHold() {
         isHoldingCobblestone = false
+        holdRipplePulse = false
         holdTask?.cancel()
         holdTask = nil
         HapticsEngine.shared.stopHoldToGreetPurr()
@@ -352,7 +419,14 @@ struct SidewalkEncounterView: View {
             gesture: gesture,
             inviteHome: true
         ) {
-            committedLog = log
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) {
+                committedLog = log
+                petTapBounce = 1.0
+            }
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(260))
+                withAnimation(.easeOut(duration: 0.25)) { petTapBounce = 0.0 }
+            }
             HapticsEngine.shared.playCurioUnpack()
             CozySoundEngine.shared.playPaperFlip()
         }

@@ -35,6 +35,7 @@
 		C93E1B479E8580F215D66CD8 /* DiegeticProps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 071983DCB25BE655FF909410 /* DiegeticProps.swift */; };
 		C965EDB14F54B1C970770E42 /* StreetOverworldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E7D5485F75FC57B5EBD6075 /* StreetOverworldView.swift */; };
 		CA8581F4D6976F1140243EA6 /* RootStageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA4F7120974E6DAA6C348D1B /* RootStageView.swift */; };
+		D03F5B5256D397DB58C261A1 /* StorybookGameUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9131649D46AD6C948295A1D7 /* StorybookGameUI.swift */; };
 		D61598D9F86F05DED885F12B /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514894921375578990F18305 /* AppTheme.swift */; };
 		DDED72C953C9AC79544709AF /* GameCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93CFFA2DFDC1657DFAD6BE0 /* GameCoordinator.swift */; };
 		E20E7734E37C49E6BF10D31D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 294ECBE64107C69E3AE79B88 /* Assets.xcassets */; };
@@ -79,6 +80,7 @@
 		8BF59BCC71DE351874829DEE /* SwiftDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataModels.swift; sourceTree = "<group>"; };
 		8D31E76984681A384C3B6706 /* SidewalkEncounterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidewalkEncounterView.swift; sourceTree = "<group>"; };
 		8FA68C348F168F5266C8FF2B /* cat_purr.ahap */ = {isa = PBXFileReference; path = cat_purr.ahap; sourceTree = "<group>"; };
+		9131649D46AD6C948295A1D7 /* StorybookGameUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorybookGameUI.swift; sourceTree = "<group>"; };
 		95711078B296384E1C6AD9A3 /* StepCoinLedgerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCoinLedgerEngine.swift; sourceTree = "<group>"; };
 		9C568E5706C32C149A0CC402 /* HapticsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticsEngine.swift; sourceTree = "<group>"; };
 		A5396DC8F62A51EA4DBF5FA0 /* CurioCubbiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurioCubbiesView.swift; sourceTree = "<group>"; };
@@ -143,6 +145,7 @@
 			children = (
 				071983DCB25BE655FF909410 /* DiegeticProps.swift */,
 				AFF60970FD6466DF84DA9D35 /* PlaceholderAssetGenerator.swift */,
+				9131649D46AD6C948295A1D7 /* StorybookGameUI.swift */,
 				C8C1C754DD8A26DFF8DBC7EB /* StorybookPropArt.swift */,
 				EEA141F93210351F30F0F3DA /* Shaders */,
 			);
@@ -350,6 +353,7 @@
 				7C018745BC28708B329A0467 /* SidewalkEncounterView.swift in Sources */,
 				16C9C08A49526F6F6575C241 /* Stage1FixtureDrawerView.swift in Sources */,
 				1EA24F4C854908AC4C4ACEBE /* StepCoinLedgerEngine.swift in Sources */,
+				D03F5B5256D397DB58C261A1 /* StorybookGameUI.swift in Sources */,
 				0437345AC7B1271F5FDA70B5 /* StorybookPropArt.swift in Sources */,
 				C965EDB14F54B1C970770E42 /* StreetOverworldView.swift in Sources */,
 				369D3BD8F3426939791248D1 /* SwiftDataModels.swift in Sources */,

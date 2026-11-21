@@ -15,6 +15,10 @@ struct TactileCareView: View {
     @State private var showKindredLessonSheet: Bool = false
     @State private var draggingOutfitID: String? = nil
     @State private var draggingOffset: CGSize = .zero
+    @State private var touchSparkles: [TouchSparkleSeed] = []
+    @State private var lastSparkleTime: Date = .distantPast
+    @State private var petBounce: CGFloat = 0.0
+    @State private var showCareStamp: Bool = false
 
     private var petSpec: PetSpec { PetCatalog.pet(id: petID) }
     private var resident: PetResidentState? { coordinator.resident(for: petID) }
@@ -28,69 +32,85 @@ struct TactileCareView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                HStack {
-                    Button {
+                HStack(spacing: 8) {
+                    WoodPlaqueButton(
+                        title: "陽光室",
+                        systemImage: "chevron.left",
+                        tone: .warmCream,
+                        fontSize: 12.5,
+                        horizontalPadding: 11,
+                        verticalPadding: 7
+                    ) {
+                        CozySoundEngine.shared.playPaperFlip()
                         coordinator.currentScreen = .home
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: "chevron.left")
-                            Text("陽光室")
-                                .font(AppTheme.diegeticLabel(13))
-                        }
-                        .foregroundStyle(AppTheme.deepPineInk)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(AppTheme.warmPaper.opacity(0.95), in: Capsule())
                     }
-                    .buttonStyle(.plain)
 
                     Spacer()
 
-                    Button {
+                    WoodPlaqueButton(
+                        title: "點心",
+                        systemImage: "fork.knife",
+                        tone: .terracotta,
+                        fontSize: 11.5,
+                        horizontalPadding: 10,
+                        verticalPadding: 7
+                    ) {
                         showSnackPicker = true
-                    } label: {
-                        Image(systemName: "fork.knife.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(AppTheme.pawInRange)
-                            .frame(width: 38, height: 38)
-                            .background(AppTheme.warmPaper.opacity(0.95), in: Circle())
                     }
-                    .buttonStyle(.plain)
                     .accessibilityLabel("餵食小點心")
 
-                    Button {
+                    WoodPlaqueButton(
+                        title: (resident?.isPinned == true) ? "已常駐" : "常駐",
+                        systemImage: (resident?.isPinned == true) ? "pin.fill" : "pin",
+                        tone: (resident?.isPinned == true) ? .brassGold : .warmCream,
+                        fontSize: 11.5,
+                        horizontalPadding: 10,
+                        verticalPadding: 7
+                    ) {
                         coordinator.togglePinFavorite(petID: petID)
-                    } label: {
-                        Image(systemName: (resident?.isPinned == true) ? "pin.fill" : "pin")
-                            .font(.system(size: 15))
-                            .foregroundStyle((resident?.isPinned == true) ? AppTheme.clothBookmark : AppTheme.deepPineInk)
-                            .frame(width: 38, height: 38)
-                            .background(AppTheme.warmPaper.opacity(0.95), in: Circle())
+                        triggerPetBounce()
                     }
-                    .buttonStyle(.plain)
                     .accessibilityLabel("釘選為常駐陽光室的室友")
 
-                    Button {
+                    WoodPlaqueButton(
+                        title: "傳承",
+                        systemImage: "pawprint.fill",
+                        tone: .forestTeal,
+                        fontSize: 11.5,
+                        horizontalPadding: 10,
+                        verticalPadding: 7
+                    ) {
                         showMentorshipSheet = true
-                    } label: {
-                        Image(systemName: "pawprint.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(AppTheme.forestTeal)
-                            .frame(width: 38, height: 38)
-                            .background(AppTheme.warmPaper.opacity(0.95), in: Circle())
                     }
-                    .buttonStyle(.plain)
                     .accessibilityLabel("規劃跨物種傳承練習")
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 14)
                 .padding(.top, 10)
 
-                VStack(spacing: 3) {
-                    Text(petSpec.name)
-                        .font(AppTheme.serifTitle(26))
-                        .foregroundStyle(AppTheme.deepPineInk)
+                // 手繪名牌與 3 朵暖心花瓣照護進度（取代冰冷數值條）
+                VStack(spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text(petSpec.name)
+                            .font(AppTheme.serifTitle(26))
+                            .foregroundStyle(AppTheme.deepPineInk)
+
+                        HStack(spacing: 4) {
+                            ForEach(0..<3, id: \.self) { idx in
+                                Image(systemName: idx < brushStrokeCount ? "heart.fill" : "heart")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(idx < brushStrokeCount ? AppTheme.clothBookmark : AppTheme.timberWarm.opacity(0.55))
+                                    .scaleEffect(idx < brushStrokeCount ? 1.15 : 1.0)
+                                    .animation(.spring(response: 0.3, dampingFraction: 0.55), value: brushStrokeCount)
+                            }
+                        }
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(AppTheme.warmPaper.opacity(0.92), in: Capsule())
+                        .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 1))
+                    }
+
                     Text("\(petSpec.kind.rawValue) · \(resident?.milestoneTitle ?? "初次相遇") · 相伴 \(resident?.sharedDaysCount ?? 1) 天")
-                        .font(AppTheme.serifBody(14))
+                        .font(AppTheme.serifBody(13.5))
                         .foregroundStyle(AppTheme.softInk)
 
                     if let fav = resident?.favoriteTexture {
@@ -118,11 +138,6 @@ struct TactileCareView: View {
                 Spacer()
 
                 ZStack {
-                    Ellipse()
-                        .fill(Color(hex: "#506D84").opacity(0.26))
-                        .frame(width: 280, height: 92)
-                        .offset(y: 94)
-
                     ProceduralPetRigView(
                         pet: petSpec,
                         outfitID: resident?.activeOutfitID,
@@ -130,18 +145,31 @@ struct TactileCareView: View {
                         weatherMode: coordinator.activeWeather,
                         fingerFocusNormalized: fingerFocus,
                         isHappySquint: brushStrokeCount >= 2 || brushRuffle > 0.1,
-                        brushRuffleAmount: brushRuffle
+                        brushRuffleAmount: brushRuffle,
+                        tapBounceScale: petBounce
                     )
                     .frame(width: 280, height: 280)
 
-                    // 從木製掛衣架拖曳衣飾靠近頸部時，於 socket_neck 浮現金色引導光圈
+                    // 指尖梳毛／輕撫即時飄出的愛心與金色星芒粒子
+                    LiveTouchSparkleLayer(seeds: touchSparkles)
+                        .frame(width: 280, height: 280)
+
+                    // 從木製掛衣架拖曳衣飾靠近頸部時，於 socket_neck 浮現金色引導光圈與文字提示
                     if draggingOutfitID != nil {
-                        Circle()
-                            .stroke(AppTheme.pawStrollChain, style: StrokeStyle(lineWidth: 2.5, dash: [5, 4]))
-                            .background(Circle().fill(AppTheme.pawStrollChain.opacity(0.16)))
-                            .frame(width: 74, height: 74)
-                            .offset(x: -18, y: -36)
-                            .allowsHitTesting(false)
+                        VStack(spacing: 4) {
+                            Text("放開即可配戴")
+                                .font(AppTheme.diegeticLabel(10))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(AppTheme.pawStrollChain, in: Capsule())
+                            Circle()
+                                .stroke(AppTheme.pawStrollChain, style: StrokeStyle(lineWidth: 2.8, dash: [5, 4]))
+                                .background(Circle().fill(AppTheme.pawStrollChain.opacity(0.20)))
+                                .frame(width: 76, height: 76)
+                        }
+                        .offset(x: -18, y: -48)
+                        .allowsHitTesting(false)
                     }
 
                     // 隨指尖移動的木質梳毛刷（雨天自動切換成溫熱毛巾擦毛！）
@@ -155,10 +183,20 @@ struct TactileCareView: View {
                         .foregroundStyle(AppTheme.deepPineInk)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(AppTheme.warmPaper.opacity(0.92), in: Capsule())
-                        .overlay(Capsule().stroke(AppTheme.timberWarm, lineWidth: 1.2))
+                        .background(AppTheme.warmPaper.opacity(0.95), in: Capsule())
+                        .overlay(Capsule().stroke(AppTheme.timberWarm, lineWidth: 1.3))
+                        .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 5, y: 2)
                         .position(x: max(44, min(236, loc.x)), y: max(30, min(250, loc.y - 26)))
                         .allowsHitTesting(false)
+                    }
+
+                    if showCareStamp {
+                        HankoCelebrationStampView(
+                            title: "暖心照護 ✦",
+                            subtitle: "\(petSpec.name)很開心",
+                            stampColor: AppTheme.pawInRange
+                        )
+                        .offset(x: 62, y: -96)
                     }
                 }
                 .contentShape(Rectangle())
@@ -171,6 +209,7 @@ struct TactileCareView: View {
                             if abs(value.translation.width) > 20 {
                                 brushRuffle = 1.0
                                 brushLocation = value.location
+                                emitTouchSparkle(at: value.location)
                             }
                         }
                         .onEnded { value in
@@ -178,10 +217,18 @@ struct TactileCareView: View {
                                 brushStrokeCount += 1
                                 HapticsEngine.shared.playBrushStrokeTick()
                                 CozySoundEngine.shared.playBrushSwish()
+                                triggerPetBounce()
                                 if brushStrokeCount == 3 {
                                     coordinator.completeTactileCare(petID: petID)
                                     HapticsEngine.shared.playCurioUnpack()
                                     CozySoundEngine.shared.playCompassChime()
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                                        showCareStamp = true
+                                    }
+                                    Task { @MainActor in
+                                        try? await Task.sleep(for: .seconds(2.8))
+                                        withAnimation(.easeOut(duration: 0.35)) { showCareStamp = false }
+                                    }
                                 }
                             }
                             withAnimation(.easeOut(duration: 0.35)) {
@@ -205,26 +252,33 @@ struct TactileCareView: View {
 
                 // 觸覺互動按鈕：今日散步夥伴 ＋ 滾球／拉毯互動 ＋ 第 10 天心照不宣雙選練習
                 HStack(spacing: 10) {
-                    Button {
+                    WoodPlaqueButton(
+                        title: coordinator.activeWalkCompanionID == petID ? "今日散步夥伴" : "一起出門散步",
+                        systemImage: "figure.walk",
+                        tone: .forestTeal,
+                        fontSize: 12,
+                        horizontalPadding: 13,
+                        verticalPadding: 8
+                    ) {
+                        CozySoundEngine.shared.playCompassChime()
                         coordinator.setWalkCompanion(petID: petID)
-                    } label: {
-                        Label(
-                            coordinator.activeWalkCompanionID == petID ? "今日散步夥伴" : "一起出門散步",
-                            systemImage: "figure.walk"
-                        )
-                        .font(AppTheme.diegeticLabel(12))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(AppTheme.forestTeal, in: Capsule())
+                        triggerPetBounce()
                     }
-                    .buttonStyle(.plain)
 
-                    Button {
+                    WoodPlaqueButton(
+                        title: petSpec.kind.isCatFamily ? "拉好毯角" : "滾出布球",
+                        systemImage: petSpec.kind.isCatFamily ? "bed.double.fill" : "circle.dashed.inset.filled",
+                        tone: .warmCream,
+                        fontSize: 12,
+                        horizontalPadding: 13,
+                        verticalPadding: 8
+                    ) {
                         HapticsEngine.shared.playDogBallRoll()
+                        CozySoundEngine.shared.playBrushSwish()
+                        triggerPetBounce()
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
-                            toyBounceOffset = -12
-                            brushRuffle = 0.8
+                            toyBounceOffset = -10
+                            brushRuffle = 0.85
                         }
                         Task { @MainActor in
                             try? await Task.sleep(for: .milliseconds(280))
@@ -235,69 +289,75 @@ struct TactileCareView: View {
                         }
                         coordinator.completeTactileCare(petID: petID)
                         coordinator.showWhisper(petSpec.kind.isCatFamily ? "替\(petSpec.name)輕輕拉好毯子一角。" : "把縫布球輕輕滾向\(petSpec.name)的腳邊！")
-                    } label: {
-                        Label(petSpec.kind.isCatFamily ? "拉好毯角" : "滾出布球", systemImage: petSpec.kind.isCatFamily ? "bed.double.fill" : "circle.dashed.inset.filled")
-                            .font(AppTheme.diegeticLabel(12))
-                            .foregroundStyle(AppTheme.deepPineInk)
-                            .padding(.horizontal, 13)
-                            .padding(.vertical, 8)
-                            .background(AppTheme.warmPaper, in: Capsule())
-                            .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.6), lineWidth: 1))
-                            .offset(y: toyBounceOffset)
                     }
-                    .buttonStyle(.plain)
+                    .offset(y: toyBounceOffset)
 
                     if let res = resident, res.sharedDaysCount >= 10, !res.kindredPracticeCompleted {
-                        Button {
+                        WoodPlaqueButton(
+                            title: "習慣練習",
+                            systemImage: "sparkles",
+                            tone: .brassGold,
+                            fontSize: 12,
+                            horizontalPadding: 12,
+                            verticalPadding: 8
+                        ) {
                             showKindredLessonSheet = true
-                        } label: {
-                            Label("習慣練習", systemImage: "sparkles")
-                                .font(AppTheme.diegeticLabel(12))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(AppTheme.pawStrollChain, in: Capsule())
                         }
-                        .buttonStyle(.plain)
                     }
                 }
-                .padding(.bottom, 10)
+                .padding(.bottom, 8)
 
                 Spacer()
 
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Text("木製掛衣架 · 頸部衣飾")
-                            .font(AppTheme.diegeticLabel(12))
-                            .foregroundStyle(AppTheme.warmPaper)
-                        Spacer()
-                        Button("前往步數幣小舖") {
-                            coordinator.currentScreen = .curioCubbies
+                        HStack(spacing: 6) {
+                            Image(systemName: "hanger")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(Color(hex: "#F6E9CE"))
+                            Text("木製掛衣架 · 點擊或上拖配戴")
+                                .font(AppTheme.diegeticLabel(12))
+                                .foregroundStyle(Color(hex: "#FFF9EE"))
                         }
-                        .font(AppTheme.diegeticLabel(11))
-                        .foregroundStyle(AppTheme.warmPaper.opacity(0.9))
+                        Spacer()
+                        Button {
+                            CozySoundEngine.shared.playPaperFlip()
+                            coordinator.currentScreen = .curioCubbies
+                        } label: {
+                            Text("步數幣小舖 ▸")
+                                .font(AppTheme.diegeticLabel(11))
+                                .foregroundStyle(Color(hex: "#FFE7B2"))
+                        }
+                        .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 16)
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
                             PegRackItemCard(
+                                itemID: nil,
                                 title: "素頸自然",
                                 swatchHex: "#E8DFCE",
+                                secondaryHex: "#FAF6EE",
                                 isEquipped: resident?.activeOutfitID == nil
                             ) {
                                 coordinator.equipOutfit(petID: petID, outfitID: nil)
+                                CozySoundEngine.shared.playPaperFlip()
+                                triggerPetBounce()
                             }
 
                             ForEach(ownedWardrobe) { item in
                                 PegRackItemCard(
+                                    itemID: item.id,
                                     title: item.name,
                                     swatchHex: item.swatchHex,
+                                    secondaryHex: item.secondaryHex,
                                     isEquipped: resident?.activeOutfitID == item.id
                                 ) {
                                     coordinator.equipOutfit(petID: petID, outfitID: item.id)
                                     HapticsEngine.shared.playPawRangeCue()
                                     CozySoundEngine.shared.playWardrobeSnap(withBell: item.id == "outfit.occasion_collar")
+                                    triggerPetBounce()
                                 }
                                 .offset(draggingOutfitID == item.id ? draggingOffset : .zero)
                                 .zIndex(draggingOutfitID == item.id ? 20 : 0)
@@ -314,6 +374,7 @@ struct TactileCareView: View {
                                                 coordinator.equipOutfit(petID: petID, outfitID: item.id)
                                                 HapticsEngine.shared.playPawRangeCue()
                                                 CozySoundEngine.shared.playWardrobeSnap(withBell: item.id == "outfit.occasion_collar")
+                                                triggerPetBounce()
                                             }
                                             withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
                                                 draggingOutfitID = nil
@@ -328,12 +389,25 @@ struct TactileCareView: View {
                 }
                 .padding(.vertical, 14)
                 .background(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(AppTheme.timberWarm)
-                        .shadow(color: AppTheme.deepPineInk.opacity(0.24), radius: 8, y: -2)
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .fill(Color(hex: "#674325"))
+                            .offset(y: 3)
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color(hex: "#B5865A"), Color(hex: "#8F633B")],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(Color(hex: "#DFB889").opacity(0.45), lineWidth: 1.2)
+                    }
+                    .shadow(color: AppTheme.deepPineInk.opacity(0.26), radius: 8, y: -2)
                 )
                 .padding(.horizontal, 10)
-                .padding(.bottom, 10)
+                .padding(.bottom, 12)
             }
         }
         .sheet(isPresented: $showMentorshipSheet) {
@@ -369,38 +443,93 @@ struct TactileCareView: View {
             Button("取消", role: .cancel) {}
         }
     }
+
+    private func triggerPetBounce() {
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.45)) {
+            petBounce = 1.0
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(190))
+            withAnimation(.easeOut(duration: 0.22)) { petBounce = 0.0 }
+        }
+    }
+
+    private func emitTouchSparkle(at point: CGPoint) {
+        let now = Date()
+        guard now.timeIntervalSince(lastSparkleTime) >= 0.085 else { return }
+        lastSparkleTime = now
+        let seed = TouchSparkleSeed(
+            position: point,
+            createdAt: now,
+            isHeart: touchSparkles.count % 2 == 0,
+            driftX: CGFloat.random(in: -18...18),
+            color: touchSparkles.count % 2 == 0 ? Color(hex: "#D96A52") : AppTheme.pawStrollChain
+        )
+        touchSparkles.append(seed)
+        if touchSparkles.count > 24 {
+            touchSparkles.removeFirst(touchSparkles.count - 24)
+        }
+    }
 }
 
 private struct PegRackItemCard: View {
+    let itemID: String?
     let title: String
     let swatchHex: String
+    let secondaryHex: String
     let isEquipped: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 6) {
-                Circle().fill(AppTheme.timberDeep).frame(width: 8, height: 8)
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(hex: swatchHex))
-                    .frame(width: 44, height: 34)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(isEquipped ? AppTheme.warmPaper : AppTheme.deepPineInk.opacity(0.25), lineWidth: isEquipped ? 2.5 : 1)
+            VStack(spacing: 4) {
+                // 黃銅掛衣圓釘
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [Color(hex: "#F2D794"), AppTheme.brassDark],
+                            center: .topLeading,
+                            startRadius: 1,
+                            endRadius: 6
+                        )
                     )
+                    .frame(width: 9, height: 9)
+                    .overlay(Circle().stroke(AppTheme.timberDeep.opacity(0.6), lineWidth: 0.8))
+
+                // 垂掛棉紙吊卡 ＋ 手繪微型服飾圖案
+                PaintedOutfitMiniatureView(
+                    itemID: itemID,
+                    swatchHex: swatchHex,
+                    secondaryHex: secondaryHex,
+                    size: 42
+                )
+                .padding(3)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(AppTheme.warmPaper)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .stroke(isEquipped ? AppTheme.pawStrollChain : AppTheme.timberWarm.opacity(0.45), lineWidth: isEquipped ? 2.2 : 1)
+                        )
+                )
+
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(AppTheme.warmPaper)
+                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(isEquipped ? Color(hex: "#FFF9DE") : AppTheme.warmPaper)
                     .lineLimit(1)
             }
-            .frame(width: 90)
+            .frame(width: 88)
             .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(isEquipped ? AppTheme.forestTeal.opacity(0.85) : AppTheme.timberDeep.opacity(0.35))
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(isEquipped ? AppTheme.forestTeal.opacity(0.92) : AppTheme.timberDeep.opacity(0.42))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(isEquipped ? AppTheme.pawStrollChain.opacity(0.85) : Color.white.opacity(0.14), lineWidth: 1.2)
+                    )
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TactileGameButtonStyle())
     }
 }
 

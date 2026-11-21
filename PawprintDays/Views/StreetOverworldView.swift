@@ -46,16 +46,8 @@ struct StreetOverworldView: View {
                 .stroke(AppTheme.pawInRange.opacity(0.42), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
 
                 Annotation("", coordinate: coordinator.locationService.currentLocation.coordinate) {
-                    ZStack {
-                        Circle()
-                            .fill(AppTheme.warmPaper)
-                            .frame(width: 22, height: 22)
-                            .shadow(color: AppTheme.deepPineInk.opacity(0.3), radius: 3)
-                        Circle()
-                            .fill(AppTheme.forestTeal)
-                            .frame(width: 12, height: 12)
-                    }
-                    .accessibilityLabel("你目前的散步位置")
+                    PlayerLanternMapPinView()
+                        .accessibilityLabel("你目前的散步位置")
                 }
 
                 ForEach(coordinator.visibleAnchors, id: \.siteID) { anchor in
@@ -69,7 +61,8 @@ struct StreetOverworldView: View {
                             label: anchor.customLabel,
                             state: state,
                             distanceM: dist,
-                            isFamiliarCorner: anchor.isFamiliarCorner
+                            isFamiliarCorner: anchor.isFamiliarCorner,
+                            familiarityStars: min(3, anchor.totalVisitsCount / 3)
                         ) {
                             let check = coordinator.attemptOpenAnchor(anchor)
                             if case .tooFar = check {
@@ -97,9 +90,36 @@ struct StreetOverworldView: View {
                     onOpenCubbies: { coordinator.currentScreen = .curioCubbies },
                     onOpenFixture: { coordinator.showFixtureDrawer = true },
                     dayTitle: CivilCalendarHelper.displayDate(from: coordinator.currentLocalDateISO),
-                    weather: coordinator.activeWeather
+                    weather: coordinator.activeWeather,
+                    coinBalance: coordinator.ledger.coinBalance
                 )
                 .padding(.top, 8)
+
+                // 今日街角散步印章進度條（無壓力、給日常散步滿滿的繪本收集成就感）
+                let todayCount = Set(coordinator.encounters.filter { $0.localDateISO == coordinator.currentLocalDateISO }.map(\.siteID)).count
+                HStack(spacing: 8) {
+                    HStack(spacing: 5) {
+                        ForEach(0..<3, id: \.self) { idx in
+                            Image(systemName: idx < todayCount ? "pawprint.fill" : "pawprint")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(idx < todayCount ? AppTheme.pawStrollChain : AppTheme.timberWarm.opacity(0.55))
+                        }
+                        Text(todayCount >= 3 ? "今日街區巡禮達成 ✦" : "今日遇見街角 \(todayCount)/3")
+                            .font(AppTheme.diegeticLabel(11))
+                            .foregroundStyle(todayCount >= 3 ? AppTheme.forestTeal : AppTheme.deepPineInk)
+                    }
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .fill(AppTheme.warmPaper.opacity(0.95))
+                            .overlay(Capsule().stroke(todayCount >= 3 ? AppTheme.pawStrollChain : AppTheme.timberWarm.opacity(0.45), lineWidth: 1.1))
+                            .shadow(color: AppTheme.deepPineInk.opacity(0.12), radius: 3, y: 1)
+                    )
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 3)
 
                 if coordinator.showOnboardingPaperSlip {
                     TornPaperSlipView(
@@ -287,40 +307,41 @@ struct StreetOverworldView: View {
                 }
 
                 if let far = selectedFarAnchor {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(far.customLabel)
-                                .font(AppTheme.serifTitle(15))
-                                .foregroundStyle(AppTheme.deepPineInk)
-                            Text("距離 \(Int(coordinator.distanceMeters(to: far))) 公尺 — 走近 75 公尺內即可打招呼。")
-                                .font(AppTheme.serifBody(13))
-                                .foregroundStyle(AppTheme.softInk)
-                        }
-                        Spacer()
-                        Button("模擬走過去") {
-                            let target = AnchorRotationEngine.coordinateAhead(
-                                from: CLLocationCoordinate2D(latitude: far.lat, longitude: far.lon),
-                                meters: 14,
-                                bearingDegrees: 210
-                            )
-                            coordinator.locationService.walkSimulated(to: target, stepsSegments: 6)
-                            _ = coordinator.ingestSteps(steps: 240, placeLabel: far.customLabel)
-                            selectedFarAnchor = nil
-                            withAnimation(.easeInOut(duration: 0.6)) {
-                                cameraPosition = .region(
-                                    MKCoordinateRegion(center: target, latitudinalMeters: 300, longitudinalMeters: 300)
+                    StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.timberWarm, paddingAmount: 13) {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(far.customLabel)
+                                    .font(AppTheme.serifTitle(15))
+                                    .foregroundStyle(AppTheme.deepPineInk)
+                                Text("距離 \(Int(coordinator.distanceMeters(to: far))) 公尺 — 走近 75 公尺內即可打招呼。")
+                                    .font(AppTheme.serifBody(12.5))
+                                    .foregroundStyle(AppTheme.softInk)
+                            }
+                            Spacer()
+                            WoodPlaqueButton(
+                                title: "模擬走過去",
+                                systemImage: "figure.walk",
+                                tone: .forestTeal,
+                                fontSize: 12,
+                                horizontalPadding: 12,
+                                verticalPadding: 8
+                            ) {
+                                let target = AnchorRotationEngine.coordinateAhead(
+                                    from: CLLocationCoordinate2D(latitude: far.lat, longitude: far.lon),
+                                    meters: 14,
+                                    bearingDegrees: 210
                                 )
+                                coordinator.locationService.walkSimulated(to: target, stepsSegments: 6)
+                                _ = coordinator.ingestSteps(steps: 240, placeLabel: far.customLabel)
+                                selectedFarAnchor = nil
+                                withAnimation(.easeInOut(duration: 0.6)) {
+                                    cameraPosition = .region(
+                                        MKCoordinateRegion(center: target, latitudinalMeters: 300, longitudinalMeters: 300)
+                                    )
+                                }
                             }
                         }
-                        .font(AppTheme.diegeticLabel(12))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(AppTheme.forestTeal, in: Capsule())
                     }
-                    .padding(14)
-                    .background(AppTheme.warmPaper.opacity(0.96), in: RoundedRectangle(cornerRadius: 16))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 1))
                     .padding(.horizontal, 16)
                     .padding(.bottom, 8)
                 }
@@ -330,6 +351,7 @@ struct StreetOverworldView: View {
                         destinationLabel: "回到陽光室家園",
                         iconSystemName: "house.fill",
                         onTap: {
+                            CozySoundEngine.shared.playCompassChime()
                             coordinator.solveHomeRoomNow()
                             coordinator.currentScreen = .home
                         },
@@ -340,7 +362,15 @@ struct StreetOverworldView: View {
 
                     Spacer()
 
-                    Button {
+                    WoodPlaqueButton(
+                        title: "前方 60m 釘選街角",
+                        systemImage: "mappin.and.ellipse",
+                        tone: .forestTeal,
+                        fontSize: 12,
+                        horizontalPadding: 14,
+                        verticalPadding: 11
+                    ) {
+                        CozySoundEngine.shared.playPaperFlip()
                         if let pinned = coordinator.pinFamiliarCornerAhead() {
                             withAnimation(.easeInOut(duration: 0.5)) {
                                 cameraPosition = .region(
@@ -352,23 +382,8 @@ struct StreetOverworldView: View {
                                 )
                             }
                         }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "mappin.and.ellipse")
-                                .font(.system(size: 13, weight: .semibold))
-                            Text("前方 60m 釘選熟悉街角")
-                                .font(AppTheme.diegeticLabel(12))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.85)
-                        }
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 11)
-                        .background(AppTheme.forestTeal, in: Capsule())
-                        .shadow(color: AppTheme.deepPineInk.opacity(0.24), radius: 6, y: 3)
                     }
-                    .buttonStyle(.plain)
-                    .padding(.bottom, 10)
+                    .padding(.bottom, 16)
 
                     Spacer()
 
@@ -406,9 +421,10 @@ struct StreetOverworldView: View {
                 }
             }
         }
-        .overlay(alignment: .trailing) {
-            // 輕巧定位回歸鈕（散步滑動地圖後一鍵回到自己所在街角）
+        .overlay(alignment: .topTrailing) {
+            // 輕巧定位回歸鈕（置於右上角「日記」下方，與左上角今日進度條左右對稱、不遮擋地圖中央足印）
             Button {
+                HapticsEngine.shared.playBrushStrokeTick()
                 withAnimation(.easeInOut(duration: 0.5)) {
                     cameraPosition = .region(
                         MKCoordinateRegion(
@@ -420,17 +436,55 @@ struct StreetOverworldView: View {
                 }
             } label: {
                 Image(systemName: "location.fill")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(AppTheme.forestTeal)
-                    .frame(width: 40, height: 40)
-                    .background(AppTheme.warmPaper.opacity(0.94), in: Circle())
-                    .overlay(Circle().stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 1))
-                    .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 4, y: 2)
+                    .frame(width: 38, height: 38)
+                    .background(
+                        ZStack {
+                            Circle().fill(Color(hex: "#C8B392")).offset(y: 2.5)
+                            Circle().fill(AppTheme.warmPaper.opacity(0.97))
+                            Circle().stroke(AppTheme.timberWarm.opacity(0.55), lineWidth: 1.1)
+                        }
+                    )
+                    .padding(.bottom, 2.5)
+                    .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 4, y: 2)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(TactileGameButtonStyle())
             .padding(.trailing, 16)
-            .padding(.top, 110)
+            .padding(.top, 56)
             .accessibilityLabel("回到我目前的散步位置")
+        }
+    }
+}
+
+private struct PlayerLanternMapPinView: View {
+    @State private var pulse = false
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(AppTheme.forestTeal.opacity(pulse ? 0.08 : 0.26))
+                .frame(width: pulse ? 42 : 24, height: pulse ? 42 : 24)
+
+            Circle()
+                .fill(AppTheme.warmPaper)
+                .frame(width: 24, height: 24)
+                .overlay(Circle().stroke(AppTheme.brassDark.opacity(0.75), lineWidth: 1.5))
+                .shadow(color: AppTheme.deepPineInk.opacity(0.32), radius: 4, y: 2)
+
+            Circle()
+                .fill(AppTheme.forestTeal)
+                .frame(width: 13, height: 13)
+
+            Circle()
+                .fill(Color.white.opacity(0.65))
+                .frame(width: 4, height: 4)
+                .offset(x: -2.5, y: -2.5)
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
         }
     }
 }
@@ -440,9 +494,11 @@ private struct PawAnchorStampView: View {
     let state: PawState
     let distanceM: Int
     let isFamiliarCorner: Bool
+    var familiarityStars: Int = 0
     let onTap: () -> Void
 
     @State private var ripple = false
+    @State private var bob = false
 
     private var fillColor: Color {
         switch state {
@@ -454,44 +510,88 @@ private struct PawAnchorStampView: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
+        Button {
+            HapticsEngine.shared.playBrushStrokeTick()
+            onTap()
+        } label: {
             VStack(spacing: 3) {
                 ZStack {
                     if state == .inRange || state == .strollChain {
                         Circle()
-                            .stroke(fillColor.opacity(ripple ? 0.0 : 0.72), lineWidth: state == .strollChain ? 3.2 : 2.5)
-                            .frame(width: ripple ? 68 : 42, height: ripple ? 68 : 42)
+                            .stroke(fillColor.opacity(ripple ? 0.0 : 0.78), lineWidth: state == .strollChain ? 3.5 : 2.6)
+                            .frame(width: ripple ? 74 : 44, height: ripple ? 74 : 44)
                     }
 
+                    // 3D 蠟封木座底影
+                    Circle()
+                        .fill(AppTheme.deepPineInk.opacity(0.30))
+                        .frame(width: 48, height: 48)
+                        .offset(y: 3)
+
+                    // 暖棉紙外框 + 古銅細邊
                     Circle()
                         .fill(AppTheme.warmPaper)
-                        .frame(width: 46, height: 46)
-                        .shadow(color: AppTheme.deepPineInk.opacity(0.28), radius: 5, y: 2)
+                        .frame(width: 48, height: 48)
+                        .overlay(Circle().stroke(fillColor.opacity(0.75), lineWidth: 1.5))
+                        .shadow(color: AppTheme.deepPineInk.opacity(0.25), radius: 5, y: 2)
 
                     Circle()
-                        .fill(fillColor)
+                        .fill(
+                            RadialGradient(
+                                colors: [fillColor.opacity(0.92), fillColor],
+                                center: .topLeading,
+                                startRadius: 3,
+                                endRadius: 24
+                            )
+                        )
                         .frame(width: 38, height: 38)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+                                .padding(2)
+                        )
 
                     Image(systemName: state == .metToday ? "leaf.fill" : (state == .strollChain ? "sparkles" : "pawprint.fill"))
                         .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.white)
                 }
+                .offset(y: (state == .inRange || state == .strollChain) && bob ? -4.5 : 0)
 
-                Text("\(label) · \(distanceM)m")
-                    .font(AppTheme.diegeticLabel(11))
-                    .foregroundStyle(AppTheme.deepPineInk)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(AppTheme.warmPaper.opacity(0.95), in: Capsule())
-                    .overlay(Capsule().stroke(fillColor.opacity(0.65), lineWidth: 1))
+                HStack(spacing: 4) {
+                    if isFamiliarCorner {
+                        Image(systemName: "house.circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(AppTheme.forestTeal)
+                    }
+                    Text("\(label) · \(distanceM)m")
+                        .font(AppTheme.diegeticLabel(11))
+                        .foregroundStyle(AppTheme.deepPineInk)
+                    if familiarityStars > 0 {
+                        Text(String(repeating: "★", count: familiarityStars))
+                            .font(.system(size: 9))
+                            .foregroundStyle(AppTheme.pawStrollChain)
+                    }
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 3.5)
+                .background(
+                    ZStack {
+                        Capsule().fill(fillColor.opacity(0.32)).offset(y: 1.5)
+                        Capsule().fill(AppTheme.warmPaper.opacity(0.96))
+                        Capsule().stroke(fillColor.opacity(0.72), lineWidth: 1.1)
+                    }
+                )
             }
-            .frame(minWidth: 64, minHeight: 64)
+            .frame(minWidth: 64, minHeight: 68)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TactileGameButtonStyle())
         .onAppear {
             if state == .inRange || state == .strollChain {
                 withAnimation(.easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
                     ripple = true
+                }
+                withAnimation(.easeInOut(duration: 1.15).repeatForever(autoreverses: true)) {
+                    bob = true
                 }
             }
         }

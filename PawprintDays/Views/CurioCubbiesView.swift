@@ -6,13 +6,15 @@ struct CurioCubbiesView: View {
     @State private var selectedCategory: ShopItemSpec.Category = .wardrobe
     @State private var showPouchShop: Bool = false
     @State private var showVisitOptInPreview: Bool = false
+    @State private var showWalkingSettings: Bool = false
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
     var body: some View {
         ZStack {
+            // 溫潤台灣紅檜木紋展示櫃背景
             LinearGradient(
-                colors: [Color(hex: "#E8DCC8"), Color(hex: "#D6C3A5")],
+                colors: [Color(hex: "#D2B28B"), Color(hex: "#B58D62"), Color(hex: "#9B7349")],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -20,213 +22,275 @@ struct CurioCubbiesView: View {
 
             VStack(spacing: 0) {
                 HStack {
-                    Button {
+                    WoodPlaqueButton(
+                        title: "陽光室",
+                        systemImage: "chevron.left",
+                        tone: .warmCream,
+                        fontSize: 12.5,
+                        horizontalPadding: 11,
+                        verticalPadding: 7
+                    ) {
+                        CozySoundEngine.shared.playPaperFlip()
                         coordinator.currentScreen = .home
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: "chevron.left")
-                            Text("陽光室")
-                                .font(AppTheme.diegeticLabel(13))
-                        }
-                        .foregroundStyle(AppTheme.deepPineInk)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(AppTheme.warmPaper, in: Capsule())
                     }
-                    .buttonStyle(.plain)
 
                     Spacer()
 
-                    Text("拾遺木格櫃")
-                        .font(AppTheme.serifTitle(20))
-                        .foregroundStyle(AppTheme.deepPineInk)
+                    VStack(spacing: 1) {
+                        Text("拾遺木格櫃")
+                            .font(AppTheme.serifTitle(20))
+                            .foregroundStyle(Color(hex: "#FFFDF7"))
+                            .shadow(color: AppTheme.timberDeep.opacity(0.45), radius: 2, y: 1)
+                        Text("已收藏 \(coordinator.ledger.foragedCurios.count) 件街區拾遺")
+                            .font(AppTheme.diegeticLabel(10.5))
+                            .foregroundStyle(Color(hex: "#F6E7CA"))
+                    }
 
                     Spacer()
 
-                    Button {
+                    WoodPlaqueButton(
+                        title: "日記",
+                        systemImage: "book.closed.fill",
+                        tone: .forestTeal,
+                        fontSize: 12,
+                        horizontalPadding: 11,
+                        verticalPadding: 7
+                    ) {
+                        CozySoundEngine.shared.playPaperFlip()
                         coordinator.currentScreen = .sketchbook
-                    } label: {
-                        Image(systemName: "book.closed.fill")
-                            .font(.system(size: 16))
-                            .foregroundStyle(AppTheme.forestTeal)
-                            .frame(width: 36, height: 36)
-                            .background(AppTheme.warmPaper, in: Circle())
                     }
-                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack {
-                            Text("沿途撿回的街區小物")
-                                .font(AppTheme.serifTitle(16))
-                                .foregroundStyle(AppTheme.deepPineInk)
-                            Spacer()
-                            Text("再走 \(coordinator.stepsUntilNextPocketFind) 步拾獲下一件")
-                                .font(AppTheme.diegeticLabel(11))
-                                .foregroundStyle(AppTheme.forestTeal)
-                        }
-
-                        if coordinator.ledger.foragedCurios.isEmpty {
-                            VStack(spacing: 8) {
-                                Image(systemName: "leaf.circle")
-                                    .font(.system(size: 32))
-                                    .foregroundStyle(AppTheme.timberDeep.opacity(0.6))
-                                Text("紅檜木格還空著，帶著散步夥伴累積 1,400 步就能帶回第一件拾遺小物。")
-                                    .font(AppTheme.handwritten(15))
-                                    .foregroundStyle(AppTheme.softInk)
-                                    .multilineTextAlignment(.center)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(24)
-                            .background(AppTheme.warmPaper.opacity(0.85), in: RoundedRectangle(cornerRadius: 16))
-                        } else {
-                            LazyVGrid(columns: columns, spacing: 12) {
-                                ForEach(coordinator.ledger.foragedCurios) { entry in
-                                    let spec = CurioCatalog.curio(id: entry.curioID)
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        HStack {
-                                            PaintedCurioStampView(curioID: entry.curioID, size: 38)
-                                            Spacer()
-                                            Text(entry.localDateISO)
-                                                .font(.system(size: 10, design: .monospaced))
-                                                .foregroundStyle(AppTheme.softInk)
-                                        }
-                                        Text(spec.name)
-                                            .font(AppTheme.serifTitle(14))
-                                            .foregroundStyle(AppTheme.deepPineInk)
-                                        Text("\(entry.placeLabel) · \(spec.weatherTag.displayName)")
-                                            .font(AppTheme.diegeticLabel(11))
-                                            .foregroundStyle(AppTheme.forestTeal)
-                                        Text(spec.journalNote)
-                                            .font(AppTheme.handwritten(12))
-                                            .foregroundStyle(AppTheme.softInk)
-                                            .lineLimit(2)
-                                    }
-                                    .padding(12)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 14))
-                                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.timberWarm.opacity(0.55), lineWidth: 2))
-                                }
-                            }
-                        }
-
-                        // 刺繡步數幣袋（平時不打擾與動物互動）
+                    VStack(alignment: .leading, spacing: 16) {
+                        // 紅檜木內凹展示櫃區塊
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text("刺繡步數幣袋")
-                                        .font(AppTheme.serifTitle(17))
-                                        .foregroundStyle(AppTheme.deepPineInk)
-                                    Text("每 200 步換 1 枚步數幣 · 跨日餘步 \(coordinator.ledger.stepCarryRemainder)/200")
-                                        .font(AppTheme.serifBody(12))
-                                        .foregroundStyle(AppTheme.softInk)
-                                }
+                                Text("沿途撿回的街區小物")
+                                    .font(AppTheme.serifTitle(16))
+                                    .foregroundStyle(Color(hex: "#FFF9EE"))
                                 Spacer()
-                                Text("\(coordinator.ledger.coinBalance) 幣")
-                                    .font(.system(size: 20, weight: .bold, design: .serif))
-                                    .foregroundStyle(AppTheme.forestTeal)
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 6)
-                                    .background(AppTheme.parchmentTray, in: Capsule())
-                            }
-
-                            if let activePack = coordinator.ledger.activeOutingPack {
-                                Text("下次散步已備妥：\(activePack.title)")
-                                    .font(AppTheme.diegeticLabel(12))
-                                    .foregroundStyle(AppTheme.vineGreen)
-                            }
-
-                            Button {
-                                showPouchShop = true
-                            } label: {
-                                Label("打開街角紀念小舖", systemImage: "bag.fill")
-                                    .font(AppTheme.diegeticLabel(13))
-                                    .foregroundStyle(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 11)
-                                    .background(AppTheme.forestTeal, in: Capsule())
-                            }
-                            .buttonStyle(.plain)
-
-                            HStack(spacing: 10) {
-                                Button {
-                                    Task { await coordinator.optInAndSyncPedometer() }
-                                } label: {
-                                    Label(
-                                        coordinator.pedometerService.isSyncing
-                                            ? "同步步數中…"
-                                            : (coordinator.ledger.pedometerOptIn ? "同步每日步數" : "用日常步數換步數幣"),
-                                        systemImage: "figure.walk"
-                                    )
-                                    .font(AppTheme.diegeticLabel(12))
+                                Text("再走 \(coordinator.stepsUntilNextPocketFind) 步拾獲下一件")
+                                    .font(AppTheme.diegeticLabel(11))
                                     .foregroundStyle(AppTheme.deepPineInk)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 10)
-                                    .background(AppTheme.parchmentTray, in: Capsule())
-                                }
-                                .buttonStyle(.plain)
-                                .disabled(coordinator.pedometerService.isSyncing)
-
-                                Button {
-                                    _ = coordinator.ingestSteps(steps: 1_400, intervalStartUTC: Date(), placeLabel: "鄰里散步")
-                                } label: {
-                                    Text("+1,400 步(模擬)")
-                                        .font(AppTheme.diegeticLabel(12))
-                                        .foregroundStyle(AppTheme.forestTeal)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 10)
-                                        .background(AppTheme.parchmentTray, in: Capsule())
-                                }
-                                .buttonStyle(.plain)
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 4)
+                                    .background(AppTheme.warmPaper.opacity(0.94), in: Capsule())
                             }
 
-                            Divider()
-
-                            Toggle(isOn: Binding(
-                                get: { coordinator.ledger.mobilityRollModeEnabled },
-                                set: { coordinator.toggleMobilityRollMode($0) }
-                            )) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("緩步里程與停留模式（無障礙平權）")
-                                        .font(AppTheme.serifTitle(14))
-                                        .foregroundStyle(AppTheme.deepPineInk)
-                                    Text("適合輪椅與輔具使用者：低速移動 130 公尺（<=10 km/h）或戶外停留 2 分鐘，等同 200 步換 1 幣與拾遺進度。")
-                                        .font(AppTheme.serifBody(11))
-                                        .foregroundStyle(AppTheme.softInk)
+                            if coordinator.ledger.foragedCurios.isEmpty {
+                                VStack(spacing: 10) {
+                                    HStack(spacing: 14) {
+                                        ForEach(0..<3, id: \.self) { _ in
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(Color(hex: "#6B4A2E").opacity(0.45))
+                                                .frame(height: 64)
+                                                .overlay(
+                                                    Image(systemName: "leaf")
+                                                        .font(.system(size: 18))
+                                                        .foregroundStyle(Color(hex: "#DFC39B").opacity(0.45))
+                                                )
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .stroke(Color(hex: "#52351E").opacity(0.6), lineWidth: 1.2)
+                                                )
+                                        }
+                                    }
+                                    Text("紅檜木格還空著，帶著散步夥伴累積 1,400 步就能帶回第一件拾遺小物。")
+                                        .font(AppTheme.handwritten(14))
+                                        .foregroundStyle(Color(hex: "#FAF0DC"))
+                                        .multilineTextAlignment(.center)
                                 }
-                            }
-                            .tint(AppTheme.forestTeal)
-
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("替我記住停留較久的街角")
-                                        .font(AppTheme.serifTitle(14))
-                                        .foregroundStyle(AppTheme.deepPineInk)
-                                    Text(coordinator.ledger.backgroundVisitsOptIn
-                                         ? "已開啟 · 僅私密儲存在本機日記中。"
-                                         : "選用的背景日記輔助（預設關閉）。")
-                                        .font(AppTheme.serifBody(11))
-                                        .foregroundStyle(AppTheme.softInk)
-                                }
-                                Spacer()
-                                Button(coordinator.ledger.backgroundVisitsOptIn ? "暫停" : "查看範例") {
-                                    if coordinator.ledger.backgroundVisitsOptIn {
-                                        coordinator.toggleOptionalBackgroundVisits(false)
-                                    } else {
-                                        showVisitOptInPreview = true
+                                .frame(maxWidth: .infinity)
+                                .padding(14)
+                                .background(Color(hex: "#7D5736").opacity(0.62), in: RoundedRectangle(cornerRadius: 16))
+                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "#593B22").opacity(0.75), lineWidth: 2))
+                            } else {
+                                LazyVGrid(columns: columns, spacing: 12) {
+                                    ForEach(coordinator.ledger.foragedCurios) { entry in
+                                        let spec = CurioCatalog.curio(id: entry.curioID)
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            HStack {
+                                                PaintedCurioStampView(curioID: entry.curioID, size: 42)
+                                                Spacer()
+                                                Text(entry.localDateISO)
+                                                    .font(.system(size: 9.5, design: .monospaced))
+                                                    .foregroundStyle(AppTheme.softInk)
+                                            }
+                                            Text(spec.name)
+                                                .font(AppTheme.serifTitle(14))
+                                                .foregroundStyle(AppTheme.deepPineInk)
+                                            Text("\(entry.placeLabel) · \(spec.weatherTag.displayName)")
+                                                .font(AppTheme.diegeticLabel(10.5))
+                                                .foregroundStyle(AppTheme.forestTeal)
+                                            Text(spec.journalNote)
+                                                .font(AppTheme.handwritten(12))
+                                                .foregroundStyle(AppTheme.softInk)
+                                                .lineLimit(2)
+                                        }
+                                        .padding(12)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(
+                                            ZStack {
+                                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                                    .fill(AppTheme.warmPaper)
+                                                    .colorEffect(ShaderLibrary.storybookPaperSurface())
+                                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                                    .stroke(Color(hex: "#6B4728"), lineWidth: 2.5)
+                                            }
+                                        )
+                                        .shadow(color: Color(hex: "#4A2E17").opacity(0.32), radius: 5, y: 3)
                                     }
                                 }
-                                .font(AppTheme.diegeticLabel(12))
-                                .foregroundStyle(AppTheme.forestTeal)
                             }
                         }
-                        .padding(16)
-                        .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 18))
-                        .overlay(RoundedRectangle(cornerRadius: 18).stroke(AppTheme.brassDark.opacity(0.45), lineWidth: 1.5))
-                        .padding(.top, 8)
+                        .padding(14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(Color(hex: "#8A613C").opacity(0.88))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                        .stroke(Color(hex: "#634124"), lineWidth: 2.5)
+                                )
+                                .shadow(color: AppTheme.timberDeep.opacity(0.35), radius: 8, y: 4)
+                        )
+
+                        // 刺繡步數幣袋卡片（立體手繪錢袋 ＋ 街角紀念小舖）
+                        StorybookPaperCard(cornerRadius: 20, accentColor: AppTheme.brassDark, paddingAmount: 16) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(spacing: 12) {
+                                    PaintedPouchIconView(size: 46)
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("刺繡步數幣袋")
+                                            .font(AppTheme.serifTitle(17))
+                                            .foregroundStyle(AppTheme.deepPineInk)
+                                        Text("每 200 步換 1 枚 · 跨日餘步 \(coordinator.ledger.stepCarryRemainder)/200")
+                                            .font(AppTheme.serifBody(12))
+                                            .foregroundStyle(AppTheme.softInk)
+                                    }
+                                    Spacer()
+                                    Text("\(coordinator.ledger.coinBalance) 幣")
+                                        .font(.system(size: 20, weight: .bold, design: .serif))
+                                        .foregroundStyle(AppTheme.forestTeal)
+                                        .padding(.horizontal, 13)
+                                        .padding(.vertical, 6)
+                                        .background(AppTheme.parchmentTray, in: Capsule())
+                                        .overlay(Capsule().stroke(AppTheme.brassDark.opacity(0.5), lineWidth: 1.1))
+                                }
+
+                                if let activePack = coordinator.ledger.activeOutingPack {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "backpack.fill")
+                                            .foregroundStyle(AppTheme.vineGreen)
+                                        Text("下次散步已備妥：\(activePack.title)")
+                                            .font(AppTheme.diegeticLabel(12))
+                                            .foregroundStyle(AppTheme.vineGreen)
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(AppTheme.vineGreen.opacity(0.10), in: Capsule())
+                                }
+
+                                WoodPlaqueButton(
+                                    title: "打開街角紀念小舖",
+                                    systemImage: "bag.fill",
+                                    tone: .forestTeal,
+                                    fontSize: 13.5,
+                                    verticalPadding: 11,
+                                    fullWidth: true
+                                ) {
+                                    CozySoundEngine.shared.playCompassChime()
+                                    showPouchShop = true
+                                }
+
+                                HStack(spacing: 10) {
+                                    WoodPlaqueButton(
+                                        title: coordinator.pedometerService.isSyncing
+                                            ? "同步步數中…"
+                                            : (coordinator.ledger.pedometerOptIn ? "同步每日步數" : "用步數換步數幣"),
+                                        systemImage: "figure.walk",
+                                        tone: .warmCream,
+                                        fontSize: 12,
+                                        horizontalPadding: 10,
+                                        verticalPadding: 9,
+                                        fullWidth: true
+                                    ) {
+                                        Task { await coordinator.optInAndSyncPedometer() }
+                                    }
+                                    .disabled(coordinator.pedometerService.isSyncing)
+
+                                    WoodPlaqueButton(
+                                        title: "+1,400步",
+                                        systemImage: "sparkles",
+                                        tone: .brassGold,
+                                        fontSize: 12,
+                                        horizontalPadding: 12,
+                                        verticalPadding: 9
+                                    ) {
+                                        CozySoundEngine.shared.playCompassChime()
+                                        _ = coordinator.ingestSteps(steps: 1_400, intervalStartUTC: Date(), placeLabel: "鄰里散步")
+                                    }
+                                }
+
+                                // 摺疊式散步設定（讓主畫面維持純粹的收藏展示櫃氣氛）
+                                Divider()
+
+                                DisclosureGroup(isExpanded: $showWalkingSettings) {
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Toggle(isOn: Binding(
+                                            get: { coordinator.ledger.mobilityRollModeEnabled },
+                                            set: { coordinator.toggleMobilityRollMode($0) }
+                                        )) {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("緩步里程與停留模式（無障礙平權）")
+                                                    .font(AppTheme.serifTitle(13.5))
+                                                    .foregroundStyle(AppTheme.deepPineInk)
+                                                Text("適合輪椅與輔具使用者：低速移動 130 公尺（<=10 km/h）或戶外停留 2 分鐘，等同 200 步換 1 幣與拾遺進度。")
+                                                    .font(AppTheme.serifBody(11))
+                                                    .foregroundStyle(AppTheme.softInk)
+                                            }
+                                        }
+                                        .tint(AppTheme.forestTeal)
+
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("替我記住停留較久的街角")
+                                                    .font(AppTheme.serifTitle(13.5))
+                                                    .foregroundStyle(AppTheme.deepPineInk)
+                                                Text(coordinator.ledger.backgroundVisitsOptIn
+                                                     ? "已開啟 · 僅私密儲存在本機日記中。"
+                                                     : "選用的背景日記輔助（預設關閉）。")
+                                                    .font(AppTheme.serifBody(11))
+                                                    .foregroundStyle(AppTheme.softInk)
+                                            }
+                                            Spacer()
+                                            Button(coordinator.ledger.backgroundVisitsOptIn ? "暫停" : "查看範例") {
+                                                if coordinator.ledger.backgroundVisitsOptIn {
+                                                    coordinator.toggleOptionalBackgroundVisits(false)
+                                                } else {
+                                                    showVisitOptInPreview = true
+                                                }
+                                            }
+                                            .font(AppTheme.diegeticLabel(12))
+                                            .foregroundStyle(AppTheme.forestTeal)
+                                        }
+                                    }
+                                    .padding(.top, 8)
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "slider.horizontal.3")
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(AppTheme.softInk)
+                                        Text("散步偏好與無障礙設定")
+                                            .font(AppTheme.diegeticLabel(12))
+                                            .foregroundStyle(AppTheme.softInk)
+                                    }
+                                }
+                                .tint(AppTheme.forestTeal)
+                            }
+                        }
                     }
                     .padding(16)
                 }
@@ -295,10 +359,35 @@ private struct PouchShopDrawer: View {
                                 coordinator.ledger.ownedRoomThemeIDs.contains(item.id) ||
                                 (item.id == "room.rain_veranda" && coordinator.ledger.verandaUnlocked)
                             HStack(spacing: 12) {
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color(hex: item.swatchHex))
-                                    .frame(width: 44, height: 44)
-                                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.deepPineInk.opacity(0.25)))
+                                Group {
+                                    if item.category == .wardrobe {
+                                        PaintedOutfitMiniatureView(
+                                            itemID: item.id,
+                                            swatchHex: item.swatchHex,
+                                            secondaryHex: item.secondaryHex,
+                                            size: 46
+                                        )
+                                    } else if item.category == .goodies {
+                                        PaintedGoodiePropView(
+                                            goodieID: item.id,
+                                            hasLovedPatina: false,
+                                            hasStitchedPatch: false,
+                                            isWide: false
+                                        )
+                                        .scaleEffect(0.42)
+                                        .frame(width: 48, height: 44)
+                                    } else {
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color(hex: item.swatchHex))
+                                            .frame(width: 46, height: 46)
+                                            .overlay(
+                                                Image(systemName: item.category == .treats ? "takeoutbag.and.cup.and.straw.fill" : "sun.max.fill")
+                                                    .foregroundStyle(.white.opacity(0.9))
+                                            )
+                                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.deepPineInk.opacity(0.25)))
+                                    }
+                                }
+                                .background(AppTheme.parchmentTray, in: RoundedRectangle(cornerRadius: 12))
 
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(item.name)
@@ -317,22 +406,25 @@ private struct PouchShopDrawer: View {
                                         .padding(.vertical, 6)
                                         .background(AppTheme.parchmentTray, in: Capsule())
                                 } else {
-                                    Button("\(item.priceCoins)幣") {
-                                        _ = coordinator.purchaseItem(item)
+                                    WoodPlaqueButton(
+                                        title: "\(item.priceCoins)幣",
+                                        tone: coordinator.ledger.coinBalance >= item.priceCoins ? .forestTeal : .warmCream,
+                                        fontSize: 12.5,
+                                        horizontalPadding: 13,
+                                        verticalPadding: 7
+                                    ) {
+                                        if coordinator.purchaseItem(item) {
+                                            CozySoundEngine.shared.playCompassChime()
+                                            HapticsEngine.shared.playCurioUnpack()
+                                        }
                                     }
-                                    .font(AppTheme.diegeticLabel(13))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        coordinator.ledger.coinBalance >= item.priceCoins ? AppTheme.forestTeal : AppTheme.softInk.opacity(0.5),
-                                        in: Capsule()
-                                    )
                                     .disabled(coordinator.ledger.coinBalance < item.priceCoins)
+                                    .opacity(coordinator.ledger.coinBalance >= item.priceCoins ? 1.0 : 0.5)
                                 }
                             }
                             .padding(12)
                             .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.timberWarm.opacity(0.40), lineWidth: 1.1))
                         }
                     }
                     .padding(.horizontal, 18)

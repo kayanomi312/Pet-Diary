@@ -46,53 +46,77 @@ struct HardcoverSketchbookView: View {
 
     var body: some View {
         ZStack {
-            AppTheme.parchmentTray.ignoresSafeArea()
+            // 精裝布面精裝日記本底頁＋左側書脊裝訂陰影
+            LinearGradient(
+                colors: [Color(hex: "#EDE2CD"), Color(hex: "#E5D7BE")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            HStack(spacing: 0) {
+                LinearGradient(
+                    colors: [Color(hex: "#5B3E26").opacity(0.28), Color(hex: "#8F6A29").opacity(0.08), .clear],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .frame(width: 18)
+                .ignoresSafeArea()
+                Spacer()
+            }
+            .allowsHitTesting(false)
 
             VStack(spacing: 0) {
                 HStack {
-                    Button {
+                    WoodPlaqueButton(
+                        title: "闔上日記",
+                        systemImage: "chevron.left",
+                        tone: .warmCream,
+                        fontSize: 12.5,
+                        horizontalPadding: 11,
+                        verticalPadding: 7
+                    ) {
+                        CozySoundEngine.shared.playPaperFlip()
                         coordinator.currentScreen = .street
-                    } label: {
-                        HStack(spacing: 5) {
-                            Image(systemName: "chevron.left")
-                            Text("闔上日記")
-                                .font(AppTheme.diegeticLabel(13))
-                        }
-                        .foregroundStyle(AppTheme.deepPineInk)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(AppTheme.warmPaper, in: Capsule())
                     }
-                    .buttonStyle(.plain)
 
                     Spacer()
 
-                    Text("足印手繪日記")
-                        .font(AppTheme.serifTitle(19))
-                        .foregroundStyle(AppTheme.deepPineInk)
+                    VStack(spacing: 1) {
+                        Text("足印手繪日記")
+                            .font(AppTheme.serifTitle(19))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                        Text("已記錄 \(coordinator.diaryDays.count) 頁時光")
+                            .font(AppTheme.diegeticLabel(10))
+                            .foregroundStyle(AppTheme.softInk)
+                    }
 
                     Spacer()
 
                     Button {
+                        CozySoundEngine.shared.playPaperFlip()
                         coordinator.currentScreen = .curioCubbies
                     } label: {
-                        Image(systemName: "square.grid.2x2")
-                            .font(.system(size: 16))
-                            .foregroundStyle(AppTheme.forestTeal)
-                            .frame(width: 36, height: 36)
+                        PaintedPouchIconView(size: 24)
+                            .frame(width: 38, height: 38)
                             .background(AppTheme.warmPaper, in: Circle())
+                            .overlay(Circle().stroke(AppTheme.brassDark.opacity(0.55), lineWidth: 1.1))
+                            .shadow(color: AppTheme.deepPineInk.opacity(0.14), radius: 4, y: 2)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(TactileGameButtonStyle())
+                    .accessibilityLabel("前往拾遺木格櫃")
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
 
-                Picker("檢視方式", selection: $activeTab) {
-                    ForEach(DiaryTab.allCases, id: \.self) { tab in
-                        Text(tab.rawValue).tag(tab)
+                // 手縫布書籤頁籤（取代制式 iOS Segmented Picker）
+                StitchedClothTabBar(selection: $activeTab) { tab in
+                    switch tab {
+                    case .pages: return "book.pages.fill"
+                    case .month: return "calendar"
+                    case .traditions: return "star.fill"
                     }
                 }
-                .pickerStyle(.segmented)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 10)
 
@@ -465,11 +489,8 @@ private struct SketchbookDayPageCard: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
                                     .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 5, y: 3)
 
-                                Rectangle()
-                                    .fill(Color(hex: "#EDE2C8").opacity(0.88))
-                                    .frame(width: 68, height: 14)
-                                    .rotationEffect(.degrees(-2))
-                                    .offset(y: -6)
+                                WashiTapeStrip(color: Color(hex: "#E6CFA3"), angle: -2.0, width: 72)
+                                    .offset(y: -7)
                             }
                             .padding(.top, 6)
                         }
@@ -570,9 +591,25 @@ private struct SketchbookDayPageCard: View {
             }
         }
         .padding(16)
-        .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(AppTheme.timberWarm.opacity(0.35), lineWidth: 1))
-        .shadow(color: AppTheme.deepPineInk.opacity(0.08), radius: 6, y: 3)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: "#FCF9F2"), Color(hex: "#F5EDDD")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .colorEffect(ShaderLibrary.storybookPaperSurface())
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(AppTheme.timberWarm.opacity(0.24), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    .padding(4)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(AppTheme.timberWarm.opacity(0.50), lineWidth: 1.3)
+            }
+        )
+        .shadow(color: AppTheme.deepPineInk.opacity(0.12), radius: 7, y: 4)
     }
 }
 
