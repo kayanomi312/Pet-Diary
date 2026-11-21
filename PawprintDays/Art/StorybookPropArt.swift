@@ -545,3 +545,268 @@ struct TaiwaneseBakeryStorybookBackdrop: View {
         }
     }
 }
+
+// MARK: - 4. Hand-Drawn Corner Keepsakes (Wicker Toy Basket & Steaming Ceramic Teapot)
+struct WickerBasketCornerButton: View {
+    let badgeText: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                ZStack(alignment: .topTrailing) {
+                    Canvas { ctx, size in
+                        let w = size.width, h = size.height
+                        let ink = Color(hex: "#2C3536").opacity(0.76)
+
+                        // Peeking red cloth ball inside basket
+                        let ball = CGRect(x: w * 0.44, y: h * 0.14, width: 18, height: 18)
+                        ctx.fill(Path(ellipseIn: ball), with: .color(AppTheme.pawInRange))
+                        ctx.stroke(Path(ellipseIn: ball), with: .color(ink), lineWidth: 1.1)
+
+                        // Peeking folded linen corner
+                        let cloth = Path(roundedRect: CGRect(x: w * 0.18, y: h * 0.18, width: 18, height: 14), cornerRadius: 4)
+                        ctx.fill(cloth, with: .color(Color(hex: "#EDE5D6")))
+                        ctx.stroke(cloth, with: .color(ink), lineWidth: 1.0)
+
+                        // Tapered woven rattan basket body
+                        var bodyPath = Path()
+                        bodyPath.move(to: CGPoint(x: w * 0.12, y: h * 0.36))
+                        bodyPath.addLine(to: CGPoint(x: w * 0.88, y: h * 0.36))
+                        bodyPath.addLine(to: CGPoint(x: w * 0.78, y: h * 0.86))
+                        bodyPath.addQuadCurve(to: CGPoint(x: w * 0.22, y: h * 0.86), control: CGPoint(x: w * 0.50, y: h * 0.92))
+                        bodyPath.closeSubpath()
+                        ctx.fill(
+                            bodyPath,
+                            with: .linearGradient(
+                                Gradient(colors: [Color(hex: "#D5AA70"), Color(hex: "#B5864D")]),
+                                startPoint: CGPoint(x: 0, y: h * 0.36),
+                                endPoint: CGPoint(x: 0, y: h * 0.88)
+                            )
+                        )
+                        // Cross-woven rattan ribs
+                        for row in 1...3 {
+                            let y = h * (0.36 + CGFloat(row) * 0.13)
+                            var hl = Path()
+                            hl.move(to: CGPoint(x: w * 0.16, y: y))
+                            hl.addLine(to: CGPoint(x: w * 0.84, y: y))
+                            ctx.stroke(hl, with: .color(AppTheme.timberDeep.opacity(0.35)), lineWidth: 1.1)
+                        }
+                        for col in 1...4 {
+                            let x = w * (0.14 + CGFloat(col) * 0.14)
+                            var vl = Path()
+                            vl.move(to: CGPoint(x: x, y: h * 0.38))
+                            vl.addLine(to: CGPoint(x: x, y: h * 0.84))
+                            ctx.stroke(vl, with: .color(AppTheme.timberDeep.opacity(0.30)), lineWidth: 1.0)
+                        }
+                        ctx.stroke(bodyPath, with: .color(ink), lineWidth: 1.3)
+
+                        // Braided basket rim
+                        let rim = Path(roundedRect: CGRect(x: w * 0.08, y: h * 0.30, width: w * 0.84, height: 10), cornerRadius: 5)
+                        ctx.fill(rim, with: .color(Color(hex: "#DFB880")))
+                        ctx.stroke(rim, with: .color(ink), lineWidth: 1.2)
+                    }
+                    .frame(width: 60, height: 58)
+                    .shadow(color: AppTheme.deepPineInk.opacity(0.20), radius: 5, y: 3)
+
+                    Text(badgeText)
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(AppTheme.forestTeal, in: Capsule())
+                        .offset(x: 4, y: -2)
+                }
+
+                Text("藤編籃")
+                    .font(AppTheme.diegeticLabel(11))
+                    .foregroundStyle(AppTheme.deepPineInk)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(AppTheme.warmPaper.opacity(0.92), in: Capsule())
+            }
+            .frame(minWidth: 64, minHeight: 64)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("打開藤編玩具籃")
+    }
+}
+
+struct CeramicTeapotCornerButton: View {
+    let isSteaming: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
+                    let t = timeline.date.timeIntervalSinceReferenceDate
+                    Canvas { ctx, size in
+                        let w = size.width, h = size.height
+                        let ink = Color(hex: "#2C3536").opacity(0.76)
+
+                        // Rising delicate steam wisps
+                        let steamAlpha = isSteaming ? 0.65 : 0.30
+                        for idx in 0..<2 {
+                            let phase = (t * 0.65 + Double(idx) * 0.5).truncatingRemainder(dividingBy: 1.0)
+                            var curl = Path()
+                            let sx = w * (0.20 + CGFloat(idx) * 0.08)
+                            let sy = h * 0.38 - CGFloat(phase) * 18
+                            curl.move(to: CGPoint(x: sx, y: sy + 10))
+                            curl.addQuadCurve(to: CGPoint(x: sx + 4, y: sy), control: CGPoint(x: sx - 5, y: sy + 5))
+                            ctx.stroke(curl, with: .color(AppTheme.warmPaper.opacity(steamAlpha * (1.0 - phase))), style: StrokeStyle(lineWidth: 1.8, lineCap: .round))
+                        }
+
+                        // Cane overhead handle
+                        var handle = Path()
+                        handle.move(to: CGPoint(x: w * 0.30, y: h * 0.44))
+                        handle.addQuadCurve(to: CGPoint(x: w * 0.78, y: h * 0.46), control: CGPoint(x: w * 0.56, y: h * 0.12))
+                        ctx.stroke(handle, with: .color(AppTheme.timberWarm), style: StrokeStyle(lineWidth: 3.2, lineCap: .round))
+                        ctx.stroke(handle, with: .color(ink), style: StrokeStyle(lineWidth: 0.9, lineCap: .round))
+
+                        // Curved spout on left
+                        var spout = Path()
+                        spout.move(to: CGPoint(x: w * 0.28, y: h * 0.64))
+                        spout.addQuadCurve(to: CGPoint(x: w * 0.10, y: h * 0.44), control: CGPoint(x: w * 0.14, y: h * 0.62))
+                        spout.addLine(to: CGPoint(x: w * 0.16, y: h * 0.42))
+                        spout.addQuadCurve(to: CGPoint(x: w * 0.32, y: h * 0.54), control: CGPoint(x: w * 0.22, y: h * 0.54))
+                        spout.closeSubpath()
+                        ctx.fill(spout, with: .color(Color(hex: "#EDE5D6")))
+                        ctx.stroke(spout, with: .color(ink), lineWidth: 1.2)
+
+                        // Glazed ceramic teapot body
+                        let pot = Path(ellipseIn: CGRect(x: w * 0.24, y: h * 0.42, width: w * 0.58, height: h * 0.46))
+                        ctx.fill(
+                            pot,
+                            with: .radialGradient(
+                                Gradient(colors: [Color(hex: "#FAF6EE"), Color(hex: "#E6DEC8"), Color(hex: "#C4B9A2")]),
+                                center: CGPoint(x: w * 0.46, y: h * 0.54),
+                                startRadius: 3,
+                                endRadius: 28
+                            )
+                        )
+                        // Celadon glaze belly band
+                        var glaze = Path()
+                        glaze.move(to: CGPoint(x: w * 0.27, y: h * 0.66))
+                        glaze.addQuadCurve(to: CGPoint(x: w * 0.80, y: h * 0.66), control: CGPoint(x: w * 0.53, y: h * 0.74))
+                        ctx.stroke(glaze, with: .color(AppTheme.ceramicGlaze.opacity(0.65)), lineWidth: 4.5)
+                        ctx.stroke(pot, with: .color(ink), lineWidth: 1.3)
+
+                        // Teapot lid & finial knob
+                        let lid = Path(ellipseIn: CGRect(x: w * 0.38, y: h * 0.38, width: w * 0.30, height: 10))
+                        ctx.fill(lid, with: .color(AppTheme.ceramicGlaze))
+                        ctx.stroke(lid, with: .color(ink), lineWidth: 1.1)
+                        ctx.fill(Path(ellipseIn: CGRect(x: w * 0.50, y: h * 0.33, width: 7, height: 7)), with: .color(AppTheme.timberDeep))
+                    }
+                    .frame(width: 62, height: 58)
+                    .shadow(color: AppTheme.deepPineInk.opacity(0.20), radius: 5, y: 3)
+                }
+
+                Text("陶瓷茶壺")
+                    .font(AppTheme.diegeticLabel(11))
+                    .foregroundStyle(AppTheme.deepPineInk)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(AppTheme.warmPaper.opacity(0.92), in: Capsule())
+            }
+            .frame(minWidth: 64, minHeight: 64)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("打開陶瓷茶壺與散步夥伴抽屜")
+    }
+}
+
+// MARK: - 5. Ambient Sunroom Dust Motes / Rain-Streaked Window Glass
+struct SunroomAtmosphereParticlesView: View {
+    let weather: WeatherMode
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            Canvas { ctx, size in
+                let w = size.width, h = size.height
+                if weather.isRainy {
+                    // Soft rain streaks drifting down the upper window half
+                    for idx in 0..<18 {
+                        let rx = w * (0.12 + CGFloat((idx * 37) % 76) / 100.0)
+                        let phase = (t * 0.35 + Double(idx) * 0.19).truncatingRemainder(dividingBy: 1.0)
+                        let ry = h * 0.14 + CGFloat(phase) * h * 0.34
+                        var drop = Path()
+                        drop.move(to: CGPoint(x: rx, y: ry))
+                        drop.addLine(to: CGPoint(x: rx - 2, y: ry + 12))
+                        ctx.stroke(drop, with: .color(AppTheme.warmPaper.opacity(0.45 * sin(phase * .pi))), style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
+                    }
+                } else {
+                    // Warm sunlit floating dust motes dancing slowly in sunbeams
+                    for idx in 0..<14 {
+                        let phase = (t * 0.14 + Double(idx) * 0.23).truncatingRemainder(dividingBy: 1.0)
+                        let x = w * (0.18 + CGFloat((idx * 29) % 66) / 100.0) + CGFloat(sin(t * 0.7 + Double(idx))) * 14
+                        let y = h * 0.18 + CGFloat(phase) * h * 0.45
+                        let r: CGFloat = 2.0 + CGFloat(idx % 3) * 0.8
+                        ctx.fill(
+                            Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
+                            with: .color(Color(hex: "#FFF8DC").opacity(0.55 * sin(phase * .pi)))
+                        )
+                    }
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+// MARK: - 6. Tactile Care Cozy Sunlit Cedar Floor & Braided Rug Backdrop
+struct TactileCareFloorBackdrop: View {
+    let weather: WeatherMode
+
+    var body: some View {
+        Canvas { ctx, size in
+            let w = size.width, h = size.height
+
+            // Warm honey cedar plank background
+            ctx.fill(
+                Path(CGRect(origin: .zero, size: size)),
+                with: .linearGradient(
+                    Gradient(colors: weather.isRainy
+                             ? [Color(hex: "#E6E4DC"), Color(hex: "#D5C8B4")]
+                             : [Color(hex: "#F4EBD7"), Color(hex: "#DFC8A6")]),
+                    startPoint: CGPoint(x: 0, y: 0),
+                    endPoint: CGPoint(x: 0, y: h)
+                )
+            )
+
+            // Cedar wood plank lines
+            for idx in 0..<9 {
+                let y = h * 0.12 + CGFloat(idx) * (h * 0.10)
+                var plank = Path()
+                plank.move(to: CGPoint(x: 0, y: y))
+                plank.addLine(to: CGPoint(x: w, y: y))
+                ctx.stroke(plank, with: .color(AppTheme.timberDeep.opacity(0.10)), lineWidth: 1.0)
+            }
+
+            // Soft diagonal windowpane sunlight patch across the floor
+            if !weather.isRainy {
+                var beam = Path()
+                beam.move(to: CGPoint(x: w * 0.08, y: 0))
+                beam.addLine(to: CGPoint(x: w * 0.72, y: 0))
+                beam.addLine(to: CGPoint(x: w * 0.96, y: h * 0.75))
+                beam.addLine(to: CGPoint(x: w * 0.24, y: h * 0.75))
+                beam.closeSubpath()
+                ctx.fill(beam, with: .color(Color(hex: "#FFFDF2").opacity(0.32)))
+            }
+
+            // Hand-loomed concentric braided oval rug centered under the pet
+            let rugCenter = CGPoint(x: w * 0.50, y: h * 0.62)
+            let rings: [(CGFloat, CGFloat, Color)] = [
+                (w * 0.84, 152, Color(hex: "#617D92").opacity(0.38)),
+                (w * 0.70, 122, Color(hex: "#D7C5A5").opacity(0.55)),
+                (w * 0.54, 92,  Color(hex: "#B87D56").opacity(0.35))
+            ]
+            for (rw, rh, col) in rings {
+                let rect = CGRect(x: rugCenter.x - rw * 0.5, y: rugCenter.y - rh * 0.5, width: rw, height: rh)
+                ctx.fill(Path(ellipseIn: rect), with: .color(col))
+                ctx.stroke(Path(ellipseIn: rect), with: .color(AppTheme.timberDeep.opacity(0.20)), style: StrokeStyle(lineWidth: 1.4, dash: [5, 3]))
+            }
+        }
+    }
+}

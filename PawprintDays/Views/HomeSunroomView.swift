@@ -57,6 +57,8 @@ struct HomeSunroomView: View {
                         .offset(x: effectivePan * 0.55)
                     }
 
+                    SunroomAtmosphereParticlesView(weather: coordinator.activeWeather)
+
                     VStack {
                         Spacer()
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -173,12 +175,12 @@ struct HomeSunroomView: View {
                 Spacer()
 
                 HStack(alignment: .bottom) {
-                    DiegeticCornerPropButton(
-                        title: "藤編籃",
-                        systemImage: "basket.fill",
-                        fillColor: AppTheme.wicker,
+                    WickerBasketCornerButton(
                         badgeText: "\(coordinator.ledger.ownedGoodieIDs.count)",
-                        action: { showWickerDrawer = true }
+                        action: {
+                            CozySoundEngine.shared.playPaperFlip()
+                            showWickerDrawer = true
+                        }
                     )
 
                     Spacer()
@@ -186,23 +188,35 @@ struct HomeSunroomView: View {
                     BrassPocketCompassButton(
                         destinationLabel: "出門回到街區地圖",
                         iconSystemName: "map.fill",
-                        onTap: { coordinator.currentScreen = .street },
+                        onTap: {
+                            CozySoundEngine.shared.playCompassChime()
+                            coordinator.currentScreen = .street
+                        },
                         onLongPress: { coordinator.showFixtureDrawer = true }
                     )
 
                     Spacer()
 
-                    DiegeticCornerPropButton(
-                        title: "陶瓷茶壺",
-                        systemImage: "cup.and.saucer.fill",
-                        fillColor: AppTheme.ceramicCream,
-                        badgeText: nil,
-                        action: { showTeapotDrawer = true }
+                    CeramicTeapotCornerButton(
+                        isSteaming: teaSteaming,
+                        action: {
+                            CozySoundEngine.shared.playTeapotClink()
+                            showTeapotDrawer = true
+                        }
                     )
                 }
                 .padding(.horizontal, 18)
                 .padding(.bottom, 14)
             }
+        }
+        .onAppear {
+            CozySoundEngine.shared.setRainAmbience(active: coordinator.activeWeather.isRainy)
+        }
+        .onChange(of: coordinator.activeWeather) { _, newWeather in
+            CozySoundEngine.shared.setRainAmbience(active: newWeather.isRainy)
+        }
+        .onDisappear {
+            CozySoundEngine.shared.stopRainAmbience()
         }
         .sheet(isPresented: $showWickerDrawer) {
             WickerBasketDrawer(coordinator: coordinator)

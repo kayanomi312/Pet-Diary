@@ -5,6 +5,7 @@ struct StreetOverworldView: View {
     @Bindable var coordinator: GameCoordinator
     @State private var cameraPosition: MapCameraPosition
     @State private var selectedFarAnchor: AnchorSiteRecord? = nil
+    @State private var hasCenteredOnRealGPS: Bool = false
 
     init(coordinator: GameCoordinator) {
         self.coordinator = coordinator
@@ -140,6 +141,46 @@ struct StreetOverworldView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 4)
                         .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
+                // 進行中的金色漫步連鎖溫柔提示條（無懲罰，可隨時略過）
+                if let chainTargetID = coordinator.activeStrollChainTargetID,
+                   let chainTarget = coordinator.anchors.first(where: { $0.siteID == chainTargetID }),
+                   let guideID = coordinator.ledger.activeStrollChainGuidePetID {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .foregroundStyle(AppTheme.pawStrollChain)
+                        Text("\(PetCatalog.pet(id: guideID).name)正望向「\(chainTarget.customLabel)」— 順路過去可遇見雙寵街頭場景")
+                            .font(AppTheme.handwritten(13))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                            .lineLimit(2)
+                        Spacer(minLength: 4)
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.5)) {
+                                cameraPosition = .region(
+                                    MKCoordinateRegion(
+                                        center: CLLocationCoordinate2D(latitude: chainTarget.lat, longitude: chainTarget.lon),
+                                        latitudinalMeters: 340,
+                                        longitudinalMeters: 340
+                                    )
+                                )
+                            }
+                        } label: {
+                            Text("看位置")
+                                .font(AppTheme.diegeticLabel(11))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 5)
+                                .background(AppTheme.pawStrollChain, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(AppTheme.warmPaper.opacity(0.95), in: RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.pawStrollChain.opacity(0.7), lineWidth: 1.3))
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
                 }
 
                 // 口袋拾遺開箱卡片（每 1,400 步觸發）
@@ -354,6 +395,42 @@ struct StreetOverworldView: View {
         .sheet(isPresented: $coordinator.showAccessibleNearbyList) {
             AccessibleNearbyListSheet(coordinator: coordinator)
                 .presentationDetents([.medium, .large])
+        }
+        .onChange(of: coordinator.locationService.currentLocation) { _, newLoc in
+            if !coordinator.locationService.useSimulatedPosition && !hasCenteredOnRealGPS {
+                hasCenteredOnRealGPS = true
+                withAnimation(.easeInOut(duration: 0.7)) {
+                    cameraPosition = .region(
+                        MKCoordinateRegion(center: newLoc.coordinate, latitudinalMeters: 360, longitudinalMeters: 360)
+                    )
+                }
+            }
+        }
+        .overlay(alignment: .trailing) {
+            // 輕巧定位回歸鈕（散步滑動地圖後一鍵回到自己所在街角）
+            Button {
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    cameraPosition = .region(
+                        MKCoordinateRegion(
+                            center: coordinator.locationService.currentLocation.coordinate,
+                            latitudinalMeters: 340,
+                            longitudinalMeters: 340
+                        )
+                    )
+                }
+            } label: {
+                Image(systemName: "location.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppTheme.forestTeal)
+                    .frame(width: 40, height: 40)
+                    .background(AppTheme.warmPaper.opacity(0.94), in: Circle())
+                    .overlay(Circle().stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 1))
+                    .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 4, y: 2)
+            }
+            .buttonStyle(.plain)
+            .padding(.trailing, 16)
+            .padding(.top, 110)
+            .accessibilityLabel("回到我目前的散步位置")
         }
     }
 }

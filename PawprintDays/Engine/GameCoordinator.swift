@@ -282,11 +282,23 @@ final class GameCoordinator {
 
         let discovered = await MapKitAnchorDiscoveryService.discoverNearbyWalkableAnchors(around: coordinate)
         applyDiscoveredAnchors(discovered, around: coordinate)
+        if discovered.isEmpty {
+            showWhisper("周遭 400m 內無公園或咖啡館，隨時可點「前方 60m 釘選熟悉街角」！")
+        }
     }
 
     func applyDiscoveredAnchors(_ discovered: [DiscoveredWalkableAnchor], around coordinate: CLLocationCoordinate2D) {
         ledger.lastNeighborhoodLat = coordinate.latitude
         ledger.lastNeighborhoodLon = coordinate.longitude
+
+        // 若真實位置已離開羅東範例街區超過 1.5 公里，自動收起範例點，只留真實街角與私人熟悉街角
+        let luodongLoc = CLLocation(latitude: LocationService.defaultNeighborhoodOrigin.latitude, longitude: LocationService.defaultNeighborhoodOrigin.longitude)
+        let currentLoc = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        if currentLoc.distance(from: luodongLoc) > 1_500 && !discovered.isEmpty {
+            for anchor in anchors where anchor.siteID.hasPrefix("sys.luodong.") {
+                anchor.isHiddenByUser = true
+            }
+        }
 
         for (idx, item) in discovered.enumerated() {
             if !anchors.contains(where: { $0.siteID == item.siteID }) {
@@ -428,6 +440,7 @@ final class GameCoordinator {
             let distinctGuide = (guidePetID != offeredPetID) ? guidePetID : nil
             try? modelContext.save()
             HapticsEngine.shared.playPawRangeCue()
+            CozySoundEngine.shared.playCompassChime()
             currentScreen = .encounter(siteID: anchor.siteID, petID: offeredPetID, companionStreetPetID: distinctGuide)
         case .tooFar(let distanceM, _):
             showWhisper("請走近至 75 公尺內再打招呼（目前相距 \(Int(distanceM)) 公尺）。")
@@ -774,6 +787,7 @@ final class GameCoordinator {
 
         if let firstCurio = result.newCuriosForaged.first {
             HapticsEngine.shared.playCurioUnpack()
+            CozySoundEngine.shared.playPaperFlip()
             newlyUnpackedCurio = firstCurio
             let curioName = CurioCatalog.curio(id: firstCurio.curioID).name
             showWhisper("撿到口袋拾遺：\(curioName)")
