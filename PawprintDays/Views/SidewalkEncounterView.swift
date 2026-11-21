@@ -83,7 +83,9 @@ struct SidewalkEncounterView: View {
                                 weatherMode: coordinator.activeWeather,
                                 fingerFocusNormalized: fingerFocus ?? (isHoldingCobblestone ? CGPoint(x: -0.5, y: 0.35) : nil),
                                 isHappySquint: committedLog != nil || holdProgress > 0.65,
-                                tapBounceScale: petTapBounce
+                                tapBounceScale: petTapBounce,
+                                playfulAction: committedLog != nil ? .happyTwirl : (isHoldingCobblestone ? .curiousWaddle : .idle),
+                                actionTriggerDate: committedLog?.createdAtUTC ?? Date()
                             )
                             .frame(width: 230, height: 230)
                         }
@@ -95,7 +97,9 @@ struct SidewalkEncounterView: View {
                             weatherMode: coordinator.activeWeather,
                             fingerFocusNormalized: fingerFocus ?? (isHoldingCobblestone ? CGPoint(x: -0.5, y: 0.35) : nil),
                             isHappySquint: committedLog != nil || holdProgress > 0.65,
-                            tapBounceScale: petTapBounce
+                            tapBounceScale: petTapBounce,
+                            playfulAction: committedLog != nil ? .happyTwirl : (isHoldingCobblestone ? .curiousWaddle : .idle),
+                            actionTriggerDate: committedLog?.createdAtUTC ?? Date()
                         )
                         .frame(width: 280, height: 280)
                         .gesture(

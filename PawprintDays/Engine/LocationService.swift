@@ -2,6 +2,24 @@ import Foundation
 import CoreLocation
 import Observation
 
+enum GPSSignalQuality: String, Sendable {
+    case simulated = "模擬定位"
+    case acquiring = "搜尋精準定位…"
+    case high = "GPS 極精準"
+    case good = "GPS 良好"
+    case weak = "GPS 訊號較弱"
+
+    var badgeColorHex: String {
+        switch self {
+        case .simulated: return "#8C7A68"
+        case .acquiring: return "#D99B38"
+        case .high:      return "#4E9A6F"
+        case .good:      return "#5B8E94"
+        case .weak:      return "#D96A52"
+        }
+    }
+}
+
 @MainActor
 @Observable
 final class LocationService: NSObject, CLLocationManagerDelegate {
@@ -24,6 +42,15 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     var isTravelingTooFastForPaws: Bool = false
     var recentVisitSummaries: [String] = []
 
+    // Accurate Real-World GPS Diagnostics & Compass Heading
+    var hasReceivedRealGPSFix: Bool = false
+    var gpsAccuracyMeters: Double? = nil
+    var gpsSignalQuality: GPSSignalQuality = .simulated
+    var isReducedAccuracy: Bool = false
+    var headingDegrees: Double? = nil
+    var lastRealFixDate: Date? = nil
+    var totalVerifiedGPSMeters: Double = 0
+
     /// Callbacks for Coordinator integration
     var onRealLocationMoved: ((CLLocation, Double, TimeInterval) -> Void)?
     var onEnteredAnchorGeofence: ((String) -> Void)?
@@ -40,14 +67,53 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         self.currentLocation = initial
         super.init()
         manager.delegate = self
-        manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+        manager.distanceFilter = 3.0
         manager.activityType = .fitness
+        manager.pausesLocationUpdatesAutomatically = false
         authorizationStatus = manager.authorizationStatus
+        isReducedAccuracy = (manager.accuracyAuthorization == .reducedAccuracy)
         seedInitialNeighborhoodTrail()
+        startLiveUpdatesIfAuthorized()
     }
 
     func requestForegroundLocation() {
-        manager.requestWhenInUseAuthorization()
+        if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
+            requestFreshAccurateFix()
+        } else {
+            manager.requestWhenInUseAuthorization()
+        }
+    }
+
+    /// Requests an immediate high-accuracy GPS fix and prompts for temporary full accuracy if iOS Precise Location is off.
+    func requestFreshAccurateFix() {
+        if manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways {
+            useSimulatedPosition = false
+            if !hasReceivedRealGPSFix {
+                gpsSignalQuality = .acquiring
+            }
+            if manager.accuracyAuthorization == .reducedAccuracy {
+                isReducedAccuracy = true
+                manager.requestTemporaryFullAccuracyAuthorization(withPurposeKey: "PreciseNeighborhoodWalk") { [weak self] _ in
+                    Task { @MainActor in
+                        guard let self else { return }
+                        self.isReducedAccuracy = (self.manager.accuracyAuthorization == .reducedAccuracy)
+                        self.manager.startUpdatingLocation()
+                        self.manager.requestLocation()
+                    }
+                }
+            } else {
+                isReducedAccuracy = false
+                manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+                manager.startUpdatingLocation()
+                manager.requestLocation()
+            }
+            if CLLocationManager.headingAvailable() {
+                manager.startUpdatingHeading()
+            }
+        } else {
+            manager.requestWhenInUseAuthorization()
+        }
     }
 
     /// Progressive opt-in: only requested when user explicitly taps 'Remember my longer stops'
@@ -68,7 +134,17 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
             useSimulatedPosition = false
+            isReducedAccuracy = (manager.accuracyAuthorization == .reducedAccuracy)
+            if !hasReceivedRealGPSFix {
+                gpsSignalQuality = .acquiring
+            }
+            manager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+            manager.distanceFilter = 3.0
             manager.startUpdatingLocation()
+            manager.requestLocation()
+            if CLLocationManager.headingAvailable() {
+                manager.startUpdatingHeading()
+            }
         default:
             break
         }
@@ -137,6 +213,8 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     /// Smoothly moves the simulated walker to a target coordinate while recording pedestrian trail points.
     func walkSimulated(to coordinate: CLLocationCoordinate2D, stepsSegments: Int = 5) {
         useSimulatedPosition = true
+        gpsSignalQuality = .simulated
+        gpsAccuracyMeters = 6.0
         isTravelingTooFastForPaws = false
         let start = currentLocation.coordinate
         let now = Date()
@@ -220,41 +298,116 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     // MARK: - CLLocationManagerDelegate
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
+        let reduced = (manager.accuracyAuthorization == .reducedAccuracy)
         Task { @MainActor in
             self.authorizationStatus = status
+            self.isReducedAccuracy = reduced
             if status == .authorizedWhenInUse || status == .authorizedAlways {
-                self.useSimulatedPosition = false
-                self.manager.startUpdatingLocation()
+                self.startLiveUpdatesIfAuthorized()
             }
         }
     }
 
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+        let deg = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
+        guard deg >= 0 else { return }
+        Task { @MainActor in
+            self.headingDegrees = deg
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        // Gracefully tolerate transient GPS signal loss while keeping last valid fix
+    }
+
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let latest = locations.last else { return }
+        // Pick the freshest, most accurate candidate in this batch
+        let now = Date()
+        let freshCandidates = locations.filter { loc in
+            loc.horizontalAccuracy >= 0 &&
+            loc.horizontalAccuracy <= 65.0 &&
+            abs(now.timeIntervalSince(loc.timestamp)) <= 12.0
+        }
+        guard let bestFix = freshCandidates.min(by: { $0.horizontalAccuracy < $1.horizontalAccuracy }) ?? locations.last else {
+            return
+        }
+
         Task { @MainActor in
             guard !self.useSimulatedPosition else { return }
+            let acc = bestFix.horizontalAccuracy
+            guard acc >= 0 else { return }
+
+            // Update live GPS signal diagnostics
+            self.gpsAccuracyMeters = acc
+            if acc <= 12.0 {
+                self.gpsSignalQuality = .high
+            } else if acc <= 25.0 {
+                self.gpsSignalQuality = .good
+            } else {
+                self.gpsSignalQuality = .weak
+            }
+
+            // Reject stale (> 12s) or very noisy (> 65m) fixes once we already have a real fix
+            let fixAge = abs(Date().timeIntervalSince(bestFix.timestamp))
+            if self.hasReceivedRealGPSFix && (fixAge > 12.0 || acc > 65.0) {
+                return
+            }
+
             let previous = self.currentLocation
-            let deltaDist = previous.distance(from: latest)
-            let deltaTime = max(0, latest.timestamp.timeIntervalSince(previous.timestamp))
+            let deltaDist = previous.distance(from: bestFix)
+            let deltaTime = max(0.5, bestFix.timestamp.timeIntervalSince(previous.timestamp))
+            let impliedSpeed = deltaDist / deltaTime
+
+            // Reject impossible GPS jitter spikes (> 45 m/s with mediocre accuracy)
+            if self.hasReceivedRealGPSFix && acc > 18.0 && impliedSpeed > 45.0 {
+                return
+            }
+
+            // Accuracy-weighted smoothing for gentle pedestrian movement (< 35m delta)
+            let acceptedLocation: CLLocation
+            if self.hasReceivedRealGPSFix && deltaDist < 35.0 && deltaDist > 0.5 && acc > 8.0 {
+                let alpha = max(0.35, min(0.88, 12.0 / max(acc, 12.0)))
+                let smoothLat = previous.coordinate.latitude + (bestFix.coordinate.latitude - previous.coordinate.latitude) * alpha
+                let smoothLon = previous.coordinate.longitude + (bestFix.coordinate.longitude - previous.coordinate.longitude) * alpha
+                acceptedLocation = CLLocation(
+                    coordinate: CLLocationCoordinate2D(latitude: smoothLat, longitude: smoothLon),
+                    altitude: bestFix.altitude,
+                    horizontalAccuracy: acc,
+                    verticalAccuracy: bestFix.verticalAccuracy,
+                    course: bestFix.course,
+                    speed: bestFix.speed,
+                    timestamp: bestFix.timestamp
+                )
+            } else {
+                acceptedLocation = bestFix
+            }
 
             // Bus/car filter (> 12 km/h grants no street paw activation or trail line)
-            let isTooFast = latest.speed > Self.maxPedestrianSpeedMPS
+            let effectiveSpeed = acceptedLocation.speed >= 0 ? acceptedLocation.speed : (deltaDist < 120 ? impliedSpeed : 0)
+            let isTooFast = effectiveSpeed > Self.maxPedestrianSpeedMPS
             self.isTravelingTooFastForPaws = isTooFast
-            self.currentLocation = latest
 
-            if !isTooFast && latest.horizontalAccuracy >= 0 && latest.horizontalAccuracy <= 40 {
+            let wasFirstRealFix = !self.hasReceivedRealGPSFix
+            self.hasReceivedRealGPSFix = true
+            self.lastRealFixDate = acceptedLocation.timestamp
+            self.currentLocation = acceptedLocation
+
+            if !isTooFast && acc <= 40.0 {
                 let pt = CoordinatePoint(
-                    latitude: latest.coordinate.latitude,
-                    longitude: latest.coordinate.longitude,
-                    timestamp: latest.timestamp
+                    latitude: acceptedLocation.coordinate.latitude,
+                    longitude: acceptedLocation.coordinate.longitude,
+                    timestamp: acceptedLocation.timestamp
                 )
-                if let last = self.liveTrail.last {
+                if wasFirstRealFix {
+                    // Replace Luodong sample trail cleanly with user's actual starting location
+                    self.liveTrail = [pt]
+                } else if let last = self.liveTrail.last {
                     let dist = CLLocation(latitude: last.latitude, longitude: last.longitude)
-                        .distance(from: latest)
-                    if dist >= 6.0 && dist <= 300.0 {
+                        .distance(from: acceptedLocation)
+                    if dist >= 4.0 && dist <= 300.0 {
                         self.liveTrail.append(pt)
+                        self.totalVerifiedGPSMeters += dist
                     } else if dist > 300.0 {
-                        // Reset trail on teleport/city switch so disconnected stops never draw fake lines
                         self.liveTrail = [pt]
                     }
                 } else {
@@ -262,8 +415,8 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
                 }
 
                 // Notify coordinator for Mobility-Aid Roll Mode & real-world anchor discovery
-                let isLowSpeedRoll = latest.speed < 0 || latest.speed <= Self.maxMobilityRollSpeedMPS
-                self.onRealLocationMoved?(latest, isLowSpeedRoll ? min(deltaDist, 200) : 0, min(deltaTime, 120))
+                let isLowSpeedRoll = acceptedLocation.speed < 0 || acceptedLocation.speed <= Self.maxMobilityRollSpeedMPS
+                self.onRealLocationMoved?(acceptedLocation, isLowSpeedRoll ? min(deltaDist, 200) : 0, min(deltaTime, 120))
             }
         }
     }

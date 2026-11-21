@@ -71,13 +71,15 @@ struct BrassPocketCompassButton: View {
 
                     // 微微晃動的古銅羅盤針
                     Capsule()
-                        .fill(AppTheme.clothBookmark.opacity(0.42))
-                        .frame(width: 3, height: 32)
+                        .fill(AppTheme.clothBookmark.opacity(0.35))
+                        .frame(width: 2.5, height: 32)
                         .rotationEffect(.degrees(28 + needleSwing))
 
-                    Image(systemName: iconSystemName)
-                        .font(.system(size: 19, weight: .bold))
-                        .foregroundStyle(AppTheme.forestTeal)
+                    if iconSystemName == "house.fill" {
+                        CuteCottageIcon(size: 28)
+                    } else {
+                        CuteStrollBackpackIcon(size: 26)
+                    }
 
                     // 弧面玻璃高光
                     Ellipse()
@@ -150,6 +152,15 @@ struct CompanionMedallionView: View {
                             .frame(width: 74, height: 74)
                             .scaleEffect(pulse ? 1.14 : 0.95)
                     }
+
+                    // 可愛貓耳點綴在夥伴圓章頂端
+                    CatEarAccentShape(
+                        fillColor: AppTheme.warmPaper,
+                        innerEarColor: isNearFind ? Color(hex: "#F6CF75") : Color(hex: "#F4B4A8"),
+                        strokeColor: AppTheme.timberWarm.opacity(0.6)
+                    )
+                    .scaleEffect(0.75)
+                    .offset(y: -27)
 
                     // 溫潤木紋外框底影
                     Circle()
@@ -360,7 +371,7 @@ struct TornPaperSlipView: View {
     }
 }
 
-/// 頂部繪本遊戲書籤列（手繪天氣木牌、刺繡步數幣袋、硬殼日記本按鈕）
+/// 頂部繪本遊戲書籤列（手繪微笑天氣小牌、刺繡步數幣袋、硬殼日記本按鈕）
 struct ClothBookmarkBar: View {
     let onOpenSketchbook: () -> Void
     let onOpenCubbies: () -> Void
@@ -371,45 +382,38 @@ struct ClothBookmarkBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            // 左側：手繪天氣與日期木牌（點擊可開啟天氣與時間光影面板）
+            // 左側：手繪微笑天氣與日期奶霜牌（點擊可開啟天氣與時間光影面板）
             Button {
                 HapticsEngine.shared.playBrushStrokeTick()
                 onOpenFixture()
             } label: {
                 HStack(spacing: 6) {
-                    ZStack {
-                        Circle()
-                            .fill(weatherBadgeTint.opacity(0.22))
-                            .frame(width: 24, height: 24)
-                        Image(systemName: weather.sfSymbol)
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(weatherBadgeTint)
-                    }
+                    CuteWeatherFaceIcon(weather: weather, size: 24)
                     Text(dayTitle)
-                        .font(AppTheme.serifBody(13))
-                        .fontWeight(.semibold)
-                        .foregroundStyle(AppTheme.deepPineInk)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(hex: "#3E2F28"))
                         .lineLimit(1)
                 }
-                .padding(.leading, 6)
+                .padding(.leading, 7)
                 .padding(.trailing, 12)
-                .padding(.vertical, 5)
+                .padding(.vertical, 5.5)
                 .background(
                     ZStack {
-                        Capsule().fill(Color(hex: "#C8B392")).offset(y: 2.5)
-                        Capsule().fill(AppTheme.warmPaper.opacity(0.97))
-                        Capsule().stroke(AppTheme.timberWarm.opacity(0.55), lineWidth: 1.1)
+                        Capsule().fill(Color(hex: "#CFC0A3")).offset(y: 3)
+                        Capsule().fill(Color(hex: "#FFFDF7"))
+                        Capsule().stroke(Color(hex: "#DFC8A2"), style: StrokeStyle(lineWidth: 1.0, dash: [3, 2.5])).padding(2.5)
+                        Capsule().stroke(Color(hex: "#B5956B").opacity(0.65), lineWidth: 1.1)
                     }
                 )
-                .padding(.bottom, 2.5)
-                .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 4, y: 2)
+                .padding(.bottom, 3)
+                .shadow(color: AppTheme.deepPineInk.opacity(0.15), radius: 4, y: 2)
             }
-            .buttonStyle(TactileGameButtonStyle(pressScale: 0.95, pressOffsetY: 1.5))
+            .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 2))
             .accessibilityLabel("\(dayTitle)，\(weather.displayName)。點擊開啟測試與天氣切換面板。")
 
             Spacer(minLength: 4)
 
-            // 右側 1：刺繡步數幣袋與拾遺木格按鈕
+            // 右側 1：手繪刺繡步數幣袋
             Button {
                 CozySoundEngine.shared.playPaperFlip()
                 HapticsEngine.shared.playBrushStrokeTick()
@@ -419,33 +423,33 @@ struct ClothBookmarkBar: View {
                     PaintedPouchIconView(size: 22)
                     if let coinBalance {
                         Text("\(coinBalance)")
-                            .font(.system(size: 13, weight: .bold, design: .serif))
-                            .foregroundStyle(AppTheme.deepPineInk)
+                            .font(.system(size: 13.5, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color(hex: "#4A3114"))
                     }
                 }
                 .padding(.horizontal, coinBalance != nil ? 10 : 8)
                 .padding(.vertical, 6)
                 .background(
                     ZStack {
-                        Capsule().fill(Color(hex: "#B59563")).offset(y: 2.5)
-                        Capsule().fill(AppTheme.warmPaper.opacity(0.97))
-                        Capsule().stroke(AppTheme.brassDark.opacity(0.55), lineWidth: 1.1)
+                        Capsule().fill(Color(hex: "#C5A168")).offset(y: 3)
+                        Capsule().fill(Color(hex: "#FFF9EA"))
+                        Capsule().stroke(Color(hex: "#D7B267").opacity(0.8), lineWidth: 1.2)
                     }
                 )
-                .padding(.bottom, 2.5)
-                .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 4, y: 2)
+                .padding(.bottom, 3)
+                .shadow(color: AppTheme.deepPineInk.opacity(0.15), radius: 4, y: 2)
             }
-            .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1.5))
+            .buttonStyle(TactileGameButtonStyle(pressScale: 0.93, pressOffsetY: 2))
             .accessibilityLabel("拾遺木格與步數幣袋")
 
-            // 右側 2：精裝日記本縫線書籤鈕
-            WoodPlaqueButton(
+            // 右側 2：可愛手繪抹茶奶油日記本按鈕
+            CutePlushButton(
                 title: "日記",
-                systemImage: "book.closed.fill",
-                tone: .forestTeal,
-                fontSize: 12,
-                horizontalPadding: 12,
-                verticalPadding: 7,
+                tone: .matchaMint,
+                fontSize: 12.5,
+                horizontalPadding: 11,
+                verticalPadding: 6.5,
+                icon: { CuteDiaryBookIcon(size: 18) },
                 action: {
                     CozySoundEngine.shared.playPaperFlip()
                     onOpenSketchbook()
@@ -453,14 +457,5 @@ struct ClothBookmarkBar: View {
             )
         }
         .padding(.horizontal, 16)
-    }
-
-    private var weatherBadgeTint: Color {
-        switch weather {
-        case .clearMorning: return AppTheme.pawStrollChain
-        case .lightRain, .postRain: return AppTheme.forestTeal
-        case .dusk: return AppTheme.pawInRange
-        case .overcast: return AppTheme.softInk
-        }
     }
 }

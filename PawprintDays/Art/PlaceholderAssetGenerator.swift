@@ -7,6 +7,17 @@ enum PetRigPose: String, Sendable {
     case resting
 }
 
+/// 可愛活體互動與移動動畫狀態（軟糯麻糬彈跳、撲玩逗貓棒、開心嚼點心、蓋被被午睡、轉圈撒嬌、搖擺散步）
+enum PetPlayfulAction: Equatable, Sendable {
+    case idle
+    case bellyBoop
+    case pounceHop
+    case eatMunch
+    case cozyNap
+    case happyTwirl
+    case curiousWaddle
+}
+
 /// 2.5D Hand-Painted Taiwanese Storybook Rig (with Procedural Fallback):
 /// Renders each pet's bundled 1024x1024 transparent gouache & colored-pencil illustration (`pet_01`..`pet_08`)
 /// at 60fps with:
@@ -29,6 +40,8 @@ struct ProceduralPetRigView: View {
     var applyMetalPaperShader: Bool = true
     var isStaticSnapshot: Bool = false
     var tapBounceScale: CGFloat = 0.0
+    var playfulAction: PetPlayfulAction = .idle
+    var actionTriggerDate: Date = .distantPast
 
     private var assetName: String {
         pet.id.replacingOccurrences(of: ".", with: "_") // "pet.01" -> "pet_01"
@@ -74,6 +87,97 @@ struct ProceduralPetRigView: View {
         }
     }
 
+    private struct PlayfulTransform {
+        var scaleX: CGFloat = 0
+        var scaleY: CGFloat = 0
+        var offsetX: CGFloat = 0
+        var offsetY: CGFloat = 0
+        var rotationDeg: Double = 0
+        var flipScaleX: CGFloat = 1.0
+        var isExcited: Bool = false
+    }
+
+    private func computePlayfulTransform(time: Double, minDim: CGFloat) -> PlayfulTransform {
+        var res = PlayfulTransform()
+        let elapsed = isStaticSnapshot ? 99.0 : max(0, Date().timeIntervalSince(actionTriggerDate))
+
+        switch playfulAction {
+        case .idle:
+            break
+        case .bellyBoop:
+            if elapsed < 1.15 {
+                let p = elapsed / 1.15
+                let jelly = sin(p * .pi * 5.0) * exp(-p * 3.2)
+                let hop = sin(min(1.0, p * 1.8) * .pi)
+                res.scaleX = CGFloat(-jelly * 0.16)
+                res.scaleY = CGFloat(jelly * 0.17)
+                res.offsetY = -CGFloat(hop) * minDim * 0.10
+                res.rotationDeg = jelly * 8.0
+                res.isExcited = true
+            }
+        case .pounceHop:
+            if elapsed < 1.35 {
+                let p = elapsed / 1.35
+                if p < 0.25 {
+                    let c = p / 0.25
+                    res.scaleX = CGFloat(c * 0.14)
+                    res.scaleY = CGFloat(-c * 0.14)
+                    res.offsetY = CGFloat(c) * minDim * 0.03
+                } else if p < 0.75 {
+                    let j = (p - 0.25) / 0.50
+                    let arc = sin(j * .pi)
+                    res.scaleX = CGFloat(-arc * 0.09)
+                    res.scaleY = CGFloat(arc * 0.12)
+                    res.offsetY = -CGFloat(arc) * minDim * 0.18
+                    res.offsetX = CGFloat(arc) * minDim * 0.09
+                    res.rotationDeg = -arc * 11.0
+                } else {
+                    let l = (p - 0.75) / 0.25
+                    let squish = sin(l * .pi)
+                    res.scaleX = CGFloat(squish * 0.12)
+                    res.scaleY = CGFloat(-squish * 0.10)
+                }
+                res.isExcited = true
+            }
+        case .eatMunch:
+            if elapsed < 1.8 {
+                let p = elapsed / 1.8
+                let munch = abs(sin(p * .pi * 6.0)) * (1.0 - p * 0.35)
+                res.scaleX = CGFloat(munch * 0.07)
+                res.scaleY = CGFloat(-munch * 0.06)
+                res.offsetY = -CGFloat(munch) * minDim * 0.035
+                res.rotationDeg = sin(p * .pi * 6.0) * 4.5
+                res.isExcited = true
+            }
+        case .cozyNap:
+            let slowNap = sin(time * 1.15)
+            res.scaleX = 0.07 + CGFloat(slowNap) * 0.025
+            res.scaleY = -0.09 - CGFloat(slowNap) * 0.020
+            res.offsetY = minDim * 0.06
+            res.rotationDeg = sin(time * 0.6) * 2.0
+        case .happyTwirl:
+            if elapsed < 1.3 {
+                let p = elapsed / 1.3
+                let hop = sin(p * .pi)
+                let spinCos = cos(p * .pi * 2.0)
+                res.flipScaleX = CGFloat(spinCos >= 0 ? max(0.18, spinCos) : min(-0.18, spinCos))
+                res.offsetY = -CGFloat(hop) * minDim * 0.15
+                res.scaleY = CGFloat(hop * 0.10)
+                res.rotationDeg = sin(p * .pi * 2.0) * 10.0
+                res.isExcited = true
+            }
+        case .curiousWaddle:
+            let step = sin(time * 3.8)
+            let hop = abs(sin(time * 3.8))
+            res.offsetX = CGFloat(sin(time * 1.4)) * minDim * 0.065
+            res.offsetY = -CGFloat(hop) * minDim * 0.035
+            res.rotationDeg = step * 5.8
+            res.scaleY = CGFloat(hop * 0.04)
+            res.scaleX = CGFloat(-hop * 0.03)
+        }
+        return res
+    }
+
     @ViewBuilder
     private func animatedArtStack(time: Double) -> some View {
         GeometryReader { geo in
@@ -81,17 +185,31 @@ struct ProceduralPetRigView: View {
             let h = geo.size.height
             let minDim = min(w, h)
 
-            // 3.5s natural FFD breathing rhythm anchored at paws + playful squash-and-stretch on tap
-            let breath = sin(time * (2.0 * .pi / 3.5))
-            let breathScaleY: CGFloat = 1.0 + CGFloat(breath) * 0.018 + brushRuffleAmount * 0.022 + tapBounceScale * 0.08
-            let breathScaleX: CGFloat = 1.0 - CGFloat(breath) * 0.009 + brushRuffleAmount * 0.012 - tapBounceScale * 0.05
+            // 1. 軟糯麻糬呼吸節奏（體積守恆的 Q 彈起伏 ＋ 週期性好奇小歪頭）
+            let breath = sin(time * (2.0 * .pi / 3.1))
+            let headBobPhase = (time * 0.22).truncatingRemainder(dividingBy: 1.0)
+            let cutePeriodicTilt = (headBobPhase > 0.72 && headBobPhase < 0.92)
+                ? sin((headBobPhase - 0.72) / 0.20 * .pi) * 4.2
+                : 0.0
 
-            // Subtle IK finger tracking lean & tilt (+-6.5 deg)
+            // 2. 互動動作曲線計算（依 actionTriggerDate 跑出流暢 60fps 動態）
+            let act = computePlayfulTransform(time: time, minDim: minDim)
+            let actOffsetX = act.offsetX
+            let actOffsetY = act.offsetY
+            let isExcitedNow = act.isExcited
+
+            let breathScaleY: CGFloat = 1.0 + CGFloat(breath) * 0.024 + brushRuffleAmount * 0.024 + tapBounceScale * 0.09 + act.scaleY
+            let breathScaleX: CGFloat = (1.0 - CGFloat(breath) * 0.014 + brushRuffleAmount * 0.015 - tapBounceScale * 0.06 + act.scaleX) * act.flipScaleX
+
+            // Subtle IK finger tracking lean & tilt (+-7.5 deg)
             let ikX = fingerFocusNormalized?.x ?? 0.0
             let ikY = fingerFocusNormalized?.y ?? 0.0
-            let tiltDegrees = Double(ikX) * 6.5 + sin(time * 0.85) * 0.85
-            let leanOffsetX = ikX * minDim * 0.022
-            let leanOffsetY = ikY * minDim * 0.012 + (pose == .resting ? minDim * 0.035 : 0) - tapBounceScale * minDim * 0.04
+            let tiltDegrees = Double(ikX) * 7.5 + sin(time * 0.95) * 1.2 + cutePeriodicTilt + act.rotationDeg
+            let leanOffsetX = ikX * minDim * 0.025 + actOffsetX
+            let leanOffsetY = ikY * minDim * 0.014 + (pose == .resting ? minDim * 0.035 : 0) - tapBounceScale * minDim * 0.05 + actOffsetY
+
+            let showRosyBlush = isHappySquint || brushRuffleAmount > 0.08 || isExcitedNow || playfulAction == .cozyNap
+            let shadowShrink = max(0.70, 1.0 + (actOffsetY / max(1, minDim)) * 1.3)
 
             let rimGlowColor: Color = {
                 switch weatherMode {
@@ -116,17 +234,17 @@ struct ProceduralPetRigView: View {
                     .frame(width: minDim * 0.86, height: minDim * 0.78)
                     .offset(y: minDim * 0.04)
 
-                // L1_Shadow: Grounded multi-layer watercolor puddle shadow under paws
+                // L1_Shadow: Grounded multi-layer watercolor puddle shadow under paws (shrinks smoothly when hopping!)
                 Ellipse()
                     .fill(AppTheme.deepPineInk.opacity(0.17))
-                    .frame(width: minDim * 0.58, height: minDim * 0.12)
+                    .frame(width: minDim * 0.58 * shadowShrink, height: minDim * 0.12 * shadowShrink)
                     .blur(radius: minDim * 0.020)
-                    .offset(y: minDim * 0.40 + (pose == .resting ? minDim * 0.02 : 0))
+                    .offset(x: actOffsetX * 0.7, y: minDim * 0.40 + (pose == .resting ? minDim * 0.02 : 0))
 
                 Ellipse()
                     .fill(AppTheme.deepPineInk.opacity(0.10))
-                    .frame(width: minDim * 0.42, height: minDim * 0.07)
-                    .offset(y: minDim * 0.40 + (pose == .resting ? minDim * 0.02 : 0))
+                    .frame(width: minDim * 0.42 * shadowShrink, height: minDim * 0.07 * shadowShrink)
+                    .offset(x: actOffsetX * 0.7, y: minDim * 0.40 + (pose == .resting ? minDim * 0.02 : 0))
 
                 // Hand-painted 1024x1024 transparent gouache & pencil illustration + synced mythical anatomy & wardrobe layer
                 ZStack {
@@ -158,21 +276,42 @@ struct ProceduralPetRigView: View {
                         )
                     }
 
-                    // Soft watercolor warm cheek glow when happy / being brushed
-                    if isHappySquint || brushRuffleAmount > 0.08 {
-                        let blushX = w * (calibratedNeckAnchor.u - 0.03)
-                        let blushY = h * (calibratedNeckAnchor.v - 0.10)
-                        Circle()
+                    // 可愛水彩蜜桃紅暈雙頰（開心、被戳肚皮、梳毛、吃點心或午睡時綻放！）
+                    if showRosyBlush {
+                        let cheekY = h * (calibratedNeckAnchor.v - 0.105)
+                        let cheekL = w * (calibratedNeckAnchor.u - 0.08)
+                        let cheekR = w * (calibratedNeckAnchor.u + 0.06)
+                        Ellipse()
+                            .fill(Color(hex: "#F28D80").opacity(0.45))
+                            .frame(width: minDim * 0.095, height: minDim * 0.055)
+                            .blur(radius: minDim * 0.012)
+                            .position(x: cheekL, y: cheekY)
+                            .allowsHitTesting(false)
+                        Ellipse()
+                            .fill(Color(hex: "#F28D80").opacity(0.45))
+                            .frame(width: minDim * 0.095, height: minDim * 0.055)
+                            .blur(radius: minDim * 0.012)
+                            .position(x: cheekR, y: cheekY)
+                            .allowsHitTesting(false)
+                    }
+
+                    // 蓋被被午睡時，披上一條柔和馬卡龍拼布小棉被
+                    if playfulAction == .cozyNap {
+                        RoundedRectangle(cornerRadius: minDim * 0.09, style: .continuous)
                             .fill(
-                                RadialGradient(
-                                    colors: [Color(hex: "#E88B72").opacity(0.32), .clear],
-                                    center: .center,
-                                    startRadius: 1,
-                                    endRadius: minDim * 0.09
+                                LinearGradient(
+                                    colors: [Color(hex: "#A8C6D8").opacity(0.92), Color(hex: "#84A7BE").opacity(0.94)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
                                 )
                             )
-                            .frame(width: minDim * 0.18, height: minDim * 0.12)
-                            .position(x: blushX, y: blushY)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: minDim * 0.08, style: .continuous)
+                                    .stroke(Color(hex: "#FFF9EE").opacity(0.75), style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
+                                    .padding(4)
+                            )
+                            .frame(width: minDim * 0.56, height: minDim * 0.24)
+                            .position(x: w * 0.50, y: h * 0.72)
                             .allowsHitTesting(false)
                     }
 
@@ -190,13 +329,13 @@ struct ProceduralPetRigView: View {
                 .rotationEffect(.degrees(tiltDegrees), anchor: .bottom)
                 .offset(x: leanOffsetX, y: leanOffsetY)
 
-                // Happy purr / brushing / Mentorship watercolor particle motes (hearts, stars, sleepy Zzz)
-                if isHappySquint || brushRuffleAmount > 0.05 || mentorshipParticle != nil || pose == .resting {
+                // Happy purr / brushing / Mentorship / Cozy Nap watercolor particle motes (hearts, stars, sleepy Zzz)
+                if showRosyBlush || mentorshipParticle != nil || pose == .resting {
                     StorybookParticleMotesCanvas(
                         time: isStaticSnapshot ? 0.8 : time,
                         habit: mentorshipParticle,
-                        isHappy: isHappySquint || brushRuffleAmount > 0.05,
-                        isResting: pose == .resting && !isHappySquint && brushRuffleAmount <= 0.05
+                        isHappy: showRosyBlush && playfulAction != .cozyNap,
+                        isResting: (pose == .resting && !isHappySquint && brushRuffleAmount <= 0.05 && !isExcitedNow) || playfulAction == .cozyNap
                     )
                     .allowsHitTesting(false)
                 }
@@ -386,17 +525,18 @@ private struct StorybookParticleMotesCanvas: View {
             }()
 
             if isResting && habit == nil {
-                // Soft dreamy floating zzz motes for resting pets
-                for idx in 0..<2 {
-                    let phase = (time * 0.32 + Double(idx) * 0.5).truncatingRemainder(dividingBy: 1.0)
-                    let px = cx + minDim * 0.18 + CGFloat(sin(time + Double(idx))) * minDim * 0.025
-                    let py = cy - CGFloat(phase) * minDim * 0.22
-                    let alpha = sin(phase * .pi) * 0.52
-                    let r = minDim * (0.012 + CGFloat(idx) * 0.005)
-                    ctx.stroke(
-                        Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)),
-                        with: .color(AppTheme.warmPaper.opacity(alpha)),
-                        lineWidth: 1.4
+                // 可愛夢幻飄浮的「z Z z」午睡泡泡
+                let letters = ["z", "Z", "z"]
+                for idx in 0..<3 {
+                    let phase = (time * 0.34 + Double(idx) * 0.33).truncatingRemainder(dividingBy: 1.0)
+                    let px = cx + minDim * 0.18 + CGFloat(sin(time * 1.4 + Double(idx))) * minDim * 0.035 + CGFloat(idx) * minDim * 0.025
+                    let py = cy - CGFloat(phase) * minDim * 0.28
+                    let alpha = sin(phase * .pi) * 0.85
+                    ctx.draw(
+                        Text(letters[idx])
+                            .font(.system(size: minDim * (0.065 + CGFloat(idx) * 0.015), weight: .bold, design: .rounded))
+                            .foregroundStyle(Color(hex: "#6B86A8").opacity(alpha)),
+                        at: CGPoint(x: px, y: py)
                     )
                 }
                 return
