@@ -142,7 +142,108 @@ struct StreetOverworldView: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
+                // 口袋拾遺開箱卡片（每 1,400 步觸發）
+                if let unpacked = coordinator.newlyUnpackedCurio {
+                    let spec = CurioCatalog.curio(id: unpacked.curioID)
+                    HStack(spacing: 12) {
+                        PaintedCurioStampView(curioID: unpacked.curioID, size: 46)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("口袋拾遺 · \(spec.name)")
+                                .font(AppTheme.serifTitle(15))
+                                .foregroundStyle(AppTheme.deepPineInk)
+                            Text(spec.journalNote)
+                                .font(AppTheme.handwritten(12))
+                                .foregroundStyle(AppTheme.softInk)
+                                .lineLimit(2)
+                        }
+                        Spacer()
+                        Button("收進木格") {
+                            withAnimation { coordinator.newlyUnpackedCurio = nil }
+                        }
+                        .font(AppTheme.diegeticLabel(11))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(AppTheme.forestTeal, in: Capsule())
+                    }
+                    .padding(12)
+                    .background(AppTheme.warmPaper.opacity(0.97), in: RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.pawStrollChain.opacity(0.65), lineWidth: 1.5))
+                    .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 8, y: 4)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .transition(.scale.combined(with: .opacity))
+                }
+
                 Spacer()
+
+                // 常散步玩家的「街角順路探望」溫馨小札（當日已互動過的街角再次經過時）
+                if let revisit = coordinator.activeQuietRevisit {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 10) {
+                            HStack(spacing: -18) {
+                                ProceduralPetRigView(
+                                    pet: PetCatalog.pet(id: revisit.petID),
+                                    outfitID: coordinator.resident(for: revisit.petID)?.activeOutfitID,
+                                    pose: .resting,
+                                    weatherMode: coordinator.activeWeather,
+                                    applyMetalPaperShader: false,
+                                    isStaticSnapshot: true
+                                )
+                                .frame(width: 68, height: 68)
+
+                                if let secID = revisit.secondaryPetID {
+                                    ProceduralPetRigView(
+                                        pet: PetCatalog.pet(id: secID),
+                                        outfitID: coordinator.resident(for: secID)?.activeOutfitID,
+                                        pose: .notice,
+                                        weatherMode: coordinator.activeWeather,
+                                        applyMetalPaperShader: false,
+                                        isStaticSnapshot: true
+                                    )
+                                    .frame(width: 64, height: 64)
+                                }
+                            }
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack(spacing: 6) {
+                                    Text(revisit.timeBandLabel)
+                                        .font(AppTheme.diegeticLabel(11))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 2)
+                                        .background(AppTheme.forestTeal, in: Capsule())
+                                    Text(revisit.familiarityLabel)
+                                        .font(AppTheme.diegeticLabel(11))
+                                        .foregroundStyle(AppTheme.timberDeep)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 2)
+                                        .background(AppTheme.parchmentTray, in: Capsule())
+                                }
+                                Text(revisit.vignetteLine)
+                                    .font(AppTheme.serifBody(14))
+                                    .foregroundStyle(AppTheme.deepPineInk)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+
+                        HStack {
+                            Spacer()
+                            Button("揮揮手繼續走") {
+                                withAnimation { coordinator.activeQuietRevisit = nil }
+                            }
+                            .font(AppTheme.diegeticLabel(12))
+                            .foregroundStyle(AppTheme.forestTeal)
+                        }
+                    }
+                    .padding(14)
+                    .background(AppTheme.warmPaper.opacity(0.97), in: RoundedRectangle(cornerRadius: 18))
+                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(AppTheme.timberWarm.opacity(0.5), lineWidth: 1.2))
+                    .shadow(color: AppTheme.deepPineInk.opacity(0.20), radius: 10, y: 4)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
 
                 if let far = selectedFarAnchor {
                     HStack(spacing: 12) {
@@ -380,6 +481,12 @@ private struct AccessibleNearbyListSheet: View {
                         .swipeActions(edge: .trailing) {
                             Button("隱藏", role: .destructive) {
                                 coordinator.hideAnchor(siteID: anchor.siteID)
+                            }
+                            if let mergeTarget = coordinator.visibleAnchors.first(where: { $0.siteID != anchor.siteID }) {
+                                Button("合併至鄰近") {
+                                    coordinator.mergeAnchor(sourceSiteID: anchor.siteID, intoTargetSiteID: mergeTarget.siteID)
+                                }
+                                .tint(AppTheme.forestTeal)
                             }
                         }
                     }

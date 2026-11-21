@@ -15,6 +15,8 @@ final class DiaryDayRecord {
     var isStarredTradition: Bool
     var deletionStateRaw: String
     var linkedTraditionDateISO: String?
+    var completedNeighborhoodLoop: Bool = false
+    var revisitNotes: [String] = []
 
     init(
         localDateISO: String,
@@ -67,6 +69,17 @@ final class AnchorSiteRecord {
     var cachedVisitorOfferID: String?
     var isFamiliarCorner: Bool
     var isHiddenByUser: Bool = false
+    var totalVisitsCount: Int = 0
+    var lastRevisitTimeBand: String? = nil
+
+    var familiarityTitle: String {
+        switch totalVisitsCount {
+        case 0...2: return "初訪街角"
+        case 3...6: return "常去轉角"
+        case 7...14: return "老街熟面孔"
+        default: return "街角秘密基地"
+        }
+    }
 
     init(
         siteID: String,
@@ -187,6 +200,8 @@ final class PetResidentState {
     var recentSceneIDs: [String]
     var isPinned: Bool
     var lastSeenInHomeUTC: Date?
+    var kindredPracticeCompleted: Bool = false
+    var kindredChoiceNote: String? = nil
 
     init(
         petID: String,

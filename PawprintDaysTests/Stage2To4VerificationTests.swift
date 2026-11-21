@@ -231,4 +231,51 @@ final class Stage2To4VerificationTests: XCTestCase {
             XCTFail("Expected baked PNG image for wide watercolor spread")
         }
     }
+
+    /// Verifies Frequent Neighborhood Walker depth: Quiet Revisit (zero double-claiming), Corner Familiarity, and 3-Corner Loop Stamp.
+    func testFrequentWalkerQuietRevisitFamiliarityAndLoopStamp() throws {
+        let coordinator = try makeInMemoryCoordinator()
+        let bakery = try XCTUnwrap(coordinator.anchors.first(where: { $0.siteID == "sys.luodong.bakery_corner" }))
+        let river = try XCTUnwrap(coordinator.anchors.first(where: { $0.siteID == "sys.luodong.riverside_bench" }))
+        let library = try XCTUnwrap(coordinator.anchors.first(where: { $0.siteID == "sys.luodong.library_arcade" }))
+
+        // Visit all 3 distinct neighborhood corners in one day -> awards Neighborhood Loop Stamp
+        _ = coordinator.commitStreetEncounter(siteID: bakery.siteID, petID: "pet.01", gesture: .offerHand)
+        _ = coordinator.commitStreetEncounter(siteID: river.siteID, petID: "pet.05", gesture: .rollBall)
+        _ = coordinator.commitStreetEncounter(siteID: library.siteID, petID: "pet.02", gesture: .crouchQuietly)
+
+        let today = coordinator.todayDiaryRecord()
+        XCTAssertTrue(today.completedNeighborhoodLoop, "Visiting 3 distinct corners in one day must stamp Neighborhood Loop")
+        XCTAssertEqual(bakery.totalVisitsCount, 1)
+
+        // Quiet Revisit on same day must NOT double-claim Shared Days, while recording a calm revisit note
+        let sharedBefore = coordinator.resident(for: "pet.01")?.sharedDaysCount ?? 0
+        bakery.totalVisitsCount = 3 // 常去轉角
+        XCTAssertEqual(bakery.familiarityTitle, "常去轉角")
+        let moment = coordinator.performQuietRevisit(anchor: bakery)
+        XCTAssertFalse(moment.vignetteLine.isEmpty)
+        XCTAssertEqual(coordinator.resident(for: "pet.01")?.sharedDaysCount, sharedBefore, "Quiet revisit must never double-claim Shared Days")
+        XCTAssertFalse(coordinator.todayDiaryRecord().revisitNotes.isEmpty)
+    }
+
+    /// Verifies Milestone 4 (Day 10) Kindred 2-Choice Habit Practice & Merging Adjacent Stop Detections.
+    func testKindredTwoChoicePracticeAndMergeAdjacentAnchors() throws {
+        let coordinator = try makeInMemoryCoordinator()
+        let sesame = try XCTUnwrap(coordinator.resident(for: "pet.01"))
+        sesame.sharedDaysCount = 10
+        sesame.milestoneTier = PetResidentState.milestoneForSharedDays(10)
+
+        coordinator.completeKindredHabitPractice(petID: "pet.01", choiceTitle: "放慢節奏靜靜示範")
+        XCTAssertTrue(sesame.kindredPracticeCompleted)
+        XCTAssertTrue(sesame.kindredChoiceNote?.contains("沉靜守候") == true)
+
+        let bakery = try XCTUnwrap(coordinator.anchors.first(where: { $0.siteID == "sys.luodong.bakery_corner" }))
+        let pinned = try XCTUnwrap(coordinator.pinFamiliarCornerAhead(label: "相鄰轉角"))
+        bakery.totalVisitsCount = 4
+        pinned.totalVisitsCount = 2
+
+        coordinator.mergeAnchor(sourceSiteID: pinned.siteID, intoTargetSiteID: bakery.siteID)
+        XCTAssertTrue(pinned.isHiddenByUser)
+        XCTAssertEqual(bakery.totalVisitsCount, 6)
+    }
 }

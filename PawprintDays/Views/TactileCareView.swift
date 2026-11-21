@@ -6,10 +6,13 @@ struct TactileCareView: View {
     let petID: String
 
     @State private var fingerFocus: CGPoint? = nil
+    @State private var brushLocation: CGPoint? = nil
     @State private var brushStrokeCount: Int = 0
     @State private var brushRuffle: CGFloat = 0
+    @State private var toyBounceOffset: CGFloat = 0
     @State private var showMentorshipSheet: Bool = false
     @State private var showSnackPicker: Bool = false
+    @State private var showKindredLessonSheet: Bool = false
 
     private var petSpec: PetSpec { PetCatalog.pet(id: petID) }
     private var resident: PetResidentState? { coordinator.resident(for: petID) }
@@ -132,6 +135,23 @@ struct TactileCareView: View {
                         brushRuffleAmount: brushRuffle
                     )
                     .frame(width: 280, height: 280)
+
+                    // 隨指尖移動的木質梳毛刷（雨天自動切換成溫熱毛巾擦毛！）
+                    if let loc = brushLocation {
+                        HStack(spacing: 4) {
+                            Image(systemName: coordinator.activeWeather.isRainy ? "wind" : "comb.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                            Text(coordinator.activeWeather.isRainy ? "暖巾擦毛" : "木梳順毛")
+                                .font(AppTheme.diegeticLabel(11))
+                        }
+                        .foregroundStyle(AppTheme.deepPineInk)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(AppTheme.warmPaper.opacity(0.92), in: Capsule())
+                        .overlay(Capsule().stroke(AppTheme.timberWarm, lineWidth: 1.2))
+                        .position(x: max(44, min(236, loc.x)), y: max(30, min(250, loc.y - 26)))
+                        .allowsHitTesting(false)
+                    }
                 }
                 .contentShape(Rectangle())
                 .gesture(
@@ -140,7 +160,10 @@ struct TactileCareView: View {
                             let nx = (value.location.x / 280.0) * 2.0 - 1.0
                             let ny = (value.location.y / 280.0) * 2.0 - 1.0
                             fingerFocus = CGPoint(x: max(-1, min(1, nx)), y: max(-1, min(1, ny)))
-                            if abs(value.translation.width) > 26 { brushRuffle = 1.0 }
+                            if abs(value.translation.width) > 20 {
+                                brushRuffle = 1.0
+                                brushLocation = value.location
+                            }
                         }
                         .onEnded { value in
                             if abs(value.translation.width) > 36 {
@@ -153,6 +176,7 @@ struct TactileCareView: View {
                             }
                             withAnimation(.easeOut(duration: 0.35)) {
                                 fingerFocus = nil
+                                brushLocation = nil
                                 brushRuffle = 0
                             }
                         }
@@ -160,27 +184,73 @@ struct TactileCareView: View {
 
                 Text(brushStrokeCount >= 3
                      ? "\(petSpec.name)滿足地瞇起彎彎笑眼。（\(petSpec.signatureHabitTitle)）"
-                     : "左右輕滑替\(petSpec.name)梳毛，或停住指尖讓牠望向你。")
+                     : (coordinator.activeWeather.isRainy
+                        ? "左右輕滑拿乾毛巾替\(petSpec.name)擦乾雨珠，或停住指尖讓牠望向你。"
+                        : "左右輕滑替\(petSpec.name)梳毛，或停住指尖讓牠望向你。"))
                     .font(AppTheme.handwritten(14))
                     .foregroundStyle(AppTheme.deepPineInk)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 26)
                     .padding(.bottom, 10)
 
-                Button {
-                    coordinator.setWalkCompanion(petID: petID)
-                } label: {
-                    Label(
-                        coordinator.activeWalkCompanionID == petID ? "今日散步夥伴" : "設為今日散步夥伴",
-                        systemImage: "figure.walk"
-                    )
-                    .font(AppTheme.diegeticLabel(12))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(AppTheme.forestTeal, in: Capsule())
+                // 觸覺互動按鈕：今日散步夥伴 ＋ 滾球／拉毯互動 ＋ 第 10 天心照不宣雙選練習
+                HStack(spacing: 10) {
+                    Button {
+                        coordinator.setWalkCompanion(petID: petID)
+                    } label: {
+                        Label(
+                            coordinator.activeWalkCompanionID == petID ? "今日散步夥伴" : "一起出門散步",
+                            systemImage: "figure.walk"
+                        )
+                        .font(AppTheme.diegeticLabel(12))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(AppTheme.forestTeal, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        HapticsEngine.shared.playDogBallRoll()
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {
+                            toyBounceOffset = -12
+                            brushRuffle = 0.8
+                        }
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(280))
+                            withAnimation(.easeOut(duration: 0.35)) {
+                                toyBounceOffset = 0
+                                brushRuffle = 0
+                            }
+                        }
+                        coordinator.completeTactileCare(petID: petID)
+                        coordinator.showWhisper(petSpec.kind.isCatFamily ? "替\(petSpec.name)輕輕拉好毯子一角。" : "把縫布球輕輕滾向\(petSpec.name)的腳邊！")
+                    } label: {
+                        Label(petSpec.kind.isCatFamily ? "拉好毯角" : "滾出布球", systemImage: petSpec.kind.isCatFamily ? "bed.double.fill" : "circle.dashed.inset.filled")
+                            .font(AppTheme.diegeticLabel(12))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 8)
+                            .background(AppTheme.warmPaper, in: Capsule())
+                            .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.6), lineWidth: 1))
+                            .offset(y: toyBounceOffset)
+                    }
+                    .buttonStyle(.plain)
+
+                    if let res = resident, res.sharedDaysCount >= 10, !res.kindredPracticeCompleted {
+                        Button {
+                            showKindredLessonSheet = true
+                        } label: {
+                            Label("習慣練習", systemImage: "sparkles")
+                                .font(AppTheme.diegeticLabel(12))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(AppTheme.pawStrollChain, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-                .buttonStyle(.plain)
                 .padding(.bottom, 10)
 
                 Spacer()
@@ -236,6 +306,17 @@ struct TactileCareView: View {
         .sheet(isPresented: $showMentorshipSheet) {
             MentorshipPlannerSheet(coordinator: coordinator, petID: petID)
                 .presentationDetents([.medium])
+        }
+        .confirmationDialog("心照不宣 · 招牌習慣練習（\(petSpec.signatureHabitTitle)）", isPresented: $showKindredLessonSheet, titleVisibility: .visible) {
+            Button("放慢節奏，靜靜示範一次") {
+                coordinator.completeKindredHabitPractice(petID: petID, choiceTitle: "放慢節奏靜靜示範")
+            }
+            Button("在牠身旁輕拍軟墊一起練習") {
+                coordinator.completeKindredHabitPractice(petID: petID, choiceTitle: "輕拍軟墊並肩練習")
+            }
+            Button("改天再練", role: .cancel) {}
+        } message: {
+            Text("\(petSpec.signatureHabitDetail)\n選擇一種溫柔的方式陪\(petSpec.name)練習，以後牠在家就會自主展現這個小習慣。")
         }
         .confirmationDialog("請\(petSpec.name)吃點心（日常飯碗永久免費）", isPresented: $showSnackPicker, titleVisibility: .visible) {
             ForEach(FoodTexture.allCases, id: \.self) { texture in
