@@ -48,7 +48,8 @@ struct StreetOverworldView: View {
 
                 Annotation("", coordinate: coordinator.locationService.currentLocation.coordinate) {
                     PlayerLanternMapPinView(
-                        walkingCompanion: coordinator.activeStroll?.companionPetID.map(PetCatalog.pet(id:))
+                        walkingCompanion: coordinator.activeStroll?.companionPetID.map(PetCatalog.pet(id:)),
+                        headingDegrees: coordinator.locationService.headingDegrees
                     )
                     .accessibilityLabel("你目前的散步位置")
                 }
@@ -98,28 +99,73 @@ struct StreetOverworldView: View {
                 )
                 .padding(.top, 8)
 
-                // 今日街角散步印章進度條（無壓力、給日常散步滿滿的繪本收集成就感）
+                // 今日街角散步印章進度條 ＋ 精準 GPS 訊號小燈（點擊即可立即重新精準定位並回中心）
                 let todayCount = Set(coordinator.encounters.filter { $0.localDateISO == coordinator.currentLocalDateISO }.map(\.siteID)).count
-                HStack(spacing: 8) {
+                HStack(spacing: 7) {
                     HStack(spacing: 5) {
                         ForEach(0..<3, id: \.self) { idx in
                             Image(systemName: idx < todayCount ? "pawprint.fill" : "pawprint")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(idx < todayCount ? AppTheme.pawStrollChain : AppTheme.timberWarm.opacity(0.55))
+                                .foregroundStyle(idx < todayCount ? Color(hex: "#E68068") : AppTheme.timberWarm.opacity(0.50))
                         }
-                        Text(todayCount >= 3 ? "今日街區巡禮達成 ✦" : "今日遇見街角 \(todayCount)/3")
-                            .font(AppTheme.diegeticLabel(11))
-                            .foregroundStyle(todayCount >= 3 ? AppTheme.forestTeal : AppTheme.deepPineInk)
+                        Text(todayCount >= 3 ? "今日巡禮 ✦" : "街角 \(todayCount)/3")
+                            .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                            .foregroundStyle(todayCount >= 3 ? AppTheme.forestTeal : Color(hex: "#3E2F28"))
                     }
-                    .padding(.horizontal, 11)
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background(
                         Capsule()
-                            .fill(AppTheme.warmPaper.opacity(0.95))
-                            .overlay(Capsule().stroke(todayCount >= 3 ? AppTheme.pawStrollChain : AppTheme.timberWarm.opacity(0.45), lineWidth: 1.1))
-                            .shadow(color: AppTheme.deepPineInk.opacity(0.12), radius: 3, y: 1)
+                            .fill(Color(hex: "#FFFDF7"))
+                            .overlay(Capsule().stroke(todayCount >= 3 ? AppTheme.pawStrollChain : Color(hex: "#D5BEA0"), lineWidth: 1.1))
+                            .shadow(color: AppTheme.deepPineInk.opacity(0.12), radius: 3, y: 1.5)
                     )
-                    Spacer()
+
+                    // 即時 GPS 精準度徽章
+                    Button {
+                        HapticsEngine.shared.playBrushStrokeTick()
+                        coordinator.locationService.requestFreshAccurateFix()
+                        withAnimation(.easeInOut(duration: 0.55)) {
+                            cameraPosition = .region(
+                                MKCoordinateRegion(
+                                    center: coordinator.locationService.currentLocation.coordinate,
+                                    latitudinalMeters: 320,
+                                    longitudinalMeters: 320
+                                )
+                            )
+                        }
+                    } label: {
+                        let quality = coordinator.locationService.gpsSignalQuality
+                        let accText: String = {
+                            if coordinator.locationService.isReducedAccuracy {
+                                return "請開精準定位"
+                            }
+                            if let acc = coordinator.locationService.gpsAccuracyMeters, !coordinator.locationService.useSimulatedPosition {
+                                return "\(quality.rawValue) ±\(Int(acc))m"
+                            }
+                            return quality == .simulated ? "點此啟用真實GPS" : quality.rawValue
+                        }()
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(Color(hex: quality.badgeColorHex))
+                                .frame(width: 7, height: 7)
+                            Text(accText)
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(Color(hex: "#3E2F28"))
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(
+                            Capsule()
+                                .fill(Color(hex: "#FFFDF7"))
+                                .overlay(Capsule().stroke(Color(hex: quality.badgeColorHex).opacity(0.65), lineWidth: 1.1))
+                                .shadow(color: AppTheme.deepPineInk.opacity(0.12), radius: 3, y: 1.5)
+                        )
+                    }
+                    .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1.5))
+
+                    Spacer(minLength: 36)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 3)
@@ -412,34 +458,36 @@ struct StreetOverworldView: View {
 
                     Spacer()
 
-                    // 中央主操作：未出發顯示「出發散步」儀式鈕；出發中顯示「記下此處 / 模擬散步」＋旁側小釘選鈕
-                    HStack(spacing: 8) {
+                    // 中央主操作：超可愛糖霜奶油「出發散步」＋ 旁側手繪街角路標釘選鈕
+                    HStack(spacing: 9) {
                         if coordinator.activeStroll == nil {
-                            WoodPlaqueButton(
+                            CutePlushButton(
                                 title: "出發散步",
-                                systemImage: "figure.walk",
-                                tone: .brassGold,
-                                fontSize: 13.5,
-                                horizontalPadding: 16,
-                                verticalPadding: 11
-                            ) {
-                                CozySoundEngine.shared.playPaperFlip()
-                                showStartStrollSheet = true
-                            }
+                                tone: .butterHoney,
+                                fontSize: 14,
+                                horizontalPadding: 15,
+                                verticalPadding: 10,
+                                icon: { CuteStrollBackpackIcon(size: 21) },
+                                action: {
+                                    CozySoundEngine.shared.playPaperFlip()
+                                    showStartStrollSheet = true
+                                }
+                            )
                         } else {
-                            WoodPlaqueButton(
-                                title: "結束散步",
-                                systemImage: "checkmark.seal.fill",
-                                tone: .terracotta,
-                                fontSize: 13,
+                            CutePlushButton(
+                                title: "回到家了",
+                                tone: .strawberryCream,
+                                fontSize: 13.5,
                                 horizontalPadding: 14,
-                                verticalPadding: 11
-                            ) {
-                                _ = coordinator.endStrollSession()
-                            }
+                                verticalPadding: 10,
+                                icon: { CuteCottageIcon(size: 20) },
+                                action: {
+                                    _ = coordinator.endStrollSession()
+                                }
+                            )
                         }
 
-                        // 旁側精巧「前方 60m 釘選熟悉街角」木牌鈕
+                        // 旁側手繪肉球路標釘選鈕
                         Button {
                             CozySoundEngine.shared.playPaperFlip()
                             HapticsEngine.shared.playBrushStrokeTick()
@@ -455,25 +503,26 @@ struct StreetOverworldView: View {
                                 }
                             }
                         } label: {
-                            Image(systemName: "mappin.and.ellipse")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 42, height: 42)
+                            CutePawSignpostIcon(size: 24)
+                                .frame(width: 44, height: 44)
                                 .background(
                                     ZStack {
-                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                            .fill(Color(hex: "#102E31"))
+                                        Circle()
+                                            .fill(Color(hex: "#C9B493"))
                                             .offset(y: 3)
-                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                            .fill(AppTheme.forestTeal)
-                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                            .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                                        Circle()
+                                            .fill(Color(hex: "#FFFDF7"))
+                                        Circle()
+                                            .stroke(Color(hex: "#E2C9A2"), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+                                            .padding(3)
+                                        Circle()
+                                            .stroke(Color(hex: "#B5956B").opacity(0.65), lineWidth: 1.2)
                                     }
                                 )
                                 .padding(.bottom, 3)
-                                .shadow(color: AppTheme.deepPineInk.opacity(0.22), radius: 5, y: 3)
+                                .shadow(color: AppTheme.deepPineInk.opacity(0.20), radius: 5, y: 3)
                         }
-                        .buttonStyle(TactileGameButtonStyle())
+                        .buttonStyle(TactileGameButtonStyle(pressScale: 0.91, pressOffsetY: 2.5))
                         .accessibilityLabel("前方 60 公尺釘選熟悉街角")
                     }
                     .padding(.bottom, 16)
@@ -564,26 +613,46 @@ struct StreetOverworldView: View {
 
 private struct PlayerLanternMapPinView: View {
     var walkingCompanion: PetSpec? = nil
+    var headingDegrees: Double? = nil
     @State private var pulse = false
 
     var body: some View {
         ZStack {
+            // 即時羅盤朝向柔和光扇（當真實羅盤可用時指向你面朝的方向）
+            if let headingDegrees {
+                Path { p in
+                    p.move(to: CGPoint(x: 34, y: 34))
+                    p.addArc(center: CGPoint(x: 34, y: 34), radius: 32, startAngle: .degrees(-115), endAngle: .degrees(-65), clockwise: false)
+                    p.closeSubpath()
+                }
+                .fill(
+                    RadialGradient(
+                        colors: [AppTheme.forestTeal.opacity(0.42), .clear],
+                        center: .center,
+                        startRadius: 6,
+                        endRadius: 34
+                    )
+                )
+                .frame(width: 68, height: 68)
+                .rotationEffect(.degrees(headingDegrees))
+            }
+
             Circle()
-                .fill(AppTheme.forestTeal.opacity(pulse ? 0.08 : 0.26))
+                .fill(Color(hex: "#5DA689").opacity(pulse ? 0.08 : 0.28))
                 .frame(width: pulse ? 44 : 24, height: pulse ? 44 : 24)
 
             Circle()
-                .fill(AppTheme.warmPaper)
+                .fill(Color(hex: "#FFFDF7"))
                 .frame(width: 24, height: 24)
                 .overlay(Circle().stroke(AppTheme.brassDark.opacity(0.75), lineWidth: 1.5))
                 .shadow(color: AppTheme.deepPineInk.opacity(0.32), radius: 4, y: 2)
 
             Circle()
-                .fill(AppTheme.forestTeal)
+                .fill(Color(hex: "#4A8F74"))
                 .frame(width: 13, height: 13)
 
             Circle()
-                .fill(Color.white.opacity(0.65))
+                .fill(Color.white.opacity(0.75))
                 .frame(width: 4, height: 4)
                 .offset(x: -2.5, y: -2.5)
 
@@ -626,10 +695,10 @@ private struct PawAnchorStampView: View {
 
     private var fillColor: Color {
         switch state {
-        case .distant: return AppTheme.pawDistant
-        case .inRange: return AppTheme.pawInRange
-        case .metToday: return AppTheme.pawMetToday
-        case .strollChain: return AppTheme.pawStrollChain
+        case .distant: return Color(hex: "#6B8B94")
+        case .inRange: return Color(hex: "#E67960")
+        case .metToday: return Color(hex: "#967B68")
+        case .strollChain: return Color(hex: "#E3A73B")
         }
     }
 
@@ -643,26 +712,35 @@ private struct PawAnchorStampView: View {
                     if state == .inRange || state == .strollChain {
                         Circle()
                             .stroke(fillColor.opacity(ripple ? 0.0 : 0.78), lineWidth: state == .strollChain ? 3.5 : 2.6)
-                            .frame(width: ripple ? 74 : 44, height: ripple ? 74 : 44)
+                            .frame(width: ripple ? 76 : 44, height: ripple ? 76 : 44)
                     }
 
-                    // 3D 蠟封木座底影
+                    // 可愛小貓耳從地圖足印徽章頂端探出來！
+                    CatEarAccentShape(
+                        fillColor: Color(hex: "#FFFDF7"),
+                        innerEarColor: fillColor.opacity(0.72),
+                        strokeColor: fillColor.opacity(0.75)
+                    )
+                    .scaleEffect(0.68)
+                    .offset(y: -21)
+
+                    // 3D 奶霜糖果底影
                     Circle()
-                        .fill(AppTheme.deepPineInk.opacity(0.30))
+                        .fill(Color(hex: "#4A362B").opacity(0.28))
                         .frame(width: 48, height: 48)
                         .offset(y: 3)
 
-                    // 暖棉紙外框 + 古銅細邊
+                    // 暖棉紙外框 + 糖果細邊
                     Circle()
-                        .fill(AppTheme.warmPaper)
+                        .fill(Color(hex: "#FFFDF7"))
                         .frame(width: 48, height: 48)
                         .overlay(Circle().stroke(fillColor.opacity(0.75), lineWidth: 1.5))
-                        .shadow(color: AppTheme.deepPineInk.opacity(0.25), radius: 5, y: 2)
+                        .shadow(color: AppTheme.deepPineInk.opacity(0.24), radius: 5, y: 2)
 
                     Circle()
                         .fill(
                             RadialGradient(
-                                colors: [fillColor.opacity(0.92), fillColor],
+                                colors: [fillColor.opacity(0.88), fillColor],
                                 center: .topLeading,
                                 startRadius: 3,
                                 endRadius: 24
@@ -671,25 +749,36 @@ private struct PawAnchorStampView: View {
                         .frame(width: 38, height: 38)
                         .overlay(
                             Circle()
-                                .stroke(Color.white.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
+                                .stroke(Color.white.opacity(0.45), style: StrokeStyle(lineWidth: 1.1, dash: [3, 2]))
                                 .padding(2)
                         )
 
                     Image(systemName: state == .metToday ? "leaf.fill" : (state == .strollChain ? "sparkles" : "pawprint.fill"))
                         .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.white)
+
+                    // 在 75m 內時冒出小小愛心提示「可以打招呼囉！」
+                    if state == .inRange {
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Color(hex: "#FF7B89"))
+                            .padding(3.5)
+                            .background(Color(hex: "#FFFDF7"), in: Circle())
+                            .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 2, y: 1)
+                            .offset(x: 20, y: -18)
+                    }
                 }
-                .offset(y: (state == .inRange || state == .strollChain) && bob ? -4.5 : 0)
+                .offset(y: (state == .inRange || state == .strollChain) && bob ? -5.0 : 0)
 
                 HStack(spacing: 4) {
                     if isFamiliarCorner {
-                        Image(systemName: "house.circle.fill")
+                        Image(systemName: "heart.circle.fill")
                             .font(.system(size: 10))
-                            .foregroundStyle(AppTheme.forestTeal)
+                            .foregroundStyle(Color(hex: "#E67960"))
                     }
                     Text("\(label) · \(distanceM)m")
-                        .font(AppTheme.diegeticLabel(11))
-                        .foregroundStyle(AppTheme.deepPineInk)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(hex: "#3E2F28"))
                     if familiarityStars > 0 {
                         Text(String(repeating: "★", count: familiarityStars))
                             .font(.system(size: 9))
@@ -700,21 +789,21 @@ private struct PawAnchorStampView: View {
                 .padding(.vertical, 3.5)
                 .background(
                     ZStack {
-                        Capsule().fill(fillColor.opacity(0.32)).offset(y: 1.5)
-                        Capsule().fill(AppTheme.warmPaper.opacity(0.96))
-                        Capsule().stroke(fillColor.opacity(0.72), lineWidth: 1.1)
+                        Capsule().fill(fillColor.opacity(0.32)).offset(y: 1.8)
+                        Capsule().fill(Color(hex: "#FFFDF7"))
+                        Capsule().stroke(fillColor.opacity(0.75), lineWidth: 1.1)
                     }
                 )
             }
-            .frame(minWidth: 64, minHeight: 68)
+            .frame(minWidth: 64, minHeight: 70)
         }
-        .buttonStyle(TactileGameButtonStyle())
+        .buttonStyle(TactileGameButtonStyle(pressScale: 0.90, pressOffsetY: 2))
         .onAppear {
             if state == .inRange || state == .strollChain {
                 withAnimation(.easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
                     ripple = true
                 }
-                withAnimation(.easeInOut(duration: 1.15).repeatForever(autoreverses: true)) {
+                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
                     bob = true
                 }
             }

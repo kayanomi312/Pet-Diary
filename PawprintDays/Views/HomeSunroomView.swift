@@ -11,6 +11,8 @@ struct HomeSunroomView: View {
     @State private var teaSteaming: Bool = false
     @State private var bouncingPetID: String? = nil
     @State private var activeWhisperSpotIndex: Int = 1
+    @State private var livingActionCycle: Int = 0
+    @State private var livingActionDate: Date = Date()
 
     private static let ambientPetWhispers: [String] = [
         "窗邊好暖和～",
@@ -86,8 +88,10 @@ struct HomeSunroomView: View {
                                         coordinator: coordinator,
                                         bouncingPetID: bouncingPetID,
                                         ambientBubbleText: (spot.spotIndex == activeWhisperSpotIndex && !spot.currentOccupantPetIDs.isEmpty)
-                                            ? Self.ambientPetWhispers[(spot.spotIndex + coordinator.ledger.coinBalance) % Self.ambientPetWhispers.count]
+                                            ? Self.ambientPetWhispers[(spot.spotIndex + coordinator.ledger.coinBalance + livingActionCycle) % Self.ambientPetWhispers.count]
                                             : nil,
+                                        autonomousAction: sunroomLivingAction(forSpotIndex: spot.spotIndex),
+                                        actionTriggerDate: livingActionDate,
                                         onTapPet: { petID in
                                             HapticsEngine.shared.playPawRangeCue()
                                             CozySoundEngine.shared.playCompassChime()
@@ -154,27 +158,27 @@ struct HomeSunroomView: View {
                 .padding(.top, 8)
 
                 HStack(spacing: 8) {
-                    WoodPlaqueButton(
-                        title: invitedPets.isEmpty ? "到街角遇見室友" : "家中室友 \(invitedPets.count)/8",
-                        systemImage: "bookmark.fill",
-                        tone: .terracotta,
+                    CutePlushButton(
+                        title: invitedPets.isEmpty ? "到街角遇見室友" : "室友 \(invitedPets.count)/8",
+                        tone: .strawberryCream,
                         fontSize: 12,
                         horizontalPadding: 12,
-                        verticalPadding: 6,
+                        verticalPadding: 6.5,
+                        icon: { Image(systemName: "heart.fill").font(.system(size: 11, weight: .bold)).foregroundStyle(.white) },
                         action: {
                             CozySoundEngine.shared.playPaperFlip()
                             showPetRibbonDrawer = true
                         }
                     )
 
-                    // 一鍵切換陽光室光影（晨光 / 細雨 / 黃昏）— 隨時沉浸不同繪本氛圍
-                    WoodPlaqueButton(
+                    // 一鍵切換陽光室光影（搭配手繪微笑天氣臉！）
+                    CutePlushButton(
                         title: coordinator.activeWeather.displayName,
-                        systemImage: coordinator.activeWeather.sfSymbol,
-                        tone: .warmCream,
+                        tone: .milkCream,
                         fontSize: 11.5,
                         horizontalPadding: 10,
                         verticalPadding: 6,
+                        icon: { CuteWeatherFaceIcon(weather: coordinator.activeWeather, size: 18) },
                         action: {
                             let cycle: [WeatherMode] = [.clearMorning, .lightRain, .dusk, .overcast]
                             let currentIdx = cycle.firstIndex(of: coordinator.activeWeather) ?? 0
@@ -189,13 +193,13 @@ struct HomeSunroomView: View {
                     Spacer(minLength: 4)
 
                     if let ready = readyMentorships.first {
-                        WoodPlaqueButton(
+                        CutePlushButton(
                             title: "觀摩傳承",
-                            systemImage: "sparkles",
-                            tone: .brassGold,
+                            tone: .butterHoney,
                             fontSize: 12,
                             horizontalPadding: 11,
-                            verticalPadding: 6,
+                            verticalPadding: 6.5,
+                            icon: { Image(systemName: "sparkles").font(.system(size: 11, weight: .bold)) },
                             action: {
                                 CozySoundEngine.shared.playCompassChime()
                                 coordinator.completeMentorshipLesson(intentionUUID: ready.intentionUUID)
@@ -256,12 +260,14 @@ struct HomeSunroomView: View {
             }
         }
         .task {
-            // 陽光室日常生氣：每隔幾秒讓不同角落的毛孩冒出一句溫馨小念頭
+            // 陽光室日常生氣：每隔幾秒讓屋內毛孩自主搖擺散步、開心跳跳、蓋被午睡並冒出小念頭！
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5.5))
+                try? await Task.sleep(for: .seconds(4.5))
                 let occupied = coordinator.homeSpots.filter { !$0.currentOccupantPetIDs.isEmpty }
-                if let next = occupied.randomElement() {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
+                    livingActionCycle += 1
+                    livingActionDate = Date()
+                    if let next = occupied.randomElement() {
                         activeWhisperSpotIndex = next.spotIndex
                     }
                 }
@@ -294,6 +300,16 @@ struct HomeSunroomView: View {
         }
     }
 
+    private func sunroomLivingAction(forSpotIndex spotIndex: Int) -> PetPlayfulAction {
+        let pick = (spotIndex + livingActionCycle) % 4
+        switch pick {
+        case 0: return .curiousWaddle
+        case 1: return .bellyBoop
+        case 2: return .cozyNap
+        default: return .idle
+        }
+    }
+
     private func sunroomThemeTint(weather: WeatherMode, theme: SeasonalRoomTheme) -> Color {
         if weather.isRainy || theme == .rainySeason {
             return Color(hex: "#C8DCE2").opacity(0.28)
@@ -312,6 +328,8 @@ private struct HomeSpotDioramaNode: View {
     @Bindable var coordinator: GameCoordinator
     let bouncingPetID: String?
     let ambientBubbleText: String?
+    let autonomousAction: PetPlayfulAction
+    let actionTriggerDate: Date
     let onTapPet: (String) -> Void
     let onTapEmptySpot: () -> Void
     let onCompleteMentorship: (TeachingIntention) -> Void
@@ -355,9 +373,11 @@ private struct HomeSpotDioramaNode: View {
                                 weatherMode: coordinator.activeWeather,
                                 isHappySquint: spot.currentOccupantPetIDs.count > 1 || bouncingPetID == petID,
                                 mentorshipParticle: mentorshipHabit,
-                                tapBounceScale: bouncingPetID == petID ? 1.0 : 0.0
+                                tapBounceScale: bouncingPetID == petID ? 1.0 : 0.0,
+                                playfulAction: bouncingPetID == petID ? .bellyBoop : autonomousAction,
+                                actionTriggerDate: bouncingPetID == petID ? Date() : actionTriggerDate
                             )
-                            .frame(width: 122, height: 122)
+                            .frame(width: 124, height: 124)
                         }
                         .buttonStyle(.plain)
                     }

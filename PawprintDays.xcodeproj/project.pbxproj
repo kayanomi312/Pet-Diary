@@ -40,6 +40,7 @@
 		D831966FC956CB4BAE66930C /* StrollRitualSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 577B6815AA46FB69A029BEF6 /* StrollRitualSheets.swift */; };
 		DDED72C953C9AC79544709AF /* GameCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93CFFA2DFDC1657DFAD6BE0 /* GameCoordinator.swift */; };
 		E20E7734E37C49E6BF10D31D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 294ECBE64107C69E3AE79B88 /* Assets.xcassets */; };
+		E25FC44CEFCC856722142CF6 /* CuteKawaiiIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E7501CACD547594CF9F3CB /* CuteKawaiiIcons.swift */; };
 		E2B720A0774F3E793E5340E2 /* AnchorRotationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FAA300ED020BC39BC83F973 /* AnchorRotationEngine.swift */; };
 		E52A5349635D7FE3F78072AB /* PawprintDaysApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0740C979C9E98A4DEB2763B7 /* PawprintDaysApp.swift */; };
 		EA98F78935CA143C0BF14B9F /* HardcoverSketchbookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A74C81C1FC7B537AAD7B171 /* HardcoverSketchbookView.swift */; };
@@ -97,6 +98,7 @@
 		E0B2764B24738456F6E6AFF4 /* MapKitAnchorDiscoveryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitAnchorDiscoveryService.swift; sourceTree = "<group>"; };
 		E1F46AB30C29BDC7D91D29B7 /* Stage1FixtureDrawerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stage1FixtureDrawerView.swift; sourceTree = "<group>"; };
 		F23804B7F9F2AAAFBDCD72CC /* RoomOccupancySolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomOccupancySolver.swift; sourceTree = "<group>"; };
+		F8E7501CACD547594CF9F3CB /* CuteKawaiiIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuteKawaiiIcons.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -146,6 +148,7 @@
 		872466B92342D6D21A2805E3 /* Art */ = {
 			isa = PBXGroup;
 			children = (
+				F8E7501CACD547594CF9F3CB /* CuteKawaiiIcons.swift */,
 				071983DCB25BE655FF909410 /* DiegeticProps.swift */,
 				AFF60970FD6466DF84DA9D35 /* PlaceholderAssetGenerator.swift */,
 				9131649D46AD6C948295A1D7 /* StorybookGameUI.swift */,
@@ -336,6 +339,7 @@
 				D61598D9F86F05DED885F12B /* AppTheme.swift in Sources */,
 				6D76B7FB85BE4EA9C46B3F63 /* CozySoundEngine.swift in Sources */,
 				18EDD519764D4B0D48A499A8 /* CurioCubbiesView.swift in Sources */,
+				E25FC44CEFCC856722142CF6 /* CuteKawaiiIcons.swift in Sources */,
 				4C5A2CDC1017220D0F44DA8B /* DiarySnapshotBaker.swift in Sources */,
 				C93E1B479E8580F215D66CD8 /* DiegeticProps.swift in Sources */,
 				DDED72C953C9AC79544709AF /* GameCoordinator.swift in Sources */,

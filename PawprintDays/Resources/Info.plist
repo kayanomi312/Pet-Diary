@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>足印日記</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -18,5 +20,18 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>僅在你主動開啟「替我記住停留較久的街角」時使用，用來在私密本機日記記錄停留片段。</string>
+	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
+	<dict>
+		<key>PreciseNeighborhoodWalk</key>
+		<string>需要暫時開啟精準定位，以準確判斷 75 公尺內的街角足印與繪製散步路線。</string>
+	</dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>足印日記需要你的精準位置，才能在真實巷口遇見奇幻毛孩、計算 75 公尺街角距離並繪製散步水彩軌跡（資料 100% 私密留存本機）。</string>
+	<key>NSMotionUsageDescription</key>
+	<string>足印日記透過計步器將你的日常步行自動換算為步數幣與口袋拾遺進度（不上傳任何健康資料）。</string>
+	<key>UILaunchScreen</key>
+	<dict/>
 </dict>
 </plist>
