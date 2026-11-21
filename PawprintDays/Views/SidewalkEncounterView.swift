@@ -198,9 +198,11 @@ struct SidewalkEncounterView: View {
         )
         .onAppear {
             withAnimation(.easeOut(duration: 0.45)) { irisProgress = 1.0 }
+            CozySoundEngine.shared.setRainAmbience(active: coordinator.activeWeather.isRainy)
         }
         .onDisappear {
             cancelCobblestoneHold()
+            CozySoundEngine.shared.stopRainAmbience()
         }
     }
 
@@ -352,6 +354,7 @@ struct SidewalkEncounterView: View {
         ) {
             committedLog = log
             HapticsEngine.shared.playCurioUnpack()
+            CozySoundEngine.shared.playPaperFlip()
         }
     }
 }

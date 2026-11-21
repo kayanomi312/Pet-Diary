@@ -31,12 +31,20 @@ struct Stage1FixtureDrawerView: View {
                     }
                 }
 
-                Section("天氣與 Metal 紙紋光影預覽") {
+                Section("天氣、音效與 Metal 紙紋光影") {
                     Picker("目前天氣", selection: $coordinator.activeWeather) {
                         ForEach(WeatherMode.allCases, id: \.self) { mode in
                             Text(mode.displayName).tag(mode)
                         }
                     }
+                    Toggle(isOn: Binding(
+                        get: { CozySoundEngine.shared.isSoundEnabled },
+                        set: { CozySoundEngine.shared.isSoundEnabled = $0 }
+                    )) {
+                        Text("細雨環境音與柔和擬音（尊重靜音鍵）")
+                            .font(AppTheme.serifBody(14))
+                    }
+                    .tint(AppTheme.forestTeal)
                 }
 
                 Section("快轉天數與步數測試") {

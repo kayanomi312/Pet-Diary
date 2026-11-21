@@ -13,6 +13,8 @@ struct TactileCareView: View {
     @State private var showMentorshipSheet: Bool = false
     @State private var showSnackPicker: Bool = false
     @State private var showKindredLessonSheet: Bool = false
+    @State private var draggingOutfitID: String? = nil
+    @State private var draggingOffset: CGSize = .zero
 
     private var petSpec: PetSpec { PetCatalog.pet(id: petID) }
     private var resident: PetResidentState? { coordinator.resident(for: petID) }
@@ -22,12 +24,8 @@ struct TactileCareView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(hex: "#F2EAD9"), Color(hex: "#E4D7C0")],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            TactileCareFloorBackdrop(weather: coordinator.activeWeather)
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 HStack {
@@ -136,6 +134,16 @@ struct TactileCareView: View {
                     )
                     .frame(width: 280, height: 280)
 
+                    // 從木製掛衣架拖曳衣飾靠近頸部時，於 socket_neck 浮現金色引導光圈
+                    if draggingOutfitID != nil {
+                        Circle()
+                            .stroke(AppTheme.pawStrollChain, style: StrokeStyle(lineWidth: 2.5, dash: [5, 4]))
+                            .background(Circle().fill(AppTheme.pawStrollChain.opacity(0.16)))
+                            .frame(width: 74, height: 74)
+                            .offset(x: -18, y: -36)
+                            .allowsHitTesting(false)
+                    }
+
                     // 隨指尖移動的木質梳毛刷（雨天自動切換成溫熱毛巾擦毛！）
                     if let loc = brushLocation {
                         HStack(spacing: 4) {
@@ -169,9 +177,11 @@ struct TactileCareView: View {
                             if abs(value.translation.width) > 36 {
                                 brushStrokeCount += 1
                                 HapticsEngine.shared.playBrushStrokeTick()
+                                CozySoundEngine.shared.playBrushSwish()
                                 if brushStrokeCount == 3 {
                                     coordinator.completeTactileCare(petID: petID)
                                     HapticsEngine.shared.playCurioUnpack()
+                                    CozySoundEngine.shared.playCompassChime()
                                 }
                             }
                             withAnimation(.easeOut(duration: 0.35)) {
@@ -287,7 +297,30 @@ struct TactileCareView: View {
                                 ) {
                                     coordinator.equipOutfit(petID: petID, outfitID: item.id)
                                     HapticsEngine.shared.playPawRangeCue()
+                                    CozySoundEngine.shared.playWardrobeSnap(withBell: item.id == "outfit.occasion_collar")
                                 }
+                                .offset(draggingOutfitID == item.id ? draggingOffset : .zero)
+                                .zIndex(draggingOutfitID == item.id ? 20 : 0)
+                                .simultaneousGesture(
+                                    DragGesture(minimumDistance: 14)
+                                        .onChanged { value in
+                                            if value.translation.height < -14 {
+                                                draggingOutfitID = item.id
+                                                draggingOffset = value.translation
+                                            }
+                                        }
+                                        .onEnded { value in
+                                            if draggingOutfitID == item.id && value.translation.height < -65 {
+                                                coordinator.equipOutfit(petID: petID, outfitID: item.id)
+                                                HapticsEngine.shared.playPawRangeCue()
+                                                CozySoundEngine.shared.playWardrobeSnap(withBell: item.id == "outfit.occasion_collar")
+                                            }
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                                                draggingOutfitID = nil
+                                                draggingOffset = .zero
+                                            }
+                                        }
+                                )
                             }
                         }
                         .padding(.horizontal, 16)

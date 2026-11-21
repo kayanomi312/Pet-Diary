@@ -25,6 +25,7 @@
 		5615223262C0BE9353F20324 /* cat_purr.ahap in Resources */ = {isa = PBXBuildFile; fileRef = 8FA68C348F168F5266C8FF2B /* cat_purr.ahap */; };
 		578BC54F831104EB75548792 /* HomeSunroomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1BB69ACCDDB09346B6CD70E /* HomeSunroomView.swift */; };
 		6BAD6FE020F29A88D2B224C3 /* NarrativeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8607EA677A0697AC9B749D7A /* NarrativeEngine.swift */; };
+		6D76B7FB85BE4EA9C46B3F63 /* CozySoundEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71448162A759227F2D467E47 /* CozySoundEngine.swift */; };
 		7C018745BC28708B329A0467 /* SidewalkEncounterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D31E76984681A384C3B6706 /* SidewalkEncounterView.swift */; };
 		7E6291C98864D10EDFEA9065 /* PetCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B209268D8883F60AFD479A29 /* PetCatalog.swift */; };
 		84940EB4D785441D0E90E20E /* MapKitAnchorDiscoveryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B2764B24738456F6E6AFF4 /* MapKitAnchorDiscoveryService.swift */; };
@@ -71,6 +72,7 @@
 		5A600ABFFADCDFB70A967183 /* GameTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTypes.swift; sourceTree = "<group>"; };
 		60C2DCCD080EBEEA8618B504 /* TactileCareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TactileCareView.swift; sourceTree = "<group>"; };
 		63B2F90D7A01B759FD220D22 /* PawprintDaysTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PawprintDaysTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		71448162A759227F2D467E47 /* CozySoundEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CozySoundEngine.swift; sourceTree = "<group>"; };
 		73DFE847C9BBA2DC84E27151 /* curio_unpack.ahap */ = {isa = PBXFileReference; path = curio_unpack.ahap; sourceTree = "<group>"; };
 		7E7D5485F75FC57B5EBD6075 /* StreetOverworldView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreetOverworldView.swift; sourceTree = "<group>"; };
 		8607EA677A0697AC9B749D7A /* NarrativeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NarrativeEngine.swift; sourceTree = "<group>"; };
@@ -174,6 +176,7 @@
 			isa = PBXGroup;
 			children = (
 				2FAA300ED020BC39BC83F973 /* AnchorRotationEngine.swift */,
+				71448162A759227F2D467E47 /* CozySoundEngine.swift */,
 				33F2454D976BB67C83BE9F36 /* DiarySnapshotBaker.swift */,
 				A93CFFA2DFDC1657DFAD6BE0 /* GameCoordinator.swift */,
 				9C568E5706C32C149A0CC402 /* HapticsEngine.swift */,
@@ -325,6 +328,7 @@
 			files = (
 				E2B720A0774F3E793E5340E2 /* AnchorRotationEngine.swift in Sources */,
 				D61598D9F86F05DED885F12B /* AppTheme.swift in Sources */,
+				6D76B7FB85BE4EA9C46B3F63 /* CozySoundEngine.swift in Sources */,
 				18EDD519764D4B0D48A499A8 /* CurioCubbiesView.swift in Sources */,
 				4C5A2CDC1017220D0F44DA8B /* DiarySnapshotBaker.swift in Sources */,
 				C93E1B479E8580F215D66CD8 /* DiegeticProps.swift in Sources */,
