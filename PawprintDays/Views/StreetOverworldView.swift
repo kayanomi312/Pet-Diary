@@ -7,6 +7,7 @@ struct StreetOverworldView: View {
     @State private var selectedFarAnchor: AnchorSiteRecord? = nil
     @State private var hasCenteredOnRealGPS: Bool = false
     @State private var showStartStrollSheet: Bool = false
+    @State private var showStreetToolsPopover: Bool = false
 
     init(coordinator: GameCoordinator) {
         self.coordinator = coordinator
@@ -523,8 +524,44 @@ struct StreetOverworldView: View {
                                 }
                             }
 
-                            Menu {
-                                Button {
+                            CozyIconCircleButton(
+                                systemImage: "ellipsis",
+                                tint: Color(hex: "#3A312B"),
+                                isActive: showStreetToolsPopover,
+                                size: 40,
+                                accessibilityLabelText: "街區更多工具"
+                            ) {
+                                CozySoundEngine.shared.playPaperFlip()
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
+                                    showStreetToolsPopover.toggle()
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 86)
+            }
+
+            // Unified Warm Stationery Tools Popover (replaces stark iOS system Menu!)
+            if showStreetToolsPopover {
+                Color.black.opacity(0.06)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.18)) { showStreetToolsPopover = false }
+                    }
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        CozyPopoverMenuCard(
+                            items: [
+                                CozyPopoverMenuItem(
+                                    id: "pin_corner",
+                                    title: "前方 60m 釘選熟悉街角",
+                                    systemImage: "mappin.and.ellipse",
+                                    tint: AppTheme.forestTeal
+                                ) {
                                     CozySoundEngine.shared.playPaperFlip()
                                     if let pinned = coordinator.pinFamiliarCornerAhead() {
                                         withAnimation(.easeInOut(duration: 0.5)) {
@@ -537,34 +574,25 @@ struct StreetOverworldView: View {
                                             )
                                         }
                                     }
-                                } label: {
-                                    Label("在前方 60m 釘選熟悉街角", systemImage: "mappin.and.ellipse")
-                                }
-
-                                Button {
+                                },
+                                CozyPopoverMenuItem(
+                                    id: "nearby_list",
+                                    title: "查看鄰近街角列表",
+                                    systemImage: "list.bullet",
+                                    tint: Color(hex: "#C98D26")
+                                ) {
                                     coordinator.showAccessibleNearbyList = true
-                                } label: {
-                                    Label("查看鄰近街角列表", systemImage: "list.bullet")
                                 }
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .font(.system(size: 15, weight: .bold))
-                                    .foregroundStyle(Color(hex: "#3A312B"))
-                                    .frame(width: 40, height: 40)
-                                    .background {
-                                        Circle()
-                                            .fill(.ultraThinMaterial)
-                                            .overlay(Circle().fill(Color(hex: "#FFFDF8").opacity(0.88)))
-                                            .overlay(Circle().stroke(Color(hex: "#CBBAA0").opacity(0.55), lineWidth: 0.85))
-                                            .shadow(color: Color(hex: "#2D241E").opacity(0.12), radius: 10, y: 4)
-                                    }
+                            ],
+                            onDismiss: {
+                                withAnimation(.easeOut(duration: 0.18)) { showStreetToolsPopover = false }
                             }
-                            .accessibilityLabel("街區更多工具")
-                        }
+                        )
                     }
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 140)
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 86)
+                .transition(.scale(scale: 0.92, anchor: .bottomTrailing).combined(with: .opacity))
             }
         }
         .sheet(isPresented: $coordinator.showAccessibleNearbyList) {

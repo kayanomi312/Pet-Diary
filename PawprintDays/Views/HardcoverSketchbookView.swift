@@ -21,6 +21,7 @@ struct HardcoverSketchbookView: View {
     @State private var renameText: String = ""
     @State private var backupExportURL: URL? = nil
     @State private var showBackupImporter: Bool = false
+    @State private var showBackupPopover: Bool = false
 
     private var filteredDays: [DiaryDayRecord] {
         coordinator.diaryDays.filter { day in
@@ -83,38 +84,18 @@ struct HardcoverSketchbookView: View {
 
                     Spacer()
 
-                    Menu {
-                        if let url = backupExportURL {
-                            ShareLink(item: url) {
-                                Label("分享本機備份檔 (.json)", systemImage: "square.and.arrow.up")
-                            }
-                        } else {
-                            Button {
-                                backupExportURL = DiaryExportService.exportJSONBackup(coordinator: coordinator)
-                                coordinator.showWhisper("已產生本機日記備份，再點一次右上角即可分享存檔。")
-                            } label: {
-                                Label("產生本機日記備份 (.json)", systemImage: "doc.badge.arrow.up")
-                            }
+                    CozyIconCircleButton(
+                        systemImage: "ellipsis",
+                        tint: Color(hex: "#2F2A26"),
+                        isActive: showBackupPopover,
+                        size: 36,
+                        accessibilityLabelText: "日記備份與還原"
+                    ) {
+                        CozySoundEngine.shared.playPaperFlip()
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
+                            showBackupPopover.toggle()
                         }
-                        Button {
-                            showBackupImporter = true
-                        } label: {
-                            Label("從備份檔還原手記 (.json)", systemImage: "tray.and.arrow.down")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(Color(hex: "#2F2A26"))
-                            .frame(width: 36, height: 36)
-                            .background {
-                                Circle()
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(Circle().fill(Color(hex: "#FFFDF8").opacity(0.90)))
-                                    .overlay(Circle().stroke(Color(hex: "#CBBAA0").opacity(0.55), lineWidth: 0.85))
-                                    .shadow(color: Color(hex: "#2D241E").opacity(0.10), radius: 6, y: 2)
-                            }
                     }
-                    .accessibilityLabel("日記備份與還原")
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 10)
@@ -153,6 +134,77 @@ struct HardcoverSketchbookView: View {
                         pillarPets: coordinator.residents.filter { $0.milestoneTier >= 6 }
                     )
                 }
+            }
+
+            if showBackupPopover {
+                Color.black.opacity(0.06)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.18)) { showBackupPopover = false }
+                    }
+                VStack {
+                    HStack {
+                        Spacer()
+                        VStack(alignment: .leading, spacing: 0) {
+                            if let url = backupExportURL {
+                                ShareLink(item: url) {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "square.and.arrow.up")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundStyle(AppTheme.forestTeal)
+                                            .frame(width: 26, height: 26)
+                                            .background(Circle().fill(AppTheme.forestTeal.opacity(0.11)))
+                                        Text("分享本機備份檔 (.json)")
+                                            .font(.system(size: 13.5, weight: .semibold, design: .rounded))
+                                            .foregroundStyle(Color(hex: "#2F2A26"))
+                                        Spacer(minLength: 4)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                }
+                                .simultaneousGesture(TapGesture().onEnded {
+                                    withAnimation(.easeOut(duration: 0.18)) { showBackupPopover = false }
+                                })
+                            }
+                            Divider()
+                                .overlay(Color(hex: "#E2D6C3").opacity(0.75))
+                                .padding(.horizontal, 12)
+                            Button {
+                                HapticsEngine.shared.playBrushStrokeTick()
+                                withAnimation(.easeOut(duration: 0.18)) { showBackupPopover = false }
+                                showBackupImporter = true
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "tray.and.arrow.down")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(Color(hex: "#C98D26"))
+                                        .frame(width: 26, height: 26)
+                                        .background(Circle().fill(Color(hex: "#C98D26").opacity(0.11)))
+                                    Text("從備份檔還原手記")
+                                        .font(.system(size: 13.5, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(Color(hex: "#2F2A26"))
+                                    Spacer(minLength: 4)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .frame(width: 220)
+                        .padding(.vertical, 4)
+                        .background {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(.ultraThinMaterial)
+                                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color(hex: "#FFFDF8").opacity(0.95)))
+                                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color(hex: "#D5C5AE").opacity(0.70), lineWidth: 0.9))
+                                .shadow(color: Color(hex: "#2B211A").opacity(0.16), radius: 16, y: 8)
+                        }
+                    }
+                    .padding(.top, 56)
+                    .padding(.trailing, 18)
+                    Spacer()
+                }
+                .transition(.scale(scale: 0.92, anchor: .topTrailing).combined(with: .opacity))
             }
         }
         .confirmationDialog(
@@ -868,24 +920,20 @@ private struct SketchbookDayPageCard: View {
         }
         .padding(16)
         .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: "#FCF9F2"), Color(hex: "#F5EDDD")],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: "#FFFDF8"), Color(hex: "#F8F2E7")],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
-                    .colorEffect(ShaderLibrary.storybookPaperSurface())
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(AppTheme.timberWarm.opacity(0.24), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                    .padding(4)
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(AppTheme.timberWarm.opacity(0.50), lineWidth: 1.3)
-            }
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color(hex: "#D5C5AE").opacity(0.65), lineWidth: 0.9)
+                )
         )
-        .shadow(color: AppTheme.deepPineInk.opacity(0.12), radius: 7, y: 4)
+        .shadow(color: Color(hex: "#2D241E").opacity(0.09), radius: 10, y: 4)
         .onChange(of: selectedPhotoItem) { _, newItem in
             guard let newItem else { return }
             Task {

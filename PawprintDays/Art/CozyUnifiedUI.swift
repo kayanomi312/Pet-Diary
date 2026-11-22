@@ -211,3 +211,130 @@ struct CozyFloatingDockBar: View {
         .animation(.spring(response: 0.30, dampingFraction: 0.78), value: currentScreen)
     }
 }
+
+// MARK: - Unified Stationery Popover Menu (Replaces stark iOS system Liquid Glass Menu!)
+struct CozyPopoverMenuItem: Identifiable {
+    let id: String
+    let title: String
+    let systemImage: String
+    var tint: Color = AppTheme.forestTeal
+    var isDestructive: Bool = false
+    let action: () -> Void
+}
+
+struct CozyPopoverMenuCard: View {
+    let items: [CozyPopoverMenuItem]
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
+                Button {
+                    HapticsEngine.shared.playBrushStrokeTick()
+                    onDismiss()
+                    item.action()
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: item.systemImage)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(item.isDestructive ? Color(hex: "#C85A32") : item.tint)
+                            .frame(width: 26, height: 26)
+                            .background(
+                                Circle()
+                                    .fill((item.isDestructive ? Color(hex: "#C85A32") : item.tint).opacity(0.11))
+                            )
+                        Text(item.title)
+                            .font(.system(size: 13.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(item.isDestructive ? Color(hex: "#B5482B") : Color(hex: "#2F2A26"))
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if idx < items.count - 1 {
+                    Divider()
+                        .overlay(Color(hex: "#E2D6C3").opacity(0.75))
+                        .padding(.horizontal, 12)
+                }
+            }
+        }
+        .frame(width: 214)
+        .padding(.vertical, 4)
+        .background {
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color(hex: "#FFFDF8").opacity(0.95))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color(hex: "#D5C5AE").opacity(0.70), lineWidth: 0.9)
+                )
+                .shadow(color: Color(hex: "#2B211A").opacity(0.16), radius: 16, x: 0, y: 8)
+        }
+    }
+}
+
+// MARK: - Unified Segmented Pill Bar (Matches CozyFloatingDockBar & TactileCare Tray!)
+struct CozySegmentedPillOption: Identifiable {
+    let id: Int
+    let title: String
+    var systemImage: String? = nil
+}
+
+struct CozySegmentedPillBar: View {
+    let options: [CozySegmentedPillOption]
+    @Binding var selection: Int
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(options) { opt in
+                let isSelected = (selection == opt.id)
+                Button {
+                    guard !isSelected else { return }
+                    HapticsEngine.shared.playBrushStrokeTick()
+                    CozySoundEngine.shared.playPaperFlip()
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                        selection = opt.id
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        if let icon = opt.systemImage {
+                            Image(systemName: icon)
+                                .font(.system(size: 11.5, weight: .semibold))
+                        }
+                        Text(opt.title)
+                            .font(.system(size: 12.5, weight: isSelected ? .bold : .semibold, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                    }
+                    .foregroundStyle(isSelected ? Color.white : Color(hex: "#5A4D43"))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background {
+                        if isSelected {
+                            Capsule(style: .continuous)
+                                .fill(AppTheme.forestTeal)
+                                .shadow(color: AppTheme.forestTeal.opacity(0.24), radius: 5, y: 2)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(4)
+        .background {
+            Capsule(style: .continuous)
+                .fill(Color(hex: "#EFE7D8").opacity(0.92))
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(Color(hex: "#D5C5AE").opacity(0.65), lineWidth: 0.85)
+                )
+        }
+    }
+}

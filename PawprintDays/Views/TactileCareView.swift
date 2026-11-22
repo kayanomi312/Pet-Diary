@@ -14,6 +14,7 @@ struct TactileCareView: View {
     @State private var showSnackPicker: Bool = false
     @State private var showKindredLessonSheet: Bool = false
     @State private var showFieldGuideSheet: Bool = false
+    @State private var showMoreActionsPopover: Bool = false
     @State private var activeTrayTab: Int = 0 // 0 = 互動陪玩, 1 = 換上衣飾
     @State private var draggingOutfitID: String? = nil
     @State private var draggingOffset: CGSize = .zero
@@ -69,45 +70,18 @@ struct TactileCareView: View {
                         showFieldGuideSheet = true
                     }
 
-                    Menu {
-                        Button {
-                            coordinator.togglePinFavorite(petID: petID)
-                            triggerPetBounce()
-                        } label: {
-                            Label(
-                                (resident?.isPinned == true) ? "取消常駐陽光室" : "釘選為常駐室友",
-                                systemImage: (resident?.isPinned == true) ? "pin.slash" : "pin.fill"
-                            )
+                    CozyIconCircleButton(
+                        systemImage: "ellipsis",
+                        tint: Color(hex: "#2F2A26"),
+                        isActive: showMoreActionsPopover,
+                        size: 36,
+                        accessibilityLabelText: "更多照護選項"
+                    ) {
+                        CozySoundEngine.shared.playPaperFlip()
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
+                            showMoreActionsPopover.toggle()
                         }
-                        Button {
-                            showMentorshipSheet = true
-                        } label: {
-                            Label("規劃跨物種傳承練習", systemImage: "sparkles")
-                        }
-                        Button {
-                            CozySoundEngine.shared.playCompassChime()
-                            coordinator.setWalkCompanion(petID: petID)
-                            triggerPlayfulAction(.happyTwirl, bubble: "好耶！帶我出門玩♡")
-                        } label: {
-                            Label(
-                                coordinator.activeWalkCompanionID == petID ? "目前是今日散步夥伴" : "設為今日散步夥伴",
-                                systemImage: "figure.walk"
-                            )
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(Color(hex: "#2F2A26"))
-                            .frame(width: 36, height: 36)
-                            .background {
-                                Circle()
-                                    .fill(.ultraThinMaterial)
-                                    .overlay(Circle().fill(Color(hex: "#FFFDF8").opacity(0.88)))
-                                    .overlay(Circle().stroke(Color(hex: "#CBBAA0").opacity(0.55), lineWidth: 0.85))
-                                    .shadow(color: Color(hex: "#2D241E").opacity(0.11), radius: 8, y: 3)
-                            }
                     }
-                    .accessibilityLabel("更多照護選項")
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 10)
@@ -479,6 +453,58 @@ struct TactileCareView: View {
                 )
                 .padding(.horizontal, 14)
                 .padding(.bottom, 12)
+            }
+
+            // Unified Warm Stationery Popover Menu (replaces stark iOS system Menu!)
+            if showMoreActionsPopover {
+                Color.black.opacity(0.06)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.18)) { showMoreActionsPopover = false }
+                    }
+                VStack {
+                    HStack {
+                        Spacer()
+                        CozyPopoverMenuCard(
+                            items: [
+                                CozyPopoverMenuItem(
+                                    id: "pin",
+                                    title: (resident?.isPinned == true) ? "取消常駐陽光室" : "釘選為常駐室友",
+                                    systemImage: (resident?.isPinned == true) ? "pin.slash.fill" : "pin.fill",
+                                    tint: AppTheme.forestTeal
+                                ) {
+                                    coordinator.togglePinFavorite(petID: petID)
+                                    triggerPetBounce()
+                                },
+                                CozyPopoverMenuItem(
+                                    id: "mentor",
+                                    title: "規劃跨物種傳承練習",
+                                    systemImage: "sparkles",
+                                    tint: Color(hex: "#C98D26")
+                                ) {
+                                    showMentorshipSheet = true
+                                },
+                                CozyPopoverMenuItem(
+                                    id: "buddy",
+                                    title: coordinator.activeWalkCompanionID == petID ? "目前是今日散步夥伴" : "設為今日散步夥伴",
+                                    systemImage: "figure.walk",
+                                    tint: Color(hex: "#5B8A68")
+                                ) {
+                                    CozySoundEngine.shared.playCompassChime()
+                                    coordinator.setWalkCompanion(petID: petID)
+                                    triggerPlayfulAction(.happyTwirl, bubble: "好耶！帶我出門玩♡")
+                                }
+                            ],
+                            onDismiss: {
+                                withAnimation(.easeOut(duration: 0.18)) { showMoreActionsPopover = false }
+                            }
+                        )
+                    }
+                    .padding(.top, 56)
+                    .padding(.trailing, 16)
+                    Spacer()
+                }
+                .transition(.scale(scale: 0.92, anchor: .topTrailing).combined(with: .opacity))
             }
         }
         .sheet(isPresented: $showMentorshipSheet) {
@@ -973,11 +999,13 @@ private struct CompanionFieldGuideSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    Picker("圖鑑頁籤", selection: $selectedTab) {
-                        Text("毛孩小檔案").tag(0)
-                        Text("室友關係手札 (\(coordinator.discoveredFriendships.count))").tag(1)
-                    }
-                    .pickerStyle(.segmented)
+                    CozySegmentedPillBar(
+                        options: [
+                            CozySegmentedPillOption(id: 0, title: "毛孩小檔案", systemImage: "book.pages.fill"),
+                            CozySegmentedPillOption(id: 1, title: "室友關係手札 (\(coordinator.discoveredFriendships.count))", systemImage: "heart.fill")
+                        ],
+                        selection: $selectedTab
+                    )
 
                     if selectedTab == 0 {
                         profileSection
