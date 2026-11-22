@@ -10,21 +10,10 @@ struct HomeSunroomView: View {
     @State private var showPetRibbonDrawer: Bool = false
     @State private var teaSteaming: Bool = false
     @State private var bouncingPetID: String? = nil
-    @State private var activeWhisperSpotIndex: Int = 1
-    @State private var livingActionCycle: Int = 0
-    @State private var livingActionDate: Date = Date()
-
-    private static let ambientPetWhispers: [String] = [
-        "窗邊好暖和～",
-        "呼嚕呼嚕…",
-        "聞到麵包香了",
-        "等一下去散步嗎？",
-        "這條毯子最軟了",
-        "陽光曬到肚皮了"
-    ]
+    @State private var roamingEngine = SunroomRoamingEngine()
 
     private var maxPan: CGFloat {
-        coordinator.ledger.verandaUnlocked ? 240 : 140
+        coordinator.ledger.verandaUnlocked ? 180 : 100
     }
 
     private var effectivePan: CGFloat {
@@ -41,106 +30,49 @@ struct HomeSunroomView: View {
 
     var body: some View {
         ZStack {
-            GeometryReader { geo in
-                ZStack {
-                    if let uiBg = UIImage(named: "bg_home_sunroom") {
-                        Image(uiImage: uiBg)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: geo.size.width + 180, height: geo.size.height)
-                            .offset(x: effectivePan * 0.35)
-                            .overlay(
-                                Rectangle()
-                                    .fill(sunroomThemeTint(weather: coordinator.activeWeather, theme: coordinator.ledger.activeRoomTheme))
-                                    .blendMode(.multiply)
-                            )
-                            .clipped()
-                    } else {
-                        SunroomBackPlane(
-                            weather: coordinator.activeWeather,
-                            theme: coordinator.ledger.activeRoomTheme
-                        )
-                        .offset(x: effectivePan * 0.25)
-
-                        SunroomMidTimberPlane(
-                            weather: coordinator.activeWeather,
-                            theme: coordinator.ledger.activeRoomTheme,
-                            verandaUnlocked: coordinator.ledger.verandaUnlocked
-                        )
-                        .offset(x: effectivePan * 0.55)
+            // 真 2.5D 透視陽光室（4 層視差景深、1 點透視紅檜木地板、前後深度縮放與 zIndex 遮擋排序、點擊地板喚來毛孩自由漫步！）
+            Sunroom25DStageView(
+                coordinator: coordinator,
+                roaming: roamingEngine,
+                effectivePan: effectivePan,
+                bouncingPetID: bouncingPetID,
+                onTapPet: { petID in
+                    HapticsEngine.shared.playPawRangeCue()
+                    CozySoundEngine.shared.playCompassChime()
+                    withAnimation(.spring(response: 0.22, dampingFraction: 0.45)) {
+                        bouncingPetID = petID
                     }
-
-                    SunroomAtmosphereParticlesView(weather: coordinator.activeWeather)
-
-                    VStack {
-                        Spacer()
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(alignment: .bottom, spacing: 18) {
-                                ForEach(coordinator.homeSpots, id: \.spotIndex) { spot in
-                                    let spotMentorship = coordinator.teachingIntentions.first {
-                                        $0.state != .mastered &&
-                                        spot.currentOccupantPetIDs.contains($0.mentorPetID) &&
-                                        spot.currentOccupantPetIDs.contains($0.learnerPetID)
-                                    }
-                                    HomeSpotDioramaNode(
-                                        spot: spot,
-                                        activeMentorship: spotMentorship,
-                                        coordinator: coordinator,
-                                        bouncingPetID: bouncingPetID,
-                                        ambientBubbleText: (spot.spotIndex == activeWhisperSpotIndex && !spot.currentOccupantPetIDs.isEmpty)
-                                            ? Self.ambientPetWhispers[(spot.spotIndex + coordinator.ledger.coinBalance + livingActionCycle) % Self.ambientPetWhispers.count]
-                                            : nil,
-                                        autonomousAction: sunroomLivingAction(forSpotIndex: spot.spotIndex),
-                                        actionTriggerDate: livingActionDate,
-                                        onTapPet: { petID in
-                                            HapticsEngine.shared.playPawRangeCue()
-                                            CozySoundEngine.shared.playCompassChime()
-                                            withAnimation(.spring(response: 0.22, dampingFraction: 0.45)) {
-                                                bouncingPetID = petID
-                                            }
-                                            Task { @MainActor in
-                                                try? await Task.sleep(for: .milliseconds(160))
-                                                withAnimation(.easeOut(duration: 0.15)) { bouncingPetID = nil }
-                                                coordinator.currentScreen = .tactileCare(petID: petID)
-                                            }
-                                        },
-                                        onTapEmptySpot: {
-                                            CozySoundEngine.shared.playPaperFlip()
-                                            showWickerDrawer = true
-                                        },
-                                        onCompleteMentorship: { intention in
-                                            CozySoundEngine.shared.playCompassChime()
-                                            coordinator.completeMentorshipLesson(intentionUUID: intention.intentionUUID)
-                                        }
-                                    )
-                                }
-                            }
-                            .padding(.horizontal, 24)
-                        }
-                        .padding(.bottom, 134)
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(160))
+                        withAnimation(.easeOut(duration: 0.15)) { bouncingPetID = nil }
+                        coordinator.currentScreen = .tactileCare(petID: petID)
                     }
-                    .frame(width: geo.size.width, height: geo.size.height)
-
-                    if teaSteaming {
-                        VStack {
-                            Spacer()
-                            TornPaperSlipView(text: "暖呼呼的薑茶在木托盤上緩緩冒著白煙，屋裡安靜又舒服。")
-                                .padding(.horizontal, 28)
-                                .padding(.bottom, 118)
-                        }
+                },
+                onTapSpot: { _ in
+                    CozySoundEngine.shared.playPaperFlip()
+                    showWickerDrawer = true
+                },
+                onCompleteMentorship: { intention in
+                    CozySoundEngine.shared.playCompassChime()
+                    coordinator.completeMentorshipLesson(intentionUUID: intention.intentionUUID)
+                }
+            )
+            .overlay(alignment: .bottom) {
+                if teaSteaming {
+                    TornPaperSlipView(text: "暖呼呼的薑茶在木托盤上緩緩冒著白煙，屋裡安靜又舒服。")
+                        .padding(.horizontal, 28)
+                        .padding(.bottom, 118)
                         .transition(.opacity)
-                    }
                 }
             }
-            .ignoresSafeArea()
             .gesture(
-                DragGesture()
+                DragGesture(minimumDistance: 12)
                     .onChanged { value in
-                        draggedOffset = value.translation.width * 0.45
+                        draggedOffset = value.translation.width * 0.55
                     }
                     .onEnded { value in
                         withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
-                            panOffset = max(-maxPan, min(maxPan, panOffset + value.translation.width * 0.45))
+                            panOffset = max(-maxPan, min(maxPan, panOffset + value.translation.width * 0.55))
                             draggedOffset = 0
                         }
                     }
@@ -255,23 +187,18 @@ struct HomeSunroomView: View {
         }
         .onAppear {
             CozySoundEngine.shared.setRainAmbience(active: coordinator.activeWeather.isRainy)
-            if let firstOccupied = coordinator.homeSpots.first(where: { !$0.currentOccupantPetIDs.isEmpty }) {
-                activeWhisperSpotIndex = firstOccupied.spotIndex
-            }
+            roamingEngine.syncResidents(
+                invitedPetIDs: invitedPets.map(\.petID),
+                spots: coordinator.homeSpots,
+                verandaUnlocked: coordinator.ledger.verandaUnlocked
+            )
         }
-        .task {
-            // 陽光室日常生氣：每隔幾秒讓屋內毛孩自主搖擺散步、開心跳跳、蓋被午睡並冒出小念頭！
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(4.5))
-                let occupied = coordinator.homeSpots.filter { !$0.currentOccupantPetIDs.isEmpty }
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.78)) {
-                    livingActionCycle += 1
-                    livingActionDate = Date()
-                    if let next = occupied.randomElement() {
-                        activeWhisperSpotIndex = next.spotIndex
-                    }
-                }
-            }
+        .onChange(of: invitedPets.map(\.petID)) { _, newIDs in
+            roamingEngine.syncResidents(
+                invitedPetIDs: newIDs,
+                spots: coordinator.homeSpots,
+                verandaUnlocked: coordinator.ledger.verandaUnlocked
+            )
         }
         .onChange(of: coordinator.activeWeather) { _, newWeather in
             CozySoundEngine.shared.setRainAmbience(active: newWeather.isRainy)
@@ -298,27 +225,6 @@ struct HomeSunroomView: View {
             PetBookmarkJumpDrawer(coordinator: coordinator)
                 .presentationDetents([.medium, .large])
         }
-    }
-
-    private func sunroomLivingAction(forSpotIndex spotIndex: Int) -> PetPlayfulAction {
-        let pick = (spotIndex + livingActionCycle) % 4
-        switch pick {
-        case 0: return .curiousWaddle
-        case 1: return .bellyBoop
-        case 2: return .cozyNap
-        default: return .idle
-        }
-    }
-
-    private func sunroomThemeTint(weather: WeatherMode, theme: SeasonalRoomTheme) -> Color {
-        if weather.isRainy || theme == .rainySeason {
-            return Color(hex: "#C8DCE2").opacity(0.28)
-        } else if theme == .winterLamp || weather == .dusk {
-            return Color(hex: "#F2C58A").opacity(0.30)
-        } else if theme == .autumnCedar {
-            return Color(hex: "#E6B98A").opacity(0.22)
-        }
-        return Color.clear
     }
 }
 

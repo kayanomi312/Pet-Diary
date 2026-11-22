@@ -10,6 +10,7 @@ enum PetRigPose: String, Sendable {
 /// 手繪逐格動畫動作狀態（使用每隻毛孩專屬的 6 格純手繪精靈幀 f1..f6，完全無圖片拉扯變形！）
 enum PetPlayfulAction: Equatable, Sendable {
     case idle
+    case walking
     case bellyBoop
     case pounceHop
     case eatMunch
@@ -87,14 +88,19 @@ struct ProceduralPetRigView: View {
     }
 
     private struct CelFrameState {
-        var frameIndex: Int // 1..6
+        var assetName: String
         var hopOffsetX: CGFloat = 0
         var hopOffsetY: CGFloat = 0
         var isSleeping: Bool = false
         var isExcited: Bool = false
+        var isWalkingDust: Bool = false
     }
 
-    /// Selects the exact hand-drawn cel frame (1..6) for every moment of each animation.
+    private func celName(_ idx: Int) -> String {
+        "\(assetPrefix)_f\(idx)"
+    }
+
+    /// Selects the exact hand-drawn cel frame (f1..f6, or w1..w6 walk cycle when present) for every moment.
     private func resolveCelFrameState(time: Double, minDim: CGFloat) -> CelFrameState {
         if isStaticSnapshot {
             let staticIdx: Int
@@ -103,18 +109,44 @@ struct ProceduralPetRigView: View {
             case .respond: staticIdx = isHappySquint ? 3 : 5
             case .notice:  staticIdx = isHappySquint ? 3 : 1
             }
-            return CelFrameState(frameIndex: staticIdx, isSleeping: staticIdx == 6, isExcited: isHappySquint)
+            return CelFrameState(assetName: celName(staticIdx), isSleeping: staticIdx == 6, isExcited: isHappySquint)
         }
 
         let elapsed = max(0, Date().timeIntervalSince(actionTriggerDate))
 
         // 1. Active explicit playful interactions (highest priority)
         switch playfulAction {
+        case .walking:
+            // If dedicated 6-frame side-profile walk sheets (`pet_0X_w1`..`w6`) are bundled, play them at 8fps!
+            if UIImage(named: "\(assetPrefix)_w1") != nil {
+                let stepIdx = (Int(time * 8.0) % 6) + 1
+                let bounce = -CGFloat(abs(sin(time * 8.0 * .pi / 3.0))) * minDim * 0.022
+                return CelFrameState(
+                    assetName: "\(assetPrefix)_w\(stepIdx)",
+                    hopOffsetY: bounce,
+                    isWalkingDust: true
+                )
+            }
+            // Otherwise play crisp hand-painted cel trot cycle (f4 raised-paw stride -> f5 lively step -> f1 plant -> f4 -> f3 happy step -> f1)
+            let walkSeq = [4, 5, 1, 4, 3, 1]
+            let stepRate = 5.4
+            let rawStep = time * stepRate
+            let seqIdx = Int(rawStep) % walkSeq.count
+            let frame = walkSeq[seqIdx]
+            let frac = rawStep - floor(rawStep)
+            let stepArc = (frame == 4 || frame == 5) ? -CGFloat(sin(frac * .pi)) * minDim * 0.048 : -CGFloat(sin(frac * .pi)) * minDim * 0.015
+            return CelFrameState(
+                assetName: celName(frame),
+                hopOffsetY: stepArc,
+                isExcited: frame == 3,
+                isWalkingDust: true
+            )
+
         case .cozyNap:
             if elapsed < 0.32 {
-                return CelFrameState(frameIndex: 2, isSleeping: false)
+                return CelFrameState(assetName: celName(2), isSleeping: false)
             }
-            return CelFrameState(frameIndex: 6, isSleeping: true)
+            return CelFrameState(assetName: celName(6), isSleeping: true)
 
         case .bellyBoop:
             if elapsed < 1.55 {
@@ -125,7 +157,7 @@ struct ProceduralPetRigView: View {
                 else { frame = 3 }
                 let hopArc = (elapsed < 0.55) ? sin(elapsed / 0.55 * .pi) : 0.0
                 return CelFrameState(
-                    frameIndex: frame,
+                    assetName: celName(frame),
                     hopOffsetY: -CGFloat(hopArc) * minDim * 0.055,
                     isExcited: true
                 )
@@ -152,34 +184,31 @@ struct ProceduralPetRigView: View {
                 } else {
                     frame = 3
                 }
-                return CelFrameState(frameIndex: frame, hopOffsetX: hopX, hopOffsetY: hopY, isExcited: true)
+                return CelFrameState(assetName: celName(frame), hopOffsetX: hopX, hopOffsetY: hopY, isExcited: true)
             }
 
         case .eatMunch:
             if elapsed < 2.1 {
-                // Classic cel-animated rhythmic chewing: f5 (open mouth) <-> f3 (happy ^ ^ closed chew)
                 let step = Int(elapsed / 0.23)
                 if elapsed > 1.65 {
-                    return CelFrameState(frameIndex: 3, isExcited: true)
+                    return CelFrameState(assetName: celName(3), isExcited: true)
                 }
                 let frame = (step % 2 == 0) ? 5 : 3
                 let bob = (step % 2 == 0) ? -minDim * 0.014 : 0
-                return CelFrameState(frameIndex: frame, hopOffsetY: bob, isExcited: true)
+                return CelFrameState(assetName: celName(frame), hopOffsetY: bob, isExcited: true)
             }
 
         case .happyTwirl:
             if elapsed < 2.0 {
-                // Joyful 4-beat cel-animated dance: f4 (paw up!) -> f3 (^ ^ smile!) -> f5 (happy call!) -> f4 -> f3
                 let seq = [4, 3, 5, 4, 3, 5, 3]
                 let idx = min(seq.count - 1, Int(elapsed / 0.28))
                 let frame = seq[idx]
                 let beatPhase = (elapsed.truncatingRemainder(dividingBy: 0.28)) / 0.28
                 let hop = (frame == 4 || frame == 5) ? -CGFloat(sin(beatPhase * .pi)) * minDim * 0.045 : 0
-                return CelFrameState(frameIndex: frame, hopOffsetY: hop, isExcited: true)
+                return CelFrameState(assetName: celName(frame), hopOffsetY: hop, isExcited: true)
             }
 
         case .curiousWaddle:
-            // Living autonomous Sunroom cel cycle: alert -> playful paw step -> blink -> happy smile
             let cycle = time.truncatingRemainder(dividingBy: 4.8)
             let frame: Int
             if cycle < 1.1 { frame = 1 }
@@ -190,7 +219,7 @@ struct ProceduralPetRigView: View {
             else if cycle < 4.35 { frame = 4 }
             else { frame = 1 }
             let driftX = CGFloat(sin(time * 0.9)) * minDim * 0.032
-            return CelFrameState(frameIndex: frame, hopOffsetX: driftX, isExcited: frame == 3)
+            return CelFrameState(assetName: celName(frame), hopOffsetX: driftX, isExcited: frame == 3)
 
         case .idle:
             break
@@ -199,41 +228,41 @@ struct ProceduralPetRigView: View {
         // 2. Live petting / brushing / happy-squint reactions
         if brushRuffleAmount > 0.08 {
             let purrTick = Int(time * 2.5) % 3
-            return CelFrameState(frameIndex: purrTick == 0 ? 2 : 3, isExcited: true)
+            return CelFrameState(assetName: celName(purrTick == 0 ? 2 : 3), isExcited: true)
         }
         if isHappySquint {
             let cycle = time.truncatingRemainder(dividingBy: 3.4)
             let frame = (cycle > 2.4 && cycle < 3.0) ? 5 : 3
-            return CelFrameState(frameIndex: frame, isExcited: true)
+            return CelFrameState(assetName: celName(frame), isExcited: true)
         }
         if tapBounceScale > 0.1 {
-            return CelFrameState(frameIndex: 3, hopOffsetY: -minDim * 0.035, isExcited: true)
+            return CelFrameState(assetName: celName(3), hopOffsetY: -minDim * 0.035, isExcited: true)
         }
 
-        // 3. Resting pose -> genuine curled-up sleeping ball (f6) with occasional drowsy peek
+        // 3. Resting pose -> genuine curled-up sleeping ball (f6)
         if pose == .resting {
             let napCycle = (time + Double(pet.id.hashValue & 7)).truncatingRemainder(dividingBy: 11.0)
             if napCycle > 10.2 {
-                return CelFrameState(frameIndex: 2, isSleeping: false)
+                return CelFrameState(assetName: celName(2), isSleeping: false)
             }
-            return CelFrameState(frameIndex: 6, isSleeping: true)
+            return CelFrameState(assetName: celName(6), isSleeping: true)
         }
 
-        // 4. Natural living idle cel loop (alert -> crisp blink -> double-blink -> curious smile)
+        // 4. Natural living idle cel loop
         let phaseOffset = Double(abs(pet.id.hashValue) % 5) * 0.9
         let t = (time + phaseOffset).truncatingRemainder(dividingBy: 7.4)
         let idleFrame: Int
         if t < 2.2 { idleFrame = 1 }
-        else if t < 2.38 { idleFrame = 2 }      // Natural blink
+        else if t < 2.38 { idleFrame = 2 }
         else if t < 4.1 { idleFrame = 1 }
-        else if t < 4.24 { idleFrame = 2 }      // Cute quick double-blink #1
+        else if t < 4.24 { idleFrame = 2 }
         else if t < 4.38 { idleFrame = 1 }
-        else if t < 4.52 { idleFrame = 2 }      // Cute quick double-blink #2
+        else if t < 4.52 { idleFrame = 2 }
         else if t < 5.9 { idleFrame = 1 }
-        else if t < 6.75 { idleFrame = 3 }      // Warm happy smile
+        else if t < 6.75 { idleFrame = 3 }
         else { idleFrame = 1 }
 
-        return CelFrameState(frameIndex: idleFrame, isExcited: idleFrame == 3)
+        return CelFrameState(assetName: celName(idleFrame), isExcited: idleFrame == 3)
     }
 
     @ViewBuilder
@@ -243,7 +272,7 @@ struct ProceduralPetRigView: View {
             let h = geo.size.height
             let minDim = min(w, h)
             let state = resolveCelFrameState(time: time, minDim: minDim)
-            let frameAssetName = "\(assetPrefix)_f\(state.frameIndex)"
+            let frameAssetName = state.assetName
             let shadowShrink = max(0.76, 1.0 + (state.hopOffsetY / max(1, minDim)) * 1.4)
 
             let rimGlowColor: Color = {
@@ -286,6 +315,12 @@ struct ProceduralPetRigView: View {
                         height: minDim * 0.06 * shadowShrink
                     )
                     .offset(x: state.hopOffsetX * 0.7, y: minDim * 0.41)
+
+                // Soft trailing paw-step dust puffs while walking across the 2.5D cedar floor!
+                if state.isWalkingDust && !isStaticSnapshot {
+                    WalkingPawDustCanvas(time: time)
+                        .allowsHitTesting(false)
+                }
 
                 // Pure Hand-Drawn Cel Frame (ZERO distortion, ZERO squeezing, ZERO fake facial overlays!)
                 ZStack {
@@ -518,6 +553,30 @@ struct PaperGrainShaderModifier: ViewModifier {
             )
         } else {
             content
+        }
+    }
+}
+
+/// Soft pastel floor dust puffs kicking up behind a walking pet's back paws
+private struct WalkingPawDustCanvas: View {
+    let time: Double
+
+    var body: some View {
+        Canvas { ctx, size in
+            let w = size.width
+            let h = size.height
+            let minDim = min(w, h)
+            for idx in 0..<3 {
+                let phase = (time * 1.85 + Double(idx) * 0.33).truncatingRemainder(dividingBy: 1.0)
+                let px = w * 0.66 + CGFloat(phase) * minDim * 0.18
+                let py = h * 0.87 - CGFloat(phase) * minDim * 0.06
+                let r = minDim * (0.018 + CGFloat(phase) * 0.022)
+                let alpha = (1.0 - phase) * 0.45
+                ctx.fill(
+                    Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)),
+                    with: .color(Color(hex: "#FFF8EC").opacity(alpha))
+                )
+            }
         }
     }
 }
