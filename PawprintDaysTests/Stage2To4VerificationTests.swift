@@ -617,4 +617,151 @@ final class Stage2To4VerificationTests: XCTestCase {
         XCTAssertEqual(starterResidents.count, 1, "New game must start with exactly 1 mystical starter companion")
         XCTAssertEqual(starterResidents.first?.petID, "pet.03")
     }
+
+    func testMysticalNestingCrossSpeciesHybridsSlowGrowthAndGraduation() throws {
+        let coordinator = try makeInMemoryCoordinator()
+
+        // 1. Verify balanced 3 male / 3 female cast
+        let males = PetCatalog.allPets.filter { $0.gender == .male }
+        let females = PetCatalog.allPets.filter { $0.gender == .female }
+        XCTAssertEqual(males.count, 3)
+        XCTAssertEqual(females.count, 3)
+
+        // Invite pet.02 (♂) and pet.07 (♀) alongside starter pet.03 (♂)
+        coordinator.resident(for: "pet.02")?.inviteState = .invitedHome
+        coordinator.resident(for: "pet.07")?.inviteState = .invitedHome
+        XCTAssertEqual(coordinator.eligibleNestingPairs.count, 2) // (pet.02 x pet.07) & (pet.03 x pet.07)
+
+        // 2. Reject same-gender pairing (pet.02 ♂ x pet.03 ♂)
+        XCTAssertNil(coordinator.startMysticalNest(fatherID: "pet.02", motherID: "pet.03"))
+
+        // 3. Cross-species opposite-gender pairing: 餘燼 (DragonCat ♂) x 梅子 (SpiritHound ♀)
+        let baby = try XCTUnwrap(coordinator.startMysticalNest(fatherID: "pet.03", motherID: "pet.07"))
+        XCTAssertEqual(baby.growthStage, .egg)
+        XCTAssertEqual(baby.blendedHabitTitle, "雲火烘茶")
+        XCTAssertTrue(baby.isLivingInSunroom)
+
+        // 4. Slow 4-5 day realistic growth across 4 distinct civil dates & 12 activities
+        // Day 1: 2 gentle acts -> hatches into Hatchling!
+        _ = coordinator.nurtureOffspring(id: baby.id, axis: .gentle, activityLabel: "哼歌")
+        XCTAssertEqual(coordinator.indoorState.offsprings.first?.growthStage, .egg)
+        let hatched = coordinator.nurtureOffspring(id: baby.id, axis: .gentle, activityLabel: "暖手")
+        XCTAssertTrue(hatched)
+        XCTAssertEqual(coordinator.indoorState.offsprings.first?.growthStage, .hatchling)
+
+        // Day 2: advance 1 day, perform 4 more acts (total 6 acts, 2 days) -> evolves into Youth!
+        coordinator.currentSimulatedDate = coordinator.currentSimulatedDate.addingTimeInterval(86_400)
+        for _ in 0..<3 {
+            _ = coordinator.nurtureOffspring(id: baby.id, axis: .gentle)
+        }
+        XCTAssertEqual(coordinator.indoorState.offsprings.first?.growthStage, .hatchling)
+        let becameYouth = coordinator.nurtureOffspring(id: baby.id, axis: .mystical)
+        XCTAssertTrue(becameYouth)
+        XCTAssertEqual(coordinator.indoorState.offsprings.first?.growthStage, .youth)
+
+        // Day 3: advance 1 day, perform 3 mystical acts (total 9 acts, 3 days) -> still Youth (needs >=4 days & >=12 acts!)
+        coordinator.currentSimulatedDate = coordinator.currentSimulatedDate.addingTimeInterval(86_400)
+        for _ in 0..<3 {
+            _ = coordinator.nurtureOffspring(id: baby.id, axis: .mystical)
+        }
+        XCTAssertEqual(coordinator.indoorState.offsprings.first?.growthStage, .youth)
+
+        // Day 4: advance 1 day, perform 3 more gentle acts (total 12 acts, 4 days) -> Grown & awakens "暖茶小詩人" (gentle + mystical)!
+        coordinator.currentSimulatedDate = coordinator.currentSimulatedDate.addingTimeInterval(86_400)
+        _ = coordinator.nurtureOffspring(id: baby.id, axis: .gentle)
+        _ = coordinator.nurtureOffspring(id: baby.id, axis: .gentle)
+        let grewUp = coordinator.nurtureOffspring(id: baby.id, axis: .gentle)
+        XCTAssertTrue(grewUp)
+
+        let grownChild = try XCTUnwrap(coordinator.indoorState.offsprings.first)
+        XCTAssertEqual(grownChild.growthStage, .grown)
+        XCTAssertEqual(grownChild.awakenedArchetypeID, "arch.tea_poet")
+
+        // 5. Rename & Neighborhood Graduation
+        coordinator.renameOffspring(id: baby.id, newName: "小雲焰")
+        XCTAssertEqual(coordinator.indoorState.offsprings.first?.name, "小雲焰")
+
+        let firstAnchor = try XCTUnwrap(coordinator.anchors.first)
+        coordinator.graduateOffspringToCorner(id: baby.id, siteID: firstAnchor.siteID)
+        XCTAssertEqual(coordinator.indoorState.offsprings.first?.isLivingInSunroom, false)
+        XCTAssertEqual(coordinator.indoorState.offsprings.first?.graduatedAnchorSiteID, firstAnchor.siteID)
+
+        // Bring back into Sunroom cleanly
+        coordinator.toggleOffspringSunroomStay(id: baby.id)
+        XCTAssertEqual(coordinator.indoorState.offsprings.first?.isLivingInSunroom, true)
+        XCTAssertNil(coordinator.indoorState.offsprings.first?.graduatedAnchorSiteID)
+    }
+
+    func testIndoorRefinementsWishesTeaOrigamiErrandsVisitorsSkitsAndFolklore() throws {
+        let coordinator = try makeInMemoryCoordinator()
+        coordinator.ledger.coinBalance = 20
+
+        // 1. Gentle Daily Wishes (3 items, zero FOMO, idempotent claim)
+        let board = coordinator.todayWishesBoard
+        XCTAssertEqual(board.wishes.count, 3)
+        let firstWish = board.wishes[0].kind
+        coordinator.markDailyWishCompleted(firstWish)
+        XCTAssertEqual(coordinator.unclaimedCompletedWishesCount, 1)
+        let coinsBeforeClaim = coordinator.ledger.coinBalance
+        XCTAssertTrue(coordinator.claimDailyWishReward(firstWish))
+        XCTAssertEqual(coordinator.ledger.coinBalance, coinsBeforeClaim + firstWish.rewardCoins)
+        XCTAssertFalse(coordinator.claimDailyWishReward(firstWish), "Claiming same wish twice must be prevented")
+
+        // 2. Tea Kitchen brewing unlocks recipe & grants +1 coin
+        let recipe = TeaKitchenCatalog.allRecipes[0]
+        let coinsBeforeTea = coordinator.ledger.coinBalance
+        coordinator.brewTeaRecipe(recipe)
+        XCTAssertTrue(coordinator.indoorState.unlockedTeaRecipeIDs.contains(recipe.id))
+        XCTAssertEqual(coordinator.indoorState.totalTeaBrewedCount, 1)
+        XCTAssertEqual(coordinator.ledger.coinBalance, coinsBeforeTea + 1)
+
+        // 3. Origami Workshop crafts hanging beam charms (capped at 5)
+        for _ in 0..<6 {
+            coordinator.craftOrigami(.crane)
+        }
+        XCTAssertEqual(coordinator.indoorState.hangingOrigamis.count, 5)
+
+        // 4. Solo Pet Errands (send + return postcard + curio + coins)
+        XCTAssertTrue(coordinator.sendPetOnErrand(petID: "pet.03", supply: .gingerFlask))
+        XCTAssertNotNil(coordinator.indoorState.activeErrand)
+        XCTAssertFalse(coordinator.sendPetOnErrand(petID: "pet.03", supply: .bakeryBun), "Cannot run two errands concurrently")
+        let coinsBeforeReturn = coordinator.ledger.coinBalance
+        let curiosBeforeReturn = coordinator.ledger.foragedCurios.count
+        let postcard = try XCTUnwrap(coordinator.collectReturnedErrand(forceReady: true))
+        XCTAssertNil(coordinator.indoorState.activeErrand)
+        XCTAssertEqual(postcard.coinsEarned, 4)
+        XCTAssertNotNil(postcard.foundCurioID)
+        XCTAssertEqual(coordinator.ledger.coinBalance, coinsBeforeReturn + 4)
+        XCTAssertEqual(coordinator.ledger.foragedCurios.count, curiosBeforeReturn + 1)
+
+        // 5. Sunroom Window Visitors: 3 greetings indoors welcomes undiscovered companion!
+        let visitorID = try XCTUnwrap(coordinator.currentWindowVisitorPetID)
+        XCTAssertEqual(coordinator.resident(for: visitorID)?.inviteState, .unmet)
+        coordinator.greetWindowVisitor(petID: visitorID)
+        coordinator.greetWindowVisitor(petID: visitorID)
+        XCTAssertEqual(coordinator.resident(for: visitorID)?.inviteState, .unmet)
+        coordinator.greetWindowVisitor(petID: visitorID)
+        XCTAssertEqual(coordinator.resident(for: visitorID)?.inviteState, .invitedHome)
+
+        // 6. Hide-and-Seek, Feather-Wand, Wall Postcard Pin, Wind Chime, Multi-Pet Skits
+        let coinsBeforeHide = coordinator.ledger.coinBalance
+        coordinator.foundHidingPet(petID: "pet.03")
+        XCTAssertEqual(coordinator.ledger.coinBalance, coinsBeforeHide + 1)
+        coordinator.recordFeatherWandPlaySession()
+        coordinator.ringSunroomWindChime()
+        let fakeEncID = UUID()
+        coordinator.pinPostcardToSunroomWall(encounterID: fakeEncID)
+        XCTAssertEqual(coordinator.indoorState.pinnedPostcardEncounterID, fakeEncID)
+        let skit = coordinator.triggerSunroomSkit(petA: "pet.02", petB: "pet.03")
+        XCTAssertTrue(coordinator.indoorState.seenSkitIDs.contains(skit.id))
+
+        // 7. 30-Chapter Mystical Folklore Storybook (6 mystical companions x 5 chapters each)
+        var totalChapters = 0
+        for pet in PetCatalog.allPets {
+            let chapters = MysticalFolkloreCatalog.chapters(for: pet.id)
+            XCTAssertEqual(chapters.count, 5, "Each mystical pet must have 5 folklore chapters")
+            totalChapters += chapters.count
+        }
+        XCTAssertEqual(totalChapters, 30)
+    }
 }

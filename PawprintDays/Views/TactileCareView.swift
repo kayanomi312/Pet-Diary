@@ -108,6 +108,12 @@ struct TactileCareView: View {
                     }
 
                     HStack(spacing: 6) {
+                        Text(petSpec.gender.symbol)
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color(hex: petSpec.gender.badgeHex), in: Capsule())
                         SpeciesFolkloreBadgeView(kind: petSpec.kind)
                         Text("\(resident?.milestoneTitle ?? "初次相遇") · 相伴 \(resident?.sharedDaysCount ?? 1) 天")
                             .font(.system(size: 11.5, weight: .medium, design: .rounded))
@@ -991,9 +997,10 @@ private struct CompanionFieldGuideSheet: View {
     let weather: WeatherMode
     @Environment(\.dismiss) private var dismiss
 
-    @State private var selectedTab: Int = 0 // 0: 小檔案, 1: 室友關係手札
+    @State private var selectedTab: Int = 0 // 0: 小檔案, 1: 奇譚故事, 2: 室友手札
     @State private var isEditingNickname: Bool = false
     @State private var draftNickname: String = ""
+    @State private var didLogFolkloreRead: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -1001,19 +1008,28 @@ private struct CompanionFieldGuideSheet: View {
                 VStack(alignment: .leading, spacing: 14) {
                     CozySegmentedPillBar(
                         options: [
-                            CozySegmentedPillOption(id: 0, title: "毛孩小檔案", systemImage: "book.pages.fill"),
-                            CozySegmentedPillOption(id: 1, title: "室友關係手札 (\(coordinator.discoveredFriendships.count))", systemImage: "heart.fill")
+                            CozySegmentedPillOption(id: 0, title: "小檔案", systemImage: "book.pages.fill"),
+                            CozySegmentedPillOption(id: 1, title: "奇譚故事", systemImage: "sparkles"),
+                            CozySegmentedPillOption(id: 2, title: "室友手札", systemImage: "heart.fill")
                         ],
                         selection: $selectedTab
                     )
 
                     if selectedTab == 0 {
                         profileSection
+                    } else if selectedTab == 1 {
+                        folkloreStorySection
                     } else {
                         friendshipWebSection
                     }
                 }
                 .padding(18)
+            }
+            .onChange(of: selectedTab) { _, newTab in
+                if newTab == 1 && !didLogFolkloreRead {
+                    didLogFolkloreRead = true
+                    coordinator.recordFolkloreChapterRead()
+                }
             }
             .background(AppTheme.parchmentTray)
             .navigationTitle("毛孩繪本手札")
@@ -1079,7 +1095,15 @@ private struct CompanionFieldGuideSheet: View {
                             .accessibilityLabel("編輯寵物暱稱")
                         }
                     }
-                    SpeciesFolkloreBadgeView(kind: petSpec.kind)
+                    HStack(spacing: 6) {
+                        Text("\(petSpec.gender.symbol) \(petSpec.gender.label)")
+                            .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2.5)
+                            .background(Color(hex: petSpec.gender.badgeHex), in: Capsule())
+                        SpeciesFolkloreBadgeView(kind: petSpec.kind)
+                    }
                     Text("個性：\(petSpec.personalityWord) · \(resident?.milestoneTitle ?? "初次相遇")")
                         .font(AppTheme.diegeticLabel(11.5))
                         .foregroundStyle(AppTheme.forestTeal)
@@ -1150,6 +1174,71 @@ private struct CompanionFieldGuideSheet: View {
                         Text("✦ \(credit)")
                             .font(AppTheme.handwritten(13.5))
                             .foregroundStyle(AppTheme.deepPineInk)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var folkloreStorySection: some View {
+        let chapters = MysticalFolkloreCatalog.chapters(for: petSpec.id)
+        let sharedDays = resident?.sharedDaysCount ?? 1
+        let unlockedCount = chapters.filter { sharedDays >= $0.requiredSharedDays }.count
+
+        StorybookPaperCard(cornerRadius: 18, accentColor: AppTheme.pawStrollChain, showWashiTape: true, paddingAmount: 14) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text("\(coordinator.displayName(for: petSpec.id))的靈獸奇譚集")
+                        .font(AppTheme.serifTitle(17))
+                        .foregroundStyle(AppTheme.deepPineInk)
+                    Spacer()
+                    Text("已解鎖 \(unlockedCount)/\(chapters.count) 章")
+                        .font(AppTheme.diegeticLabel(11))
+                        .foregroundStyle(AppTheme.forestTeal)
+                }
+                Text("隨著每日散步與陽光室相伴天數累積，會慢慢翻開這位奇幻靈獸的繪本故事。閱讀奇譚也能滋養幼靈的「靈性」特質喔 ✦")
+                    .font(AppTheme.serifBody(12.5))
+                    .foregroundStyle(AppTheme.softInk)
+            }
+        }
+
+        ForEach(chapters) { ch in
+            let unlocked = sharedDays >= ch.requiredSharedDays
+            StorybookPaperCard(
+                cornerRadius: 16,
+                accentColor: unlocked ? AppTheme.forestTeal : AppTheme.timberWarm.opacity(0.6),
+                paddingAmount: 14
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(unlocked ? ch.title : "第 \(ch.chapterIndex) 章 · 靜候翻頁")
+                            .font(AppTheme.serifTitle(15.5))
+                            .foregroundStyle(unlocked ? AppTheme.deepPineInk : AppTheme.softInk)
+                        Spacer()
+                        if unlocked {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 13))
+                                .foregroundStyle(AppTheme.forestTeal)
+                        } else {
+                            Text("相伴滿 \(ch.requiredSharedDays) 天解鎖")
+                                .font(AppTheme.diegeticLabel(10.5))
+                                .foregroundStyle(AppTheme.softInk)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(AppTheme.parchmentTray, in: Capsule())
+                        }
+                    }
+
+                    if unlocked {
+                        Text(ch.body)
+                            .font(AppTheme.serifBody(13.5))
+                            .foregroundStyle(Color(hex: "#3E342C"))
+                            .lineSpacing(3.5)
+                    } else {
+                        Text("繼續在街角與陽光室陪伴\(coordinator.displayName(for: petSpec.id))，就能掀開這頁溫暖小故事。")
+                            .font(AppTheme.handwritten(13))
+                            .foregroundStyle(AppTheme.softInk.opacity(0.85))
                     }
                 }
             }

@@ -1,8 +1,9 @@
 import Foundation
 
 struct PetSpec: Identifiable, Hashable, Sendable {
-    let id: String // pet.01 .. pet.08
+    let id: String // pet.02..pet.08 (6 mystical companions)
     let name: String
+    let gender: PetGender
     let kind: PetSpeciesKind
     let rigID: String
     let primaryCoatHex: String
@@ -56,6 +57,7 @@ enum PetCatalog {
         PetSpec(
             id: "pet.02",
             name: "杜松",
+            gender: .male,
             kind: .demonCat,
             rigID: "rig_cat_slim",
             primaryCoatHex: "#1E242B",
@@ -76,6 +78,7 @@ enum PetCatalog {
         PetSpec(
             id: "pet.03",
             name: "餘燼",
+            gender: .male,
             kind: .dragonCat,
             rigID: "rig_cat_drgn",
             primaryCoatHex: "#6D5B55",
@@ -96,6 +99,7 @@ enum PetCatalog {
         PetSpec(
             id: "pet.04",
             name: "摺翼",
+            gender: .female,
             kind: .batCat,
             rigID: "rig_cat_bat",
             primaryCoatHex: "#5B5266",
@@ -116,6 +120,7 @@ enum PetCatalog {
         PetSpec(
             id: "pet.06",
             name: "鈕扣",
+            gender: .male,
             kind: .impHound,
             rigID: "rig_dog_low",
             primaryCoatHex: "#23272D",
@@ -136,6 +141,7 @@ enum PetCatalog {
         PetSpec(
             id: "pet.07",
             name: "梅子",
+            gender: .female,
             kind: .spiritHound,
             rigID: "rig_dog_senr",
             primaryCoatHex: "#948D86",
@@ -156,6 +162,7 @@ enum PetCatalog {
         PetSpec(
             id: "pet.08",
             name: "蘆葦",
+            gender: .female,
             kind: .marshHound,
             rigID: "rig_dog_hnd",
             primaryCoatHex: "#A67644",
