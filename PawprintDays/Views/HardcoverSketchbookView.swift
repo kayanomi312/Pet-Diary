@@ -160,18 +160,21 @@ struct HardcoverSketchbookView: View {
         } message: {
             Text("只會清除此頁的地點名稱與水彩軌跡。你遇見的動物夥伴、默契紀錄、拾遺小物與步數幣都將完整保留。")
         }
-        .alert("重新命名街角", isPresented: Binding(
+        .sheet(isPresented: Binding(
             get: { renameTargetSiteID != nil },
             set: { if !$0 { renameTargetSiteID = nil } }
         )) {
-            TextField("輸入你想記住的街角名稱", text: $renameText)
-            Button("儲存") {
-                if let siteID = renameTargetSiteID {
-                    coordinator.renameAnchor(siteID: siteID, newLabel: renameText)
-                }
-                renameTargetSiteID = nil
-            }
-            Button("取消", role: .cancel) { renameTargetSiteID = nil }
+            KawaiiCornerRenameSheet(
+                name: $renameText,
+                onSave: {
+                    if let siteID = renameTargetSiteID {
+                        coordinator.renameAnchor(siteID: siteID, newLabel: renameText)
+                    }
+                    renameTargetSiteID = nil
+                },
+                onCancel: { renameTargetSiteID = nil }
+            )
+            .presentationDetents([.height(250)])
         }
     }
 
@@ -482,12 +485,33 @@ private struct SketchbookDayPageCard: View {
                     VStack(alignment: .leading, spacing: 8) {
                         if let pngData = enc.bakedSnapshotPNGData,
                            let uiImage = UIImage(data: pngData) {
+                            let shareImg = Image(uiImage: uiImage)
                             ZStack(alignment: .top) {
                                 Image(uiImage: uiImage)
                                     .resizable()
                                     .scaledToFit()
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
                                     .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 5, y: 3)
+                                    .overlay(alignment: .bottomTrailing) {
+                                        ShareLink(
+                                            item: shareImg,
+                                            preview: SharePreview("\(PetCatalog.pet(id: enc.petID).name)的街角明信片", image: shareImg)
+                                        ) {
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "square.and.arrow.up")
+                                                    .font(.system(size: 11, weight: .bold))
+                                                Text("珍藏分享")
+                                                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                                            }
+                                            .foregroundStyle(AppTheme.deepPineInk)
+                                            .padding(.horizontal, 9)
+                                            .padding(.vertical, 5)
+                                            .background(Color(hex: "#FFFDF7").opacity(0.94), in: Capsule())
+                                            .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.55), lineWidth: 1))
+                                            .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 3, y: 1.5)
+                                        }
+                                        .padding(8)
+                                    }
 
                                 WashiTapeStrip(color: Color(hex: "#E6CFA3"), angle: -2.0, width: 72)
                                     .offset(y: -7)
@@ -659,5 +683,55 @@ private struct BookmarkFilterPill: View {
                 .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.35), lineWidth: 1))
         }
         .buttonStyle(.plain)
+    }
+}
+
+private struct KawaiiCornerRenameSheet: View {
+    @Binding var name: String
+    let onSave: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 14) {
+                StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.timberWarm, paddingAmount: 14) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("替這個散步街角取個專屬於你的名字")
+                            .font(AppTheme.serifBody(13.5))
+                            .foregroundStyle(AppTheme.softInk)
+                        TextField("例如：巷口老麵包店、午後大榕樹", text: $name)
+                            .font(AppTheme.serifTitle(16))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                            .padding(10)
+                            .background(AppTheme.parchmentTray.opacity(0.65), in: RoundedRectangle(cornerRadius: 10))
+                    }
+                }
+                HStack(spacing: 12) {
+                    CutePlushButton(
+                        title: "取消",
+                        tone: .milkCream,
+                        fontSize: 13,
+                        horizontalPadding: 18,
+                        verticalPadding: 9,
+                        icon: { Image(systemName: "xmark").font(.system(size: 11, weight: .bold)) },
+                        action: onCancel
+                    )
+                    CutePlushButton(
+                        title: "儲存街角名稱",
+                        tone: .matchaMint,
+                        fontSize: 13,
+                        horizontalPadding: 18,
+                        verticalPadding: 9,
+                        icon: { Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)) },
+                        action: onSave
+                    )
+                }
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(AppTheme.parchmentTray)
+            .navigationTitle("重新命名街角")
+            .navigationBarTitleDisplayMode(.inline)
+        }
     }
 }

@@ -329,15 +329,33 @@ struct StrollSummaryPostcardSheet: View {
                     }
                     .padding(.top, 12)
 
-                    WoodPlaqueButton(
-                        title: "收進精裝日記，回到街區",
-                        systemImage: "book.closed.fill",
-                        tone: .forestTeal,
-                        fontSize: 14.5,
-                        verticalPadding: 13,
-                        fullWidth: true,
-                        action: onDismiss
-                    )
+                    HStack(spacing: 10) {
+                        ShareLink(
+                            item: "足印日記 · \(CivilCalendarHelper.displayDate(from: summary.localDateISO))\n今天散步了 \(summary.totalSteps.formatted()) 步（約 \(summary.durationMinutes) 分鐘），遇見 \(summary.encountersCount) 個街角，收穫 +\(summary.coinsEarned) 枚步數幣！"
+                        ) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 13, weight: .bold))
+                                Text("分享明信片")
+                                    .font(AppTheme.diegeticLabel(13.5))
+                            }
+                            .foregroundStyle(AppTheme.deepPineInk)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 13)
+                            .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(AppTheme.timberWarm.opacity(0.65), lineWidth: 1.2))
+                        }
+
+                        WoodPlaqueButton(
+                            title: "收進精裝日記",
+                            systemImage: "book.closed.fill",
+                            tone: .forestTeal,
+                            fontSize: 14.5,
+                            verticalPadding: 13,
+                            fullWidth: true,
+                            action: onDismiss
+                        )
+                    }
                 }
                 .padding(20)
             }

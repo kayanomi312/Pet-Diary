@@ -21,9 +21,14 @@ final class GameCoordinator {
     let locationService: LocationService
     let pedometerService: PedometerService
 
+    private static let persistedStrollDefaultsKey = "pawprintdays.activeStrollSession.v1"
+
     var currentScreen: AppScreen = .street
     var currentSimulatedDate: Date = Date()
-    var activeWeather: WeatherMode = .lightRain
+    var isUsingSimulatedClock: Bool = false
+    var activeWeather: WeatherMode = WeatherSyncService.inferTimeOfDayWeather().weatherMode
+    var hasManualWeatherOverride: Bool = false
+    private var lastWeatherSyncUTC: Date? = nil
     var showOnboardingPaperSlip: Bool = false
     var showAccessibleNearbyList: Bool = false
     var showFixtureDrawer: Bool = false
@@ -66,6 +71,112 @@ final class GameCoordinator {
         seedInitialWorldIfNeeded()
         reloadAll()
         wireLocationCallbacks()
+        restorePersistedStrollIfNeeded()
+    }
+
+    // MARK: - App Lifecycle, Midnight Rollover & Live Weather Sync
+    func handleAppBecameActive(now: Date = Date()) {
+        if !isUsingSimulatedClock {
+            let previousISO = currentLocalDateISO
+            currentSimulatedDate = now
+            let latestISO = currentLocalDateISO
+            if latestISO != previousISO {
+                if activeStroll != nil {
+                    _ = endStrollSession(autoArchived: true)
+                }
+                _ = todayDiaryRecord()
+                resolveMentorshipsOnNewDay(dateISO: latestISO)
+                locationService.clearTrailForDay()
+                reloadAll()
+            }
+        }
+
+        if !hasManualWeatherOverride {
+            let inferred = WeatherSyncService.inferTimeOfDayWeather(now: currentSimulatedDate)
+            activeWeather = inferred.weatherMode
+            if !locationService.useSimulatedPosition && locationService.hasReceivedRealGPSFix {
+                let coord = locationService.currentLocation.coordinate
+                Task { @MainActor in
+                    await self.syncLiveWeatherIfNeeded(around: coord)
+                }
+            }
+        }
+
+        if ledger.pedometerOptIn && !pedometerService.isSyncing {
+            Task { @MainActor in
+                await self.optInAndSyncPedometer(silent: true)
+            }
+        }
+    }
+
+    func setManualWeatherPreview(_ weather: WeatherMode) {
+        hasManualWeatherOverride = true
+        activeWeather = weather
+    }
+
+    private func syncLiveWeatherIfNeeded(around coordinate: CLLocationCoordinate2D) async {
+        guard !hasManualWeatherOverride else { return }
+        if let last = lastWeatherSyncUTC, Date().timeIntervalSince(last) < 1_800 {
+            return
+        }
+        lastWeatherSyncUTC = Date()
+        let snapshot = await WeatherSyncService.fetchLiveWeather(around: coordinate, now: currentSimulatedDate)
+        guard !hasManualWeatherOverride else { return }
+        activeWeather = snapshot.weatherMode
+        let day = todayDiaryRecord()
+        if day.deletionState != .placeErased {
+            day.weatherCode = snapshot.weatherMode.rawValue
+            day.weatherAttribution = snapshot.attributionLabel
+            try? modelContext.save()
+        }
+    }
+
+    private func persistActiveStroll() {
+        if let stroll = activeStroll, let data = try? JSONEncoder().encode(stroll) {
+            UserDefaults.standard.set(data, forKey: Self.persistedStrollDefaultsKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: Self.persistedStrollDefaultsKey)
+        }
+    }
+
+    private func restorePersistedStrollIfNeeded() {
+        guard let data = UserDefaults.standard.data(forKey: Self.persistedStrollDefaultsKey),
+              let restored = try? JSONDecoder().decode(ActiveStrollSession.self, from: data) else {
+            return
+        }
+        if restored.localDateISO != currentLocalDateISO {
+            activeStroll = restored
+            _ = endStrollSession(autoArchived: true)
+            return
+        }
+        activeStroll = restored
+        beginLiveStrollStepStream(from: restored.startedAt)
+    }
+
+    private func beginLiveStrollStepStream(from startDate: Date) {
+        pedometerService.startLiveStrollUpdates(from: startDate) { [weak self] deltaSteps in
+            guard let self, self.activeStroll != nil, deltaSteps > 0 else { return }
+            _ = self.ingestLiveStrollSteps(deltaSteps: deltaSteps)
+        }
+    }
+
+    /// Streams real-time CMPedometer deltas directly into an active stroll session without colliding
+    /// with 15-minute historical bucket deduplication.
+    @discardableResult
+    func ingestLiveStrollSteps(deltaSteps: Int, placeLabel: String = "即時散步") -> Int {
+        guard deltaSteps > 0 else { return 0 }
+        let day = todayDiaryRecord()
+        let result = StepCoinLedgerEngine.ingestLiveDeltaSteps(
+            ledger: ledger,
+            atUTC: currentSimulatedDate,
+            deltaSteps: deltaSteps,
+            companionPetID: day.companionPetID,
+            weather: activeWeather,
+            placeLabel: placeLabel,
+            localDateISO: currentLocalDateISO
+        )
+        applyStepIngestionSideEffects(result: result, day: day, placeLabel: placeLabel)
+        return result.newlyAcceptedSteps
     }
 
     var currentLocalDateISO: String {
@@ -103,7 +214,7 @@ final class GameCoordinator {
             let needsDiscovery: Bool
             if let lastLat = self.ledger.lastNeighborhoodLat, let lastLon = self.ledger.lastNeighborhoodLon {
                 let dist = location.distance(from: CLLocation(latitude: lastLat, longitude: lastLon))
-                needsDiscovery = dist > 2_000
+                needsDiscovery = dist > 600
             } else {
                 needsDiscovery = true
             }
@@ -111,6 +222,9 @@ final class GameCoordinator {
                 Task { @MainActor in
                     await self.discoverRealNeighborhoodAnchors(around: location.coordinate)
                 }
+            }
+            Task { @MainActor in
+                await self.syncLiveWeatherIfNeeded(around: location.coordinate)
             }
         }
 
@@ -325,7 +439,7 @@ final class GameCoordinator {
     }
 
     // MARK: - Live Pedometer & Mobility-Aid Roll Mode
-    func optInAndSyncPedometer() async {
+    func optInAndSyncPedometer(silent: Bool = false) async {
         ledger.pedometerOptIn = true
         let buckets = await pedometerService.requestAndSyncRolling7Days(now: currentSimulatedDate)
         var totalAdded = 0
@@ -339,6 +453,7 @@ final class GameCoordinator {
         }
         try? modelContext.save()
         reloadAll()
+        guard !silent else { return }
         if totalAdded > 0 {
             showWhisper("已同步 \(totalAdded.formatted()) 步進你的步數幣袋。")
         } else if !pedometerService.isStepCountingAvailable {
@@ -765,6 +880,7 @@ final class GameCoordinator {
             stroll.sessionEncountersCount += 1
             stroll.routePoints = locationService.liveTrail
             activeStroll = stroll
+            persistActiveStroll()
         }
 
         try? modelContext.save()
@@ -797,6 +913,8 @@ final class GameCoordinator {
             packedCharm: charm,
             routePoints: [startPoint]
         )
+        persistActiveStroll()
+        beginLiveStrollStepStream(from: currentSimulatedDate)
 
         CozySoundEngine.shared.playCompassChime()
         HapticsEngine.shared.playPawRangeCue()
@@ -814,7 +932,9 @@ final class GameCoordinator {
     @discardableResult
     func endStrollSession(autoArchived: Bool = false) -> CompletedStrollSummary? {
         guard let stroll = activeStroll else { return nil }
+        pedometerService.stopLiveStrollUpdates()
         activeStroll = nil
+        persistActiveStroll()
 
         var finalCoins = stroll.sessionCoinsEarned
         var bonusNote: String? = nil
@@ -892,6 +1012,11 @@ final class GameCoordinator {
             placeLabel: placeLabel,
             localDateISO: currentLocalDateISO
         )
+        applyStepIngestionSideEffects(result: result, day: day, placeLabel: placeLabel)
+        return result
+    }
+
+    private func applyStepIngestionSideEffects(result: StepIngestionResult, day: DiaryDayRecord, placeLabel: String) {
         day.acceptedSteps += result.newlyAcceptedSteps
 
         if result.newlyAcceptedSteps > 0 {
@@ -937,6 +1062,7 @@ final class GameCoordinator {
 
             stroll.sessionCuriosFound.append(contentsOf: newlyForagedIDs)
             activeStroll = stroll
+            persistActiveStroll()
         }
 
         if let firstCurio = result.newCuriosForaged.first {
@@ -949,7 +1075,6 @@ final class GameCoordinator {
 
         try? modelContext.save()
         reloadAll()
-        return result
     }
 
     private func advanceMentorshipSteps(by deltaSteps: Int) {
@@ -1061,6 +1186,13 @@ final class GameCoordinator {
         pet.activeOutfitID = outfitID
         try? modelContext.save()
         reloadAll()
+    }
+
+    func collectOrigamiCharmGift(note: String) {
+        ledger.coinBalance += 1
+        try? modelContext.save()
+        reloadAll()
+        showWhisper(note)
     }
 
     func placeGoodie(spotIndex: Int, goodieID: String) {
@@ -1200,6 +1332,7 @@ final class GameCoordinator {
 
     // MARK: - 14-Day Fast-Forward Deterministic Verification Fixture
     func advanceSimulatedDays(_ days: Int) {
+        isUsingSimulatedClock = true
         if activeStroll != nil {
             // 跨日防呆：忘記按結束也不浪費任何資源，自動溫柔歸檔進前一天日記
             _ = endStrollSession(autoArchived: true)
@@ -1214,6 +1347,7 @@ final class GameCoordinator {
 
     @discardableResult
     func runStage1Deterministic14DayFixture() -> Stage1VerificationSummary {
+        isUsingSimulatedClock = true
         var details: [String] = []
         let baseDate = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 1, hour: 9, minute: 0)) ?? Date()
         currentSimulatedDate = baseDate

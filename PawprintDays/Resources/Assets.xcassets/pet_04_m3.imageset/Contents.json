@@ -1,12 +1,15 @@
 {
   "images" : [
     {
-      "filename" : "pet_04_m3.png",
+      "filename" : "pet_04_m3.heic",
       "idiom" : "universal"
     }
   ],
   "info" : {
     "author" : "xcode",
     "version" : 1
+  },
+  "properties" : {
+    "compression-type" : "lossy"
   }
 }

@@ -9,9 +9,14 @@ struct Sunroom25DStageView: View {
     @Bindable var roaming: SunroomRoamingEngine
     let effectivePan: CGFloat
     let bouncingPetID: String?
+    var isDecoratingMode: Bool = false
     let onTapPet: (String) -> Void
     let onTapSpot: (HomeSpotPlacement) -> Void
     let onCompleteMentorship: (TeachingIntention) -> Void
+    var onCollectOrigami: ((SunroomRoamingEngine.OrigamiCharmDrop) -> Void)? = nil
+
+    @State private var draggingSpotIndex: Int? = nil
+    @State private var draggingSpotUV: CGPoint? = nil
 
     var body: some View {
         GeometryReader { geo in
@@ -54,9 +59,16 @@ struct Sunroom25DStageView: View {
                 .frame(width: stageW, height: viewH)
                 .offset(x: effectivePan * 0.88)
 
-                // MARK: Layer 1C — Volumetric Sunbeams & Dust Motes / Window Rain (0.55x Parallax)
+                // MARK: Layer 1C — Volumetric Sunbeams & Dust Motes / Window Rain + Windowsill Collectible Curio Shelf (0.55x Parallax)
                 SunroomAtmosphereParticlesView(weather: coordinator.activeWeather)
                     .offset(x: effectivePan * 0.55)
+
+                if !coordinator.ledger.foragedCurios.isEmpty {
+                    WindowsillCurioShelfView(curios: Array(coordinator.ledger.foragedCurios.prefix(6)))
+                        .position(x: stageW * 0.50, y: floorHorizonY - 26)
+                        .offset(x: effectivePan * 0.60)
+                        .allowsHitTesting(false)
+                }
 
                 // MARK: Layer 2 — Interactive 2.5D Depth-Sorted Floor Stage (Furniture + Free-Roaming Pets)
                 TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
@@ -66,11 +78,12 @@ struct Sunroom25DStageView: View {
                         Color.clear
                             .contentShape(Rectangle())
                             .onTapGesture { location in
+                                guard !isDecoratingMode else { return }
                                 guard location.y >= floorHorizonY - 12 && location.y <= floorBottomY + 24 else { return }
                                 let u = location.x / stageW
                                 let depth = max(0.14, min(0.88, (location.y - floorHorizonY) / max(1, floorBottomY - floorHorizonY)))
                                 HapticsEngine.shared.playBrushStrokeTick()
-                                CozySoundEngine.shared.playCompassChime()
+                                CozySoundEngine.shared.playPawTap()
                                 roaming.callNearestPet(to: CGPoint(x: u, y: depth), now: now)
                             }
 
@@ -94,58 +107,155 @@ struct Sunroom25DStageView: View {
                             .allowsHitTesting(false)
                         }
 
-                        // 2.5D Staggered Home Furnishings (depth-scaled & depth-sorted)
+                        // 2.5D Staggered Home Furnishings (depth-scaled, depth-sorted, & freely draggable in Decorate Mode!)
                         ForEach(coordinator.homeSpots, id: \.spotIndex) { spot in
-                            let uv = SunroomRoamingEngine.spot25DPosition(
+                            let baseUV = roaming.resolvedSpotPosition(
                                 for: spot.spotIndex,
                                 verandaUnlocked: coordinator.ledger.verandaUnlocked
                             )
+                            let uv = (draggingSpotIndex == spot.spotIndex ? draggingSpotUV : nil) ?? baseUV
                             let pt = floorPoint(uv: uv, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
                             let scale = depthScale(for: uv.y)
 
                             VStack(spacing: 2) {
-                                PaintedGoodiePropView(
-                                    goodieID: spot.equippedGoodieID,
-                                    hasLovedPatina: spot.hasLovedPatina,
-                                    hasStitchedPatch: spot.hasStitchedPatch,
-                                    isWide: spot.currentOccupantPetIDs.count > 1
-                                )
-                                Text(spot.hasLovedPatina ? "✦ \(spot.spotName)" : spot.spotName)
+                                ZStack {
+                                    if isDecoratingMode {
+                                        Ellipse()
+                                            .stroke(AppTheme.pawStrollChain, style: StrokeStyle(lineWidth: 2.2, dash: [5, 4]))
+                                            .fill(AppTheme.pawStrollChain.opacity(draggingSpotIndex == spot.spotIndex ? 0.24 : 0.10))
+                                            .frame(width: 96, height: 34)
+                                            .offset(y: 12)
+                                    }
+                                    PaintedGoodiePropView(
+                                        goodieID: spot.equippedGoodieID,
+                                        hasLovedPatina: spot.hasLovedPatina,
+                                        hasStitchedPatch: spot.hasStitchedPatch,
+                                        isWide: spot.currentOccupantPetIDs.count > 1
+                                    )
+                                }
+                                Text(isDecoratingMode ? "拖曳移動 · \(spot.spotName)" : (spot.hasLovedPatina ? "✦ \(spot.spotName)" : spot.spotName))
                                     .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                                    .foregroundStyle(Color(hex: "#4A3628"))
+                                    .foregroundStyle(isDecoratingMode ? AppTheme.forestTeal : Color(hex: "#4A3628"))
                                     .padding(.horizontal, 7)
                                     .padding(.vertical, 2)
                                     .background(
                                         Capsule()
-                                            .fill(Color(hex: "#FFFDF7").opacity(0.90))
-                                            .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 0.9))
+                                            .fill(Color(hex: "#FFFDF7").opacity(0.92))
+                                            .overlay(Capsule().stroke(isDecoratingMode ? AppTheme.pawStrollChain : AppTheme.timberWarm.opacity(0.45), lineWidth: isDecoratingMode ? 1.3 : 0.9))
                                     )
                             }
-                            .scaleEffect(scale)
+                            .scaleEffect(scale * (draggingSpotIndex == spot.spotIndex ? 1.08 : 1.0))
                             .position(x: pt.x, y: pt.y + 8 * scale)
-                            .zIndex(Double(uv.y * 1000.0) - 10)
+                            .zIndex(Double(uv.y * 1000.0) - (draggingSpotIndex == spot.spotIndex ? -50 : 10))
                             .onTapGesture {
-                                onTapSpot(spot)
+                                if !isDecoratingMode { onTapSpot(spot) }
                             }
+                            .highPriorityGesture(
+                                DragGesture(minimumDistance: 6, coordinateSpace: .named("sunroomFloor"))
+                                    .onChanged { value in
+                                        guard isDecoratingMode else { return }
+                                        draggingSpotIndex = spot.spotIndex
+                                        let u = max(0.10, min(0.90, value.location.x / stageW))
+                                        let d = max(0.16, min(0.84, (value.location.y - floorHorizonY) / max(1, floorBottomY - floorHorizonY)))
+                                        draggingSpotUV = CGPoint(x: u, y: d)
+                                    }
+                                    .onEnded { _ in
+                                        guard isDecoratingMode else { return }
+                                        if let newUV = draggingSpotUV {
+                                            roaming.setCustomSpotPosition(spotIndex: spot.spotIndex, uv: newUV)
+                                            HapticsEngine.shared.playBrushStrokeTick()
+                                            CozySoundEngine.shared.playPawTap()
+                                        }
+                                        draggingSpotIndex = nil
+                                        draggingSpotUV = nil
+                                    },
+                                including: isDecoratingMode ? .all : .none
+                            )
                         }
 
-                        // 2.5D Free-Roaming Hand-Animated Pets (live depth scaling, facing flip & painter's zIndex!)
+                        // Live Interactive Rolling Stitched Cloth Ball across the 2.5D floor!
+                        if let ball = roaming.rollingBall, let ballUV = ball.position(at: now) {
+                            let bPt = floorPoint(uv: ballUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
+                            let bScale = depthScale(for: ballUV.y)
+                            let spinDeg = now.timeIntervalSince(ball.startedAt) * 260.0
+                            ZStack {
+                                Ellipse()
+                                    .fill(AppTheme.deepPineInk.opacity(0.18))
+                                    .frame(width: 22 * bScale, height: 8 * bScale)
+                                    .offset(y: 10 * bScale)
+                                Circle()
+                                    .fill(
+                                        RadialGradient(
+                                            colors: [Color(hex: "#F6A88A"), Color(hex: "#D46B52")],
+                                            center: .topLeading,
+                                            startRadius: 2,
+                                            endRadius: 12 * bScale
+                                        )
+                                    )
+                                    .frame(width: 20 * bScale, height: 20 * bScale)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Color(hex: "#FFF8EC").opacity(0.75), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
+                                            .padding(3)
+                                    )
+                                    .rotationEffect(.degrees(spinDeg))
+                            }
+                            .position(x: bPt.x, y: bPt.y - 6 * bScale)
+                            .zIndex(Double(ballUV.y * 1000.0) + 5)
+                            .allowsHitTesting(false)
+                        }
+
+                        // Clickable Origami Paper Charms left on the wooden floor by Juniper (pet.02 DemonCat)!
+                        ForEach(roaming.origamiDrops) { drop in
+                            let dPt = floorPoint(uv: drop.position, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
+                            let dScale = depthScale(for: drop.position.y)
+                            Button {
+                                if let collected = roaming.collectOrigamiDrop(id: drop.id) {
+                                    HapticsEngine.shared.playCurioUnpack()
+                                    CozySoundEngine.shared.playCompassChime()
+                                    onCollectOrigami?(collected)
+                                }
+                            } label: {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color(hex: "#F2C86B").opacity(0.28))
+                                        .frame(width: 34 * dScale, height: 34 * dScale)
+                                    Image(systemName: "paperplane.fill")
+                                        .font(.system(size: 15 * dScale, weight: .bold))
+                                        .foregroundStyle(Color(hex: "#B84A62"))
+                                        .rotationEffect(.degrees(-24))
+                                        .padding(6)
+                                        .background(Color(hex: "#FFFDF7"), in: RoundedRectangle(cornerRadius: 7))
+                                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color(hex: "#D4A352"), lineWidth: 1.2))
+                                        .shadow(color: AppTheme.deepPineInk.opacity(0.22), radius: 3, y: 2)
+                                }
+                            }
+                            .buttonStyle(TactileGameButtonStyle())
+                            .position(x: dPt.x, y: dPt.y - 4 * dScale)
+                            .zIndex(Double(drop.position.y * 1000.0) + 12)
+                        }
+
+                        // 2.5D Free-Roaming Hand-Animated Pets (pure 60fps interpolated position + species magical auras!)
                         ForEach(Array(roaming.actors.values), id: \.petID) { actor in
                             let spec = PetCatalog.pet(id: actor.petID)
                             let resident = coordinator.resident(for: actor.petID)
-                            let pt = floorPoint(uv: actor.position, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
-                            let scale = depthScale(for: actor.position.y)
+                            let liveUV = actor.interpolatedPosition(at: now)
+                            let pt = floorPoint(uv: liveUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
+                            let scale = depthScale(for: liveUV.y)
                             let petMentorship = coordinator.teachingIntentions.first {
                                 $0.state == .demonstrated &&
                                 ($0.mentorPetID == actor.petID || $0.learnerPetID == actor.petID)
                             }
                             let isExcited = (bouncingPetID == actor.petID) || (now < actor.tapExcitedUntil)
+                            let isInBox: Bool = { if case .cozyInBox = actor.behavior { return true }; return false }()
                             let petAction: PetPlayfulAction = {
                                 if bouncingPetID == actor.petID { return .bellyBoop }
                                 switch actor.behavior {
                                 case .walking: return .walking
                                 case .napping: return .cozyNap
                                 case .greetingFriend: return .bellyBoop
+                                case .playingBall: return .pounceHop
+                                case .cozyInBox: return .idle
                                 case .sitting: return .idle
                                 }
                             }()
@@ -167,29 +277,35 @@ struct Sunroom25DStageView: View {
                                 }
 
                                 Button {
-                                    onTapPet(actor.petID)
+                                    if !isDecoratingMode { onTapPet(actor.petID) }
                                 } label: {
-                                    ProceduralPetRigView(
-                                        pet: spec,
-                                        outfitID: resident?.activeOutfitID,
-                                        pose: actor.isNapping ? .resting : .notice,
-                                        weatherMode: coordinator.activeWeather,
-                                        isHappySquint: isExcited || ( { if case .greetingFriend = actor.behavior { return true }; return false }() ),
-                                        mentorshipParticle: petMentorship.flatMap { HabitFamily(rawValue: $0.habitFamilyID) },
-                                        tapBounceScale: bouncingPetID == actor.petID ? 1.0 : 0.0,
-                                        playfulAction: petAction,
-                                        actionTriggerDate: actor.tapExcitedUntil.addingTimeInterval(-1.2)
-                                    )
-                                    .frame(width: 118, height: 118)
-                                    // Smooth automatic facing direction when walking right vs. left!
-                                    .scaleEffect(x: actor.facingRight ? -1.0 : 1.0, y: 1.0)
+                                    ZStack {
+                                        // Species-specific magical room aura (Dragon hearth embers, Spirit cloud puffs, Antler forest leaves!)
+                                        SpeciesRoomMagicAuraCanvas(petKind: spec.kind, weather: coordinator.activeWeather, time: now.timeIntervalSinceReferenceDate)
+                                            .frame(width: 126, height: 126)
+                                            .allowsHitTesting(false)
+
+                                        ProceduralPetRigView(
+                                            pet: spec,
+                                            outfitID: resident?.activeOutfitID,
+                                            pose: actor.isNapping ? .resting : .notice,
+                                            weatherMode: coordinator.activeWeather,
+                                            isHappySquint: isExcited || isInBox || ({ if case .greetingFriend = actor.behavior { return true }; return false }()),
+                                            mentorshipParticle: petMentorship.flatMap { HabitFamily(rawValue: $0.habitFamilyID) },
+                                            tapBounceScale: bouncingPetID == actor.petID ? 1.0 : 0.0,
+                                            playfulAction: petAction,
+                                            actionTriggerDate: actor.tapExcitedUntil.addingTimeInterval(-1.2)
+                                        )
+                                        .frame(width: 118, height: 118)
+                                        .scaleEffect(x: actor.facingRight ? -1.0 : 1.0, y: 1.0)
+                                        .animation(.easeInOut(duration: 0.16), value: actor.facingRight)
+                                    }
                                 }
                                 .buttonStyle(.plain)
                             }
-                            .scaleEffect(scale)
-                            // Ground-baseline anchor: pet's paws rest exactly on the 2.5D floor coordinate `pt`
-                            .position(x: pt.x, y: pt.y - 44 * scale)
-                            .zIndex(Double(actor.position.y * 1000.0))
+                            .scaleEffect(scale * (isInBox ? 0.86 : 1.0))
+                            .position(x: pt.x, y: pt.y - (isInBox ? 32 : 44) * scale)
+                            .zIndex(Double(liveUV.y * 1000.0))
                         }
 
                         // Empty sunroom welcoming guide when the player hasn't invited a pet yet
@@ -211,11 +327,14 @@ struct Sunroom25DStageView: View {
                         }
                     }
                     .frame(width: stageW, height: viewH)
+                    .coordinateSpace(name: "sunroomFloor")
                     .onChange(of: timeline.date) { _, newDate in
+                        // Throttled internally to 4Hz (0.25s) so SwiftUI never churns @Observable at 60Hz!
                         roaming.tick(
                             now: newDate,
                             spots: coordinator.homeSpots,
-                            verandaUnlocked: coordinator.ledger.verandaUnlocked
+                            verandaUnlocked: coordinator.ledger.verandaUnlocked,
+                            weather: coordinator.activeWeather
                         )
                     }
                 }
@@ -415,5 +534,98 @@ private struct ForegroundBotanicalParallaxOverlay: View {
             )
         }
         .blur(radius: 1.5)
+    }
+}
+
+/// Sunlit wooden windowsill shelf displaying up to 6 foraged street curios inside the 2.5D Sunroom!
+private struct WindowsillCurioShelfView: View {
+    let curios: [ForagedCurioEntry]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                ForEach(curios) { entry in
+                    PaintedCurioStampView(curioID: entry.curioID, size: 24)
+                        .shadow(color: AppTheme.deepPineInk.opacity(0.22), radius: 2, y: 1)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 2)
+
+            RoundedRectangle(cornerRadius: 3)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: "#B58454"), Color(hex: "#7D5430")],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: CGFloat(curios.count) * 32 + 26, height: 7)
+                .shadow(color: Color(hex: "#3B2412").opacity(0.30), radius: 3, y: 2)
+        }
+    }
+}
+
+/// Mythical species ambient room magic (DragonCat hearth embers, SpiritHound cloud puffs, MarshHound leaf petals, ImpHound wisp glow!)
+private struct SpeciesRoomMagicAuraCanvas: View {
+    let petKind: PetSpeciesKind
+    let weather: WeatherMode
+    let time: Double
+
+    var body: some View {
+        Canvas { ctx, size in
+            let cx = size.width * 0.5
+            let cy = size.height * 0.56
+            switch petKind {
+            case .dragonCat:
+                // Warm drifting hearth embers (brighter on rainy days!)
+                let count = weather.isRainy ? 5 : 3
+                for i in 0..<count {
+                    let phase = (time * 0.36 + Double(i) / Double(count)).truncatingRemainder(dividingBy: 1.0)
+                    let px = cx + CGFloat(sin(time * 1.1 + Double(i) * 2.1)) * 22
+                    let py = cy + 16 - CGFloat(phase) * 58
+                    let r = 2.6 * (1.0 - CGFloat(phase) * 0.5)
+                    let alpha = sin(phase * .pi) * (weather.isRainy ? 0.78 : 0.52)
+                    ctx.fill(Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)),
+                             with: .color(Color(hex: "#F29D4B").opacity(alpha)))
+                }
+            case .spiritHound:
+                // Soft drifting silver cloud wisps
+                for i in 0..<3 {
+                    let phase = (time * 0.24 + Double(i) * 0.33).truncatingRemainder(dividingBy: 1.0)
+                    let px = cx - 18 + CGFloat(phase) * 36
+                    let py = cy + 8 - CGFloat(sin(phase * .pi)) * 18
+                    let alpha = sin(phase * .pi) * 0.38
+                    ctx.fill(Path(ellipseIn: CGRect(x: px - 7, y: py - 4, width: 14, height: 8)),
+                             with: .color(Color.white.opacity(alpha)))
+                }
+            case .marshHound:
+                // Tiny forest leaf motes drifting gently
+                for i in 0..<3 {
+                    let phase = (time * 0.28 + Double(i) * 0.33).truncatingRemainder(dividingBy: 1.0)
+                    let px = cx + CGFloat(cos(time * 0.9 + Double(i) * 2.0)) * 26
+                    let py = cy - 18 + CGFloat(phase) * 36
+                    let alpha = sin(phase * .pi) * 0.48
+                    ctx.fill(Path(ellipseIn: CGRect(x: px - 3.5, y: py - 2, width: 7, height: 4)),
+                             with: .color(Color(hex: "#679B6E").opacity(alpha)))
+                }
+            case .impHound:
+                // Gentle dusk blue will-o'-wisp halo
+                let glowAlpha = weather == .dusk ? 0.26 : 0.14
+                let pulse = 1.0 + 0.12 * sin(time * 1.4)
+                let r = CGFloat(24.0 * pulse)
+                ctx.fill(
+                    Path(ellipseIn: CGRect(x: cx + 22 - r * 0.5, y: cy - 10 - r * 0.5, width: r, height: r)),
+                    with: .radialGradient(
+                        Gradient(colors: [Color(hex: "#8CC8FF").opacity(glowAlpha), .clear]),
+                        center: CGPoint(x: cx + 22, y: cy - 10),
+                        startRadius: 1,
+                        endRadius: r * 0.55
+                    )
+                )
+            default:
+                break
+            }
+        }
     }
 }

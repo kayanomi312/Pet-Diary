@@ -10,6 +10,7 @@ struct HomeSunroomView: View {
     @State private var showPetRibbonDrawer: Bool = false
     @State private var teaSteaming: Bool = false
     @State private var bouncingPetID: String? = nil
+    @State private var isDecoratingMode: Bool = false
     @State private var roamingEngine = SunroomRoamingEngine()
 
     private var maxPan: CGFloat {
@@ -36,9 +37,15 @@ struct HomeSunroomView: View {
                 roaming: roamingEngine,
                 effectivePan: effectivePan,
                 bouncingPetID: bouncingPetID,
+                isDecoratingMode: isDecoratingMode,
                 onTapPet: { petID in
                     HapticsEngine.shared.playPawRangeCue()
-                    CozySoundEngine.shared.playCompassChime()
+                    let spec = PetCatalog.pet(id: petID)
+                    if spec.kind.isCatFamily {
+                        CozySoundEngine.shared.playPetPurr()
+                    } else {
+                        CozySoundEngine.shared.playPetChirp()
+                    }
                     withAnimation(.spring(response: 0.22, dampingFraction: 0.45)) {
                         bouncingPetID = petID
                     }
@@ -55,6 +62,9 @@ struct HomeSunroomView: View {
                 onCompleteMentorship: { intention in
                     CozySoundEngine.shared.playCompassChime()
                     coordinator.completeMentorshipLesson(intentionUUID: intention.intentionUUID)
+                },
+                onCollectOrigami: { drop in
+                    coordinator.collectOrigamiCharmGift(note: drop.note)
                 }
             )
             .overlay(alignment: .bottom) {
@@ -116,13 +126,66 @@ struct HomeSunroomView: View {
                             let currentIdx = cycle.firstIndex(of: coordinator.activeWeather) ?? 0
                             let nextWeather = cycle[(currentIdx + 1) % cycle.count]
                             withAnimation(.easeInOut(duration: 0.45)) {
-                                coordinator.activeWeather = nextWeather
+                                coordinator.setManualWeatherPreview(nextWeather)
                             }
                             CozySoundEngine.shared.playPaperFlip()
                         }
                     )
 
                     Spacer(minLength: 4)
+
+                    // 2.5D 自由拖曳佈置模式切換鈕
+                    CutePlushButton(
+                        title: isDecoratingMode ? "完成佈置" : "佈置",
+                        tone: isDecoratingMode ? .butterHoney : .milkCream,
+                        fontSize: 11.5,
+                        horizontalPadding: 9,
+                        verticalPadding: 6,
+                        icon: { Image(systemName: isDecoratingMode ? "checkmark.circle.fill" : "move.3d").font(.system(size: 11, weight: .bold)) },
+                        action: {
+                            HapticsEngine.shared.playBrushStrokeTick()
+                            CozySoundEngine.shared.playPaperFlip()
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
+                                isDecoratingMode.toggle()
+                            }
+                            if isDecoratingMode {
+                                coordinator.showWhisper("拖曳地板上的家具即可自由調整 2.5D 位置！")
+                            }
+                        }
+                    )
+
+                    // 療癒音效與輕音樂開關小鈕
+                    Button {
+                        HapticsEngine.shared.playBrushStrokeTick()
+                        if !CozySoundEngine.shared.isSoundEnabled {
+                            CozySoundEngine.shared.isSoundEnabled = true
+                            CozySoundEngine.shared.isMusicEnabled = true
+                            CozySoundEngine.shared.setCozyMusic(active: true, weather: coordinator.activeWeather)
+                            CozySoundEngine.shared.setRainAmbience(active: coordinator.activeWeather.isRainy)
+                            coordinator.showWhisper("已開啟療癒白噪音與拇指琴背景音樂 ♪")
+                        } else if CozySoundEngine.shared.isMusicEnabled {
+                            CozySoundEngine.shared.isMusicEnabled = false
+                            coordinator.showWhisper("已切換為純環境音效（關閉背景音樂）")
+                        } else {
+                            CozySoundEngine.shared.isSoundEnabled = false
+                            coordinator.showWhisper("已靜音全部音效")
+                        }
+                    } label: {
+                        Image(systemName: !CozySoundEngine.shared.isSoundEnabled
+                              ? "speaker.slash.fill"
+                              : (CozySoundEngine.shared.isMusicEnabled ? "music.note" : "speaker.wave.2.fill"))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(CozySoundEngine.shared.isSoundEnabled ? AppTheme.forestTeal : AppTheme.softInk)
+                            .frame(width: 31, height: 31)
+                            .background(
+                                Circle()
+                                    .fill(Color(hex: "#FFFDF7"))
+                                    .overlay(Circle().stroke(AppTheme.timberWarm.opacity(0.5), lineWidth: 1.1))
+                                    .shadow(color: AppTheme.deepPineInk.opacity(0.12), radius: 3, y: 1.5)
+                            )
+                    }
+                    .buttonStyle(TactileGameButtonStyle())
+                    .accessibilityLabel("切換背景音樂與音效")
 
                     if let ready = readyMentorships.first {
                         CutePlushButton(
@@ -187,6 +250,7 @@ struct HomeSunroomView: View {
         }
         .onAppear {
             CozySoundEngine.shared.setRainAmbience(active: coordinator.activeWeather.isRainy)
+            CozySoundEngine.shared.setCozyMusic(active: true, weather: coordinator.activeWeather)
             roamingEngine.syncResidents(
                 invitedPetIDs: invitedPets.map(\.petID),
                 spots: coordinator.homeSpots,
@@ -202,13 +266,18 @@ struct HomeSunroomView: View {
         }
         .onChange(of: coordinator.activeWeather) { _, newWeather in
             CozySoundEngine.shared.setRainAmbience(active: newWeather.isRainy)
+            CozySoundEngine.shared.setCozyMusic(active: true, weather: newWeather)
         }
         .onDisappear {
             CozySoundEngine.shared.stopRainAmbience()
+            CozySoundEngine.shared.stopCozyMusic()
         }
         .sheet(isPresented: $showWickerDrawer) {
-            WickerBasketDrawer(coordinator: coordinator)
-                .presentationDetents([.medium, .large])
+            WickerBasketDrawer(coordinator: coordinator, onResetLayout: {
+                roamingEngine.resetCustomSpotPositions()
+                coordinator.showWhisper("已還原陽光室預設 2.5D 擺設位置。")
+            })
+            .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showTeapotDrawer) {
             CeramicTeapotDrawer(coordinator: coordinator) {
@@ -228,219 +297,9 @@ struct HomeSunroomView: View {
     }
 }
 
-private struct HomeSpotDioramaNode: View {
-    let spot: HomeSpotPlacement
-    let activeMentorship: TeachingIntention?
-    @Bindable var coordinator: GameCoordinator
-    let bouncingPetID: String?
-    let ambientBubbleText: String?
-    let autonomousAction: PetPlayfulAction
-    let actionTriggerDate: Date
-    let onTapPet: (String) -> Void
-    let onTapEmptySpot: () -> Void
-    let onCompleteMentorship: (TeachingIntention) -> Void
-
-    private var goodie: ShopItemSpec? {
-        spot.equippedGoodieID.flatMap(ShopCatalog.item(id:))
-    }
-
-    private var mentorshipHabit: HabitFamily? {
-        activeMentorship.flatMap { HabitFamily(rawValue: $0.habitFamilyID) }
-    }
-
-    var body: some View {
-        VStack(spacing: 4) {
-            if let intention = activeMentorship, intention.state == .demonstrated {
-                WoodPlaqueButton(
-                    title: "輕點記下溫柔",
-                    systemImage: "sparkles",
-                    tone: .brassGold,
-                    fontSize: 10.5,
-                    horizontalPadding: 9,
-                    verticalPadding: 4,
-                    action: { onCompleteMentorship(intention) }
-                )
-            } else if let bubble = ambientBubbleText {
-                SunroomPetSpeechBubble(text: bubble)
-            }
-
-            if !spot.currentOccupantPetIDs.isEmpty {
-                HStack(spacing: -26) {
-                    ForEach(spot.currentOccupantPetIDs, id: \.self) { petID in
-                        let spec = PetCatalog.pet(id: petID)
-                        let res = coordinator.resident(for: petID)
-                        Button {
-                            onTapPet(petID)
-                        } label: {
-                            ProceduralPetRigView(
-                                pet: spec,
-                                outfitID: res?.activeOutfitID,
-                                pose: spot.spotIndex == 1 ? .resting : .notice,
-                                weatherMode: coordinator.activeWeather,
-                                isHappySquint: spot.currentOccupantPetIDs.count > 1 || bouncingPetID == petID,
-                                mentorshipParticle: mentorshipHabit,
-                                tapBounceScale: bouncingPetID == petID ? 1.0 : 0.0,
-                                playfulAction: bouncingPetID == petID ? .bellyBoop : autonomousAction,
-                                actionTriggerDate: bouncingPetID == petID ? Date() : actionTriggerDate
-                            )
-                            .frame(width: 124, height: 124)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            } else {
-                Button(action: onTapEmptySpot) {
-                    VStack(spacing: 4) {
-                        Image(systemName: spot.spotIndex >= 6 ? "cloud.drizzle" : "sparkles")
-                            .font(.system(size: 16))
-                            .foregroundStyle(AppTheme.timberDeep.opacity(0.65))
-                        Text("佈置角落")
-                            .font(AppTheme.handwritten(12))
-                            .foregroundStyle(AppTheme.deepPineInk.opacity(0.75))
-                    }
-                    .frame(width: 96, height: 86)
-                }
-                .buttonStyle(TactileGameButtonStyle())
-            }
-
-            // 精繪台灣繪本水彩家飾物（含毛毯流蘇、紙箱折翼、拼布球縫線、25 次歲月爪痕與手工補丁）
-            PaintedGoodiePropView(
-                goodieID: spot.equippedGoodieID,
-                hasLovedPatina: spot.hasLovedPatina,
-                hasStitchedPatch: spot.hasStitchedPatch,
-                isWide: spot.currentOccupantPetIDs.count > 1
-            )
-            .offset(y: -12)
-            .onTapGesture(perform: onTapEmptySpot)
-
-            // 小木牌角落名牌
-            Text(spot.hasLovedPatina ? "✦ \(spot.spotName)" : spot.spotName)
-                .font(AppTheme.diegeticLabel(10.5))
-                .foregroundStyle(AppTheme.deepPineInk)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 3)
-                .background(
-                    Capsule()
-                        .fill(AppTheme.warmPaper.opacity(0.94))
-                        .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.55), lineWidth: 1.0))
-                        .shadow(color: AppTheme.deepPineInk.opacity(0.14), radius: 3, y: 1)
-                )
-        }
-        .frame(minWidth: 122)
-    }
-}
-
-private struct SunroomBackPlane: View {
-    let weather: WeatherMode
-    let theme: SeasonalRoomTheme
-
-    var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: weather.isRainy
-                    ? [Color(hex: "#B5C9D1"), Color(hex: "#E6E4DC")]
-                    : (theme == .winterLamp || weather == .dusk
-                        ? [Color(hex: "#E5B47A"), Color(hex: "#F2DFC5")]
-                        : [Color(hex: "#D6E8DF"), Color(hex: "#FAF6EE")]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            // 窗外綠意水彩樹冠
-            HStack(spacing: 28) {
-                Circle().fill(AppTheme.vineGreen.opacity(0.26)).frame(width: 150, height: 150).offset(y: -140)
-                Circle().fill(AppTheme.vineGreen.opacity(0.20)).frame(width: 190, height: 190).offset(y: -165)
-            }
-        }
-    }
-}
-
-private struct SunroomMidTimberPlane: View {
-    let weather: WeatherMode
-    let theme: SeasonalRoomTheme
-    let verandaUnlocked: Bool
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ZStack {
-                Color(hex: theme.wallHex)
-
-                // 斜射溫暖日光光束
-                if !weather.isRainy {
-                    Path { p in
-                        p.move(to: CGPoint(x: 90, y: 80))
-                        p.addLine(to: CGPoint(x: 290, y: 80))
-                        p.addLine(to: CGPoint(x: 380, y: 520))
-                        p.addLine(to: CGPoint(x: 150, y: 520))
-                        p.closeSubpath()
-                    }
-                    .fill(Color(hex: "#FFF8DC").opacity(0.24))
-                }
-
-                HStack(spacing: 24) {
-                    ZStack(alignment: .bottomLeading) {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(
-                                LinearGradient(
-                                    colors: weather.isRainy
-                                        ? [Color(hex: "#C4D6DC").opacity(0.88), Color(hex: "#E4ECEE").opacity(0.65)]
-                                        : [Color(hex: "#FFF9EB").opacity(0.92), Color(hex: "#F2E6CB").opacity(0.72)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .frame(width: 268, height: 224)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(AppTheme.timberWarm, lineWidth: 10))
-                            .overlay(HStack { Spacer(); Rectangle().fill(AppTheme.timberWarm).frame(width: 6); Spacer() })
-                            .overlay(VStack { Spacer(); Rectangle().fill(AppTheme.timberWarm.opacity(0.85)).frame(height: 5); Spacer() })
-
-                        // 窗台小陶盆蕨類剪影
-                        VStack(spacing: 0) {
-                            HStack(spacing: -4) {
-                                Ellipse().fill(AppTheme.vineGreen.opacity(0.85)).frame(width: 14, height: 24).rotationEffect(.degrees(-24))
-                                Ellipse().fill(AppTheme.vineGreen).frame(width: 14, height: 28)
-                                Ellipse().fill(AppTheme.vineGreen.opacity(0.8)).frame(width: 14, height: 22).rotationEffect(.degrees(26))
-                            }
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(AppTheme.pawInRange)
-                                .frame(width: 26, height: 18)
-                        }
-                        .offset(x: 22, y: -6)
-                    }
-
-                    if verandaUnlocked {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(hex: "#C6D6D3").opacity(0.78))
-                            .frame(width: 120, height: 240)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(AppTheme.timberDeep, lineWidth: 8))
-                    }
-                }
-                .offset(y: -25)
-            }
-            .frame(maxHeight: .infinity)
-
-            // 溫暖木地板與地腳線
-            ZStack(alignment: .top) {
-                LinearGradient(
-                    colors: [Color(hex: theme.floorTopHex), Color(hex: theme.floorBottomHex)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                Rectangle().fill(AppTheme.timberDeep.opacity(0.35)).frame(height: 8)
-                VStack(spacing: 28) {
-                    ForEach(0..<8, id: \.self) { _ in
-                        Rectangle().fill(AppTheme.timberDeep.opacity(0.16)).frame(height: 1)
-                    }
-                }
-                .padding(.top, 16)
-            }
-            .frame(height: 350)
-        }
-    }
-}
-
 private struct WickerBasketDrawer: View {
     @Bindable var coordinator: GameCoordinator
+    var onResetLayout: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var selectedSpotIndex: Int = 1
 
@@ -565,6 +424,16 @@ private struct WickerBasketDrawer: View {
             .background(AppTheme.parchmentTray)
             .navigationTitle("藤編玩具籃")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    if let onResetLayout {
+                        Button("重設擺位") {
+                            onResetLayout()
+                            dismiss()
+                        }
+                        .font(AppTheme.diegeticLabel(12))
+                        .foregroundStyle(AppTheme.softInk)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { dismiss() }
                 }
@@ -720,34 +589,50 @@ private struct PetBookmarkJumpDrawer: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(coordinator.residents, id: \.petID) { res in
-                    let spec = PetCatalog.pet(id: res.petID)
-                    HStack {
-                        PetPortraitThumbnail(petID: res.petID, size: 42)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(spec.name)
-                                .font(AppTheme.serifTitle(16))
-                                .foregroundStyle(AppTheme.deepPineInk)
-                            Text("\(spec.kind.rawValue) · \(res.inviteState == .unmet ? "尚未遇見" : "\(res.milestoneTitle)（相伴 \(res.sharedDaysCount) 天）")")
-                                .font(AppTheme.serifBody(13))
-                                .foregroundStyle(AppTheme.softInk)
-                        }
-                        Spacer()
-                        if res.inviteState != .unmet {
-                            Button("探望") {
-                                dismiss()
-                                coordinator.currentScreen = .tactileCare(petID: res.petID)
+            ScrollView {
+                VStack(spacing: 10) {
+                    ForEach(coordinator.residents, id: \.petID) { res in
+                        let spec = PetCatalog.pet(id: res.petID)
+                        StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.timberWarm, paddingAmount: 12) {
+                            HStack(spacing: 12) {
+                                PetPortraitThumbnail(petID: res.petID, size: 46)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack(spacing: 6) {
+                                        Text(spec.name)
+                                            .font(AppTheme.serifTitle(16))
+                                            .foregroundStyle(AppTheme.deepPineInk)
+                                        SpeciesFolkloreBadgeView(kind: spec.kind)
+                                    }
+                                    Text(res.inviteState == .unmet
+                                         ? "尚未遇見 · 靜候街角奇遇"
+                                         : "\(res.milestoneTitle) · 相伴 \(res.sharedDaysCount) 天")
+                                        .font(AppTheme.serifBody(12.5))
+                                        .foregroundStyle(AppTheme.softInk)
+                                }
+                                Spacer(minLength: 4)
+                                if res.inviteState != .unmet {
+                                    CutePlushButton(
+                                        title: "探望",
+                                        tone: .matchaMint,
+                                        fontSize: 12,
+                                        horizontalPadding: 12,
+                                        verticalPadding: 7,
+                                        icon: { Image(systemName: "heart.fill").font(.system(size: 10, weight: .bold)) },
+                                        action: {
+                                            CozySoundEngine.shared.playPaperFlip()
+                                            dismiss()
+                                            coordinator.currentScreen = .tactileCare(petID: res.petID)
+                                        }
+                                    )
+                                }
                             }
-                            .buttonStyle(.borderedProminent)
-                            .tint(AppTheme.forestTeal)
                         }
                     }
                 }
+                .padding(16)
             }
-            .scrollContentBackground(.hidden)
-            .background(AppTheme.warmPaper)
-            .navigationTitle("布書籤 · 8 位鄰居名冊")
+            .background(AppTheme.parchmentTray)
+            .navigationTitle("布書籤 · 8 位奇幻鄰居名冊")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { dismiss() }

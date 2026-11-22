@@ -240,6 +240,36 @@ struct CurioCubbiesView: View {
                                 DisclosureGroup(isExpanded: $showWalkingSettings) {
                                     VStack(alignment: .leading, spacing: 12) {
                                         Toggle(isOn: Binding(
+                                            get: { CozySoundEngine.shared.isSoundEnabled },
+                                            set: { CozySoundEngine.shared.isSoundEnabled = $0 }
+                                        )) {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("療癒音效與環境雨聲")
+                                                    .font(AppTheme.serifTitle(13.5))
+                                                    .foregroundStyle(AppTheme.deepPineInk)
+                                                Text("包含翻頁聲、呼嚕聲、木地板踩踏聲與細雨白噪音（遵守靜音鍵）。")
+                                                    .font(AppTheme.serifBody(11))
+                                                    .foregroundStyle(AppTheme.softInk)
+                                            }
+                                        }
+                                        .tint(AppTheme.forestTeal)
+
+                                        Toggle(isOn: Binding(
+                                            get: { CozySoundEngine.shared.isMusicEnabled },
+                                            set: { CozySoundEngine.shared.isMusicEnabled = $0 }
+                                        )) {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("陽光室拇指琴輕音樂")
+                                                    .font(AppTheme.serifTitle(13.5))
+                                                    .foregroundStyle(AppTheme.deepPineInk)
+                                                Text("依晨光、細雨與黃昏自動切換柔和五聲和弦，絕不打斷手機背景音樂。")
+                                                    .font(AppTheme.serifBody(11))
+                                                    .foregroundStyle(AppTheme.softInk)
+                                            }
+                                        }
+                                        .tint(AppTheme.forestTeal)
+
+                                        Toggle(isOn: Binding(
                                             get: { coordinator.ledger.mobilityRollModeEnabled },
                                             set: { coordinator.toggleMobilityRollMode($0) }
                                         )) {

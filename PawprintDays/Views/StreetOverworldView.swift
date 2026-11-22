@@ -57,6 +57,7 @@ struct StreetOverworldView: View {
                 ForEach(coordinator.visibleAnchors, id: \.siteID) { anchor in
                     let state = coordinator.pawState(for: anchor)
                     let dist = Int(coordinator.distanceMeters(to: anchor))
+                    let showRegularPortrait = (anchor.totalVisitsCount > 0 || anchor.isFamiliarCorner)
                     Annotation(
                         "",
                         coordinate: CLLocationCoordinate2D(latitude: anchor.lat, longitude: anchor.lon)
@@ -66,7 +67,8 @@ struct StreetOverworldView: View {
                             state: state,
                             distanceM: dist,
                             isFamiliarCorner: anchor.isFamiliarCorner,
-                            familiarityStars: min(3, anchor.totalVisitsCount / 3)
+                            familiarityStars: min(3, anchor.totalVisitsCount / 3),
+                            regularPetID: showRegularPortrait ? anchor.regularPetID : nil
                         ) {
                             let check = coordinator.attemptOpenAnchor(anchor)
                             if case .tooFar = check {
@@ -218,32 +220,18 @@ struct StreetOverworldView: View {
                 }
 
                 if coordinator.showOnboardingPaperSlip {
-                    TornPaperSlipView(
-                        text: "前方的街角有一枚等待相遇的小腳印。允許散步定位即可在巷口向動物打招呼；就算暫不開啟，也能寫私密日記。",
-                        subtitle: "100% 留存本機 · 無須註冊帳號"
-                    )
-                    .overlay(alignment: .bottomTrailing) {
-                        HStack(spacing: 10) {
-                            Button("稍後") {
-                                coordinator.showOnboardingPaperSlip = false
-                            }
-                            .font(AppTheme.diegeticLabel(12))
-                            .foregroundStyle(AppTheme.softInk)
-
-                            Button("開啟散步定位") {
-                                coordinator.locationService.requestForegroundLocation()
-                                coordinator.showOnboardingPaperSlip = false
-                            }
-                            .font(AppTheme.diegeticLabel(12))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(AppTheme.forestTeal, in: Capsule())
+                    CozyWelcomeOnboardingCard(
+                        onAllowLocation: {
+                            coordinator.locationService.requestForegroundLocation()
+                            coordinator.showOnboardingPaperSlip = false
+                        },
+                        onDismissLater: {
+                            coordinator.showOnboardingPaperSlip = false
                         }
-                        .padding(10)
-                    }
+                    )
                     .padding(.horizontal, 16)
                     .padding(.top, 6)
+                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
                 if coordinator.locationService.isTravelingTooFastForPaws {
@@ -656,22 +644,24 @@ private struct PlayerLanternMapPinView: View {
                 .frame(width: 4, height: 4)
                 .offset(x: -2.5, y: -2.5)
 
-            // 出發散步時，同行奇幻夥伴的小頭像跟在你的提燈旁一起漫步！
+            // 出發散步時，同行奇幻夥伴活靈活現地在你的提燈旁小步漫步！
             if let comp = walkingCompanion {
                 ProceduralPetRigView(
                     pet: comp,
                     pose: .notice,
                     applyMetalPaperShader: false,
-                    isStaticSnapshot: true
+                    isStaticSnapshot: false,
+                    playfulAction: .walking
                 )
-                .frame(width: 34, height: 34)
+                .frame(width: 42, height: 42)
+                .scaleEffect(x: (headingDegrees ?? 0) > 180 ? 1.0 : -1.0, y: 1.0)
                 .background(
                     Circle()
                         .fill(AppTheme.warmPaper)
                         .overlay(Circle().stroke(AppTheme.pawStrollChain, lineWidth: 1.5))
                         .shadow(color: AppTheme.deepPineInk.opacity(0.24), radius: 3, y: 2)
                 )
-                .offset(x: 22, y: pulse ? -16 : -12)
+                .offset(x: 24, y: -14)
             }
         }
         .onAppear {
@@ -688,6 +678,7 @@ private struct PawAnchorStampView: View {
     let distanceM: Int
     let isFamiliarCorner: Bool
     var familiarityStars: Int = 0
+    var regularPetID: String? = nil
     let onTap: () -> Void
 
     @State private var ripple = false
@@ -757,8 +748,18 @@ private struct PawAnchorStampView: View {
                         .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.white)
 
-                    // 在 75m 內時冒出小小愛心提示「可以打招呼囉！」
-                    if state == .inRange {
+                    // 熟悉街角顯示正在守候的常客小頭像；或在 75m 內冒出愛心提示「可以打招呼囉！」
+                    if let regID = regularPetID, let regImg = UIImage(named: regID.replacingOccurrences(of: ".", with: "_")) {
+                        Image(uiImage: regImg)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 24, height: 24)
+                            .background(Color(hex: "#FFFDF7"))
+                            .clipShape(Circle())
+                            .overlay(Circle().stroke(AppTheme.pawStrollChain, lineWidth: 1.2))
+                            .shadow(color: AppTheme.deepPineInk.opacity(0.22), radius: 2, y: 1)
+                            .offset(x: 20, y: -18)
+                    } else if state == .inRange {
                         Image(systemName: "heart.fill")
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(Color(hex: "#FF7B89"))
@@ -888,6 +889,100 @@ private struct AccessibleNearbyListSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+/// 溫暖 3 步驟首次見面繪本導覽卡（介紹《貓與龍》奇幻街角世界觀、雙層無壓力散步與 100% 本機隱私）
+private struct CozyWelcomeOnboardingCard: View {
+    let onAllowLocation: () -> Void
+    let onDismissLater: () -> Void
+    @State private var step: Int = 0
+
+    private let steps: [(title: String, body: String, icon: String)] = [
+        (
+            "歡迎來到《足印日記》",
+            "在熟悉的老街騎樓與公園角落，藏著赤炎龍貓、黑曜惡魔貓與星靈犬等 8 位溫柔的奇幻鄰居，正靜靜等著與你相遇。",
+            "pawprint.fill"
+        ),
+        (
+            "手機放口袋就能輕鬆累積",
+            "不用特別按開始，日常走路就會把步數存成步數幣；想有儀式感時也能點「出發散步」，帶上不倒數、不浪費的帆布袋小物！",
+            "figure.walk"
+        ),
+        (
+            "100% 本機私密 · 開啟散步定位",
+            "所有足跡與日記都只留在這支 iPhone 上，無須註冊帳號。允許精準散步定位，就能在真實街角遇見小動物。",
+            "location.fill"
+        )
+    ]
+
+    var body: some View {
+        let current = steps[step]
+        StorybookPaperCard(cornerRadius: 20, accentColor: AppTheme.forestTeal, showWashiTape: true, paddingAmount: 14) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: current.icon)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 28, height: 28)
+                        .background(AppTheme.forestTeal, in: Circle())
+
+                    Text(current.title)
+                        .font(AppTheme.serifTitle(16))
+                        .foregroundStyle(AppTheme.deepPineInk)
+
+                    Spacer()
+
+                    HStack(spacing: 4) {
+                        ForEach(0..<steps.count, id: \.self) { idx in
+                            Circle()
+                                .fill(idx == step ? AppTheme.forestTeal : AppTheme.timberWarm.opacity(0.4))
+                                .frame(width: 6, height: 6)
+                        }
+                    }
+                }
+
+                Text(current.body)
+                    .font(AppTheme.serifBody(13.5))
+                    .foregroundStyle(AppTheme.softInk)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack {
+                    Button("稍後再說", action: onDismissLater)
+                        .font(AppTheme.diegeticLabel(12))
+                        .foregroundStyle(AppTheme.softInk)
+
+                    Spacer()
+
+                    if step < steps.count - 1 {
+                        CutePlushButton(
+                            title: "下一頁",
+                            tone: .butterHoney,
+                            fontSize: 12.5,
+                            horizontalPadding: 13,
+                            verticalPadding: 7,
+                            icon: { Image(systemName: "arrow.right").font(.system(size: 11, weight: .bold)) },
+                            action: {
+                                CozySoundEngine.shared.playPaperFlip()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    step += 1
+                                }
+                            }
+                        )
+                    } else {
+                        CutePlushButton(
+                            title: "開啟散步定位",
+                            tone: .matchaMint,
+                            fontSize: 12.5,
+                            horizontalPadding: 13,
+                            verticalPadding: 7,
+                            icon: { Image(systemName: "location.fill").font(.system(size: 11, weight: .bold)) },
+                            action: onAllowLocation
+                        )
+                    }
                 }
             }
         }
