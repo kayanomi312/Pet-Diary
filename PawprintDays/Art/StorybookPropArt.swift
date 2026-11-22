@@ -14,10 +14,36 @@ struct PaintedGoodiePropView: View {
     var body: some View {
         ZStack {
             if let assetName = customAssetName, let img = UIImage(named: assetName) {
-                Image(uiImage: img)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: isWide ? 156 : 122, height: 64)
+                ZStack(alignment: .bottom) {
+                    Ellipse()
+                        .fill(
+                            RadialGradient(
+                                colors: [AppTheme.deepPineInk.opacity(0.22), .clear],
+                                center: .center,
+                                startRadius: 6,
+                                endRadius: isWide ? 74 : 58
+                            )
+                        )
+                        .frame(width: isWide ? 148 : 114, height: 22)
+                        .offset(y: 4)
+
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: isWide ? 158 : 128, height: 76)
+                        .overlay(alignment: .topTrailing) {
+                            if hasLovedPatina && hasStitchedPatch {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(AppTheme.pawInRange)
+                                    .frame(width: 18, height: 16)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .stroke(AppTheme.warmPaper, style: StrokeStyle(lineWidth: 1.2, dash: [2.5, 2]))
+                                    )
+                                    .offset(x: -14, y: 12)
+                            }
+                        }
+                }
             } else {
                 Canvas { ctx, size in
                     let w = size.width

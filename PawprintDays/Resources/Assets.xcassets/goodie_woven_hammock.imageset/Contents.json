@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "goodie_woven_hammock.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
