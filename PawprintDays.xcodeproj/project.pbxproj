@@ -54,6 +54,7 @@
 		D64A6D405769C13E1DA11AB4 /* PetFrames in Resources */ = {isa = PBXBuildFile; fileRef = AEB687F1A5B3765C222D233C /* PetFrames */; };
 		D831966FC956CB4BAE66930C /* StrollRitualSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 577B6815AA46FB69A029BEF6 /* StrollRitualSheets.swift */; };
 		DB3DEA62CDF9D1CFC6329002 /* PawprintSharedActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44819E4445781D509B8BAC53 /* PawprintSharedActivity.swift */; };
+		DB3E692B58476DEC3953FFDD /* SunroomInWorldStations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C1A9B21CD584B1C4932B697 /* SunroomInWorldStations.swift */; };
 		DDED72C953C9AC79544709AF /* GameCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93CFFA2DFDC1657DFAD6BE0 /* GameCoordinator.swift */; };
 		E20E7734E37C49E6BF10D31D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 294ECBE64107C69E3AE79B88 /* Assets.xcassets */; };
 		E25FC44CEFCC856722142CF6 /* CuteKawaiiIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E7501CACD547594CF9F3CB /* CuteKawaiiIcons.swift */; };
@@ -100,6 +101,7 @@
 		0740C979C9E98A4DEB2763B7 /* PawprintDaysApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PawprintDaysApp.swift; sourceTree = "<group>"; };
 		187676AF72A63606215B3006 /* GameCoordinator+IndoorAndRaising.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GameCoordinator+IndoorAndRaising.swift"; sourceTree = "<group>"; };
 		1BB82F737C708433848BA4E4 /* Stage1VerificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stage1VerificationTests.swift; sourceTree = "<group>"; };
+		1C1A9B21CD584B1C4932B697 /* SunroomInWorldStations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunroomInWorldStations.swift; sourceTree = "<group>"; };
 		240A215BE2D51BF1C17FC3C6 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		294ECBE64107C69E3AE79B88 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2FAA300ED020BC39BC83F973 /* AnchorRotationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorRotationEngine.swift; sourceTree = "<group>"; };
@@ -167,6 +169,7 @@
 				7E7D5485F75FC57B5EBD6075 /* StreetOverworldView.swift */,
 				577B6815AA46FB69A029BEF6 /* StrollRitualSheets.swift */,
 				7625FA3318755BEFCDDDB260 /* Sunroom25DStage.swift */,
+				1C1A9B21CD584B1C4932B697 /* SunroomInWorldStations.swift */,
 				60C2DCCD080EBEEA8618B504 /* TactileCareView.swift */,
 			);
 			path = Views;
@@ -484,6 +487,7 @@
 				B2FFA362B31165E5FEF5E441 /* StrollLiveActivityManager.swift in Sources */,
 				D831966FC956CB4BAE66930C /* StrollRitualSheets.swift in Sources */,
 				35A667A6EF0C88B15F3C20D6 /* Sunroom25DStage.swift in Sources */,
+				DB3E692B58476DEC3953FFDD /* SunroomInWorldStations.swift in Sources */,
 				0169EF9AD712A5AF1AE1545D /* SunroomRoamingEngine.swift in Sources */,
 				369D3BD8F3426939791248D1 /* SwiftDataModels.swift in Sources */,
 				15CE874DE2B01B22BA78CC3B /* TactileCareView.swift in Sources */,

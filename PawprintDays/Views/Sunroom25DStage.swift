@@ -10,18 +10,26 @@ struct Sunroom25DStageView: View {
     let effectivePan: CGFloat
     let bouncingPetID: String?
     var isDecoratingMode: Bool = false
+    var selectedDecorateSpotIndex: Int = 1
     var isFeatherWandMode: Bool = false
     var hidingSpotIndex: Int? = nil
     var hidingPetID: String? = nil
+    var activeTeaRecipe: TeaRecipeSpec = TeaKitchenCatalog.allRecipes[0]
     let onTapPet: (String) -> Void
     let onTapSpot: (HomeSpotPlacement) -> Void
     let onCompleteMentorship: (TeachingIntention) -> Void
     var onCollectOrigami: ((SunroomRoamingEngine.OrigamiCharmDrop) -> Void)? = nil
     var onTapWindowsillCurio: ((ForagedCurioEntry) -> Void)? = nil
     var onTapOffspring: ((MysticalOffspringRecord) -> Void)? = nil
-    var onFoundHidingPet: ((String) -> Void)? = nil
+    var onFoundHidingPet: ((String, CGPoint) -> Void)? = nil
     var onTriggerSkit: ((String, String) -> Void)? = nil
     var onCompleteFeatherWandChase: (() -> Void)? = nil
+    var onCycleTeaRecipe: (() -> Void)? = nil
+    var onBrewTeaInWorld: ((TeaRecipeSpec) -> Void)? = nil
+    var onTapOrigamiTable: (() -> Void)? = nil
+    var onSendErrandSupply: ((ErrandSupplyPack) -> Void)? = nil
+    var onCollectErrandInWorld: (() -> Void)? = nil
+    var onStartCourtshipNest: ((String, String) -> Void)? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var draggingSpotIndex: Int? = nil
@@ -110,6 +118,7 @@ struct Sunroom25DStageView: View {
                     isRinging: windChimeRingPulse,
                     onRingChime: {
                         coordinator.ringSunroomWindChime()
+                        roaming.emitFloatingBurst(at: CGPoint(x: 0.48, y: 0.16), text: "♪ 叮噹清響", colorHex: "#4A7A76")
                         withAnimation(.spring(response: 0.25, dampingFraction: 0.35)) {
                             windChimeRingPulse = true
                         }
@@ -200,10 +209,11 @@ struct Sunroom25DStageView: View {
                             VStack(spacing: 2) {
                                 ZStack {
                                     if isDecoratingMode {
+                                        let isSelected = (selectedDecorateSpotIndex == spot.spotIndex)
                                         Ellipse()
-                                            .stroke(AppTheme.pawStrollChain, style: StrokeStyle(lineWidth: 2.2, dash: [5, 4]))
-                                            .fill(AppTheme.pawStrollChain.opacity(draggingSpotIndex == spot.spotIndex ? 0.24 : 0.10))
-                                            .frame(width: 96, height: 34)
+                                            .stroke(isSelected ? Color(hex: "#D98A36") : AppTheme.pawStrollChain, style: StrokeStyle(lineWidth: isSelected ? 3.0 : 2.0, dash: isSelected ? [] : [5, 4]))
+                                            .fill(AppTheme.pawStrollChain.opacity(draggingSpotIndex == spot.spotIndex ? 0.28 : (isSelected ? 0.20 : 0.08)))
+                                            .frame(width: 98, height: 36)
                                             .offset(y: 12)
                                     }
                                     PaintedGoodiePropView(
@@ -218,7 +228,7 @@ struct Sunroom25DStageView: View {
                                        hidingSpotIndex == spot.spotIndex,
                                        let foundPet = hidingPetID {
                                         Button {
-                                            onFoundHidingPet?(foundPet)
+                                            onFoundHidingPet?(foundPet, uv)
                                         } label: {
                                             HStack(spacing: 3) {
                                                 Image(systemName: "eyes")
@@ -253,12 +263,13 @@ struct Sunroom25DStageView: View {
                             .position(x: pt.x, y: pt.y + 8 * scale)
                             .zIndex(Double(uv.y * 1000.0) - (draggingSpotIndex == spot.spotIndex ? -50 : 10))
                             .onTapGesture {
-                                if !isDecoratingMode { onTapSpot(spot) }
+                                onTapSpot(spot)
                             }
                             .highPriorityGesture(
                                 DragGesture(minimumDistance: 6, coordinateSpace: .named("sunroomFloor"))
                                     .onChanged { value in
                                         guard isDecoratingMode else { return }
+                                        onTapSpot(spot)
                                         draggingSpotIndex = spot.spotIndex
                                         let u = max(0.10, min(0.90, value.location.x / stageW))
                                         let d = max(0.16, min(0.84, (value.location.y - floorHorizonY) / max(1, floorBottomY - floorHorizonY)))
@@ -345,17 +356,74 @@ struct Sunroom25DStageView: View {
                             .zIndex(Double(drop.position.y * 1000.0) + 12)
                         }
 
-                        // 24-Hour Steaming Ginger Tea Foreground Tray (`treat.ginger_tea`)
-                        if coordinator.isGingerTeaActive {
-                            let teaUV = CGPoint(x: 0.78, y: 0.82)
+                        // Physical Interactive Tea & Biscuit Tray right on the foreground floor (Swirl to Brew!)
+                        if !isDecoratingMode && !isFeatherWandMode {
+                            let teaUV = CGPoint(x: 0.80, y: 0.80)
                             let teaPt = floorPoint(uv: teaUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
                             let teaScale = depthScale(for: teaUV.y)
-                            SteamingGingerTeaTrayView {
-                                coordinator.sipGingerTea()
-                            }
-                            .scaleEffect(teaScale * 0.92)
-                            .position(x: teaPt.x, y: teaPt.y - 12 * teaScale)
+                            InWorldTeaStationView(
+                                recipe: activeTeaRecipe,
+                                onCycleRecipe: { onCycleTeaRecipe?() },
+                                onBrewCompleted: { brewed in
+                                    onBrewTeaInWorld?(brewed)
+                                }
+                            )
+                            .scaleEffect(teaScale * 0.90)
+                            .position(x: teaPt.x, y: teaPt.y - 16 * teaScale)
                             .zIndex(Double(teaUV.y * 1000.0) + 18)
+
+                            // Physical Origami Craft Stool by the sunny left window (Tap to Fold in-world!)
+                            let origUV = CGPoint(x: 0.14, y: 0.44)
+                            let origPt = floorPoint(uv: origUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
+                            let origScale = depthScale(for: origUV.y)
+                            InWorldOrigamiTableView {
+                                onTapOrigamiTable?()
+                            }
+                            .scaleEffect(origScale)
+                            .position(x: origPt.x, y: origPt.y - 10 * origScale)
+                            .zIndex(Double(origUV.y * 1000.0) + 10)
+
+                            // Physical Porch Adventure Satchel near the right doorway (Direct Solo Errands!)
+                            let doorUV = CGPoint(x: 0.90, y: 0.45)
+                            let doorPt = floorPoint(uv: doorUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
+                            let doorScale = depthScale(for: doorUV.y)
+                            InWorldPorchSatchelView(
+                                activeErrand: coordinator.indoorState.activeErrand,
+                                now: now,
+                                coinBalance: coordinator.ledger.coinBalance,
+                                onSendSupply: { pack in onSendErrandSupply?(pack) },
+                                onCollectReturned: { onCollectErrandInWorld?() }
+                            )
+                            .scaleEffect(doorScale)
+                            .position(x: doorPt.x, y: doorPt.y - 24 * doorScale)
+                            .zIndex(Double(doorUV.y * 1000.0) + 22)
+
+                            // Direct In-World Mystical Courtship Nesting Heart (♂ × ♀) when an eligible pair shares the room!
+                            if let pair = coordinator.eligibleNestingPairs.first,
+                               coordinator.indoorState.offsprings.filter({ $0.growthStage != .grown }).count < 2 {
+                                let nestUV = CGPoint(x: 0.50, y: 0.43)
+                                let nestPt = floorPoint(uv: nestUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
+                                Button {
+                                    onStartCourtshipNest?(pair.fatherID, pair.motherID)
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "heart.fill")
+                                            .font(.system(size: 10.5, weight: .bold))
+                                            .foregroundStyle(Color(hex: "#D96B7E"))
+                                        Text("\(coordinator.displayName(for: pair.fatherID)) × \(coordinator.displayName(for: pair.motherID)) 結緣築巢")
+                                            .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                                            .foregroundStyle(Color(hex: "#4A2D36"))
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color(hex: "#FFF5F7").opacity(0.95), in: Capsule())
+                                    .overlay(Capsule().stroke(Color(hex: "#E695A4"), lineWidth: 1.2))
+                                    .shadow(color: Color(hex: "#D96B7E").opacity(0.24), radius: 5, y: 2)
+                                }
+                                .buttonStyle(TactileGameButtonStyle(pressScale: 0.92, pressOffsetY: 1))
+                                .position(x: nestPt.x, y: nestPt.y - 22)
+                                .zIndex(1400)
+                            }
                         }
 
                         // Raised Mystical Eggs & Hybrid Hatchlings living on the 2.5D Sunroom floor!
@@ -560,9 +628,9 @@ struct Sunroom25DStageView: View {
                                             let clampedY = max(floorHorizonY + 6, min(floorBottomY, pt.y))
                                             let u = max(0.08, min(0.92, pt.x / stageW))
                                             let depth = max(0.14, min(0.88, (clampedY - floorHorizonY) / max(1, floorBottomY - floorHorizonY)))
-                                            if now.timeIntervalSince(lastWandCallDate) >= 0.22 {
+                                            if now.timeIntervalSince(lastWandCallDate) >= 0.18 {
                                                 lastWandCallDate = now
-                                                roaming.callNearestPet(to: CGPoint(x: u, y: depth), now: now)
+                                                roaming.chaseFeatherWand(at: CGPoint(x: u, y: depth), now: now)
                                                 HapticsEngine.shared.playBrushStrokeTick()
                                             }
                                             if wandChaseDistance >= 340 {
@@ -582,6 +650,27 @@ struct Sunroom25DStageView: View {
                                     .allowsHitTesting(false)
                                     .zIndex(2000)
                             }
+                        }
+
+                        // 60fps Floating In-World Reaction Bursts (+1 幣, ♡ 溫柔, ✦ 破殼, ♪ 叮噹)
+                        ForEach(roaming.floatingBursts) { burst in
+                            let age = max(0, now.timeIntervalSince(burst.createdAt))
+                            let p = min(1.0, age / 1.85)
+                            let bPt = floorPoint(uv: burst.position, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
+                            let fadeAlpha = p < 0.15 ? (p / 0.15) : max(0, 1.0 - (p - 0.15) / 0.85)
+                            Text(burst.text)
+                                .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Color(hex: burst.colorHex), in: Capsule())
+                                .overlay(Capsule().stroke(Color(hex: "#FFFDF8").opacity(0.85), lineWidth: 1.2))
+                                .shadow(color: AppTheme.deepPineInk.opacity(0.22), radius: 4, y: 2)
+                                .position(x: bPt.x, y: bPt.y - 36 - CGFloat(p) * 58)
+                                .opacity(fadeAlpha)
+                                .scaleEffect(0.85 + 0.20 * sin(min(1.0, p * 3.0) * .pi * 0.5))
+                                .zIndex(2100)
+                                .allowsHitTesting(false)
                         }
 
                         // Empty sunroom welcoming guide when the player hasn't invited a pet yet
