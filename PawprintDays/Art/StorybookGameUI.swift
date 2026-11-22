@@ -85,10 +85,10 @@ struct WoodPlaqueButton: View {
             HStack(spacing: 6) {
                 if let systemImage {
                     Image(systemName: systemImage)
-                        .font(.system(size: fontSize, weight: .bold))
+                        .font(.system(size: fontSize, weight: .semibold))
                 }
                 Text(title)
-                    .font(AppTheme.diegeticLabel(fontSize))
+                    .font(.system(size: fontSize, weight: .bold, design: .rounded))
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
             }
@@ -96,15 +96,15 @@ struct WoodPlaqueButton: View {
             .frame(maxWidth: fullWidth ? .infinity : nil)
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
-            .background(
-                ZStack {
-                    // 3D bottom extruded wooden/ceramic lip
-                    RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .fill(tone.lipColor)
-                        .offset(y: 3.5)
-
-                    // Main tactile body with subtle vertical lighting
-                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+            .background {
+                if tone == .warmCream {
+                    Capsule(style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .overlay(Capsule(style: .continuous).fill(Color(hex: "#FFFDF8").opacity(0.92)))
+                        .overlay(Capsule(style: .continuous).stroke(Color(hex: "#CBBAA0").opacity(0.65), lineWidth: 0.9))
+                        .shadow(color: Color(hex: "#2D241E").opacity(0.10), radius: 8, y: 3)
+                } else {
+                    Capsule(style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: [tone.topColor, tone.bottomColor],
@@ -112,32 +112,20 @@ struct WoodPlaqueButton: View {
                                 endPoint: .bottom
                             )
                         )
-
-                    // Crisp top highlight bevel
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [tone.strokeColor, Color.clear],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            ),
-                            lineWidth: 1.2
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(Color.white.opacity(0.30), lineWidth: 0.9)
+                                .padding(0.5)
                         )
-                        .padding(1)
-
-                    // Subtle outer hand-inked outline
-                    RoundedRectangle(cornerRadius: 15, style: .continuous)
-                        .stroke(AppTheme.deepPineInk.opacity(0.22), lineWidth: 1.0)
+                        .shadow(color: tone.bottomColor.opacity(0.28), radius: 9, y: 4)
                 }
-            )
-            .padding(.bottom, 3.5)
-            .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 5, y: 3)
+            }
         }
-        .buttonStyle(TactileGameButtonStyle())
+        .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1.5))
     }
 }
 
-// MARK: - 3. Tactile Storybook Parchment Card (Double Ink Frame + Optional Washi Tape + Paper Shader)
+// MARK: - 3. Unified Warm Stationery Card (Clean Hairline Border + Optional Washi Tape + Soft Shadow)
 struct StorybookPaperCard<Content: View>: View {
     var cornerRadius: CGFloat = 18
     var accentColor: Color = AppTheme.timberWarm
@@ -149,33 +137,26 @@ struct StorybookPaperCard<Content: View>: View {
         content()
             .padding(paddingAmount)
             .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(hex: "#FCF9F2"), Color(hex: "#F4ECDC")],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: "#FFFDF8"), Color(hex: "#F8F2E7")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                        .colorEffect(ShaderLibrary.storybookPaperSurface())
-
-                    // Subtle double-ink inner journal frame
-                    RoundedRectangle(cornerRadius: max(8, cornerRadius - 4), style: .continuous)
-                        .stroke(accentColor.opacity(0.22), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                        .padding(4)
-
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(accentColor.opacity(0.55), lineWidth: 1.4)
-                }
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .stroke(Color(hex: "#D5C5AE").opacity(0.65), lineWidth: 0.9)
+                    )
             )
             .overlay(alignment: .top) {
                 if showWashiTape {
-                    WashiTapeStrip(color: Color(hex: "#E6CFA3"), angle: -2.2, width: 64)
+                    WashiTapeStrip(color: Color(hex: "#E6CFA3"), angle: -2.0, width: 62)
                         .offset(y: -7)
                 }
             }
-            .shadow(color: AppTheme.deepPineInk.opacity(0.13), radius: 7, y: 4)
+            .shadow(color: Color(hex: "#2D241E").opacity(0.09), radius: 10, y: 4)
     }
 }
 
@@ -207,17 +188,18 @@ struct WashiTapeStrip: View {
     }
 }
 
-// MARK: - 4. Stitched Cloth Bookmark Tab Bar (Replaces iOS Segmented Picker in Sketchbook)
+// MARK: - 4. Unified Capsule Segmented Tab Bar (Matches Floating Dock & Care Tabs!)
 struct StitchedClothTabBar<Tab: Hashable & CaseIterable & RawRepresentable>: View where Tab.RawValue == String, Tab.AllCases: RandomAccessCollection {
     @Binding var selection: Tab
     let iconProvider: (Tab) -> String
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 4) {
             ForEach(Array(Tab.allCases), id: \.self) { tab in
                 let active = (selection == tab)
                 Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                    guard !active else { return }
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
                         selection = tab
                     }
                     CozySoundEngine.shared.playPaperFlip()
@@ -225,32 +207,32 @@ struct StitchedClothTabBar<Tab: Hashable & CaseIterable & RawRepresentable>: Vie
                 } label: {
                     HStack(spacing: 5) {
                         Image(systemName: iconProvider(tab))
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 11.5, weight: .semibold))
                         Text(tab.rawValue)
-                            .font(AppTheme.diegeticLabel(13))
+                            .font(.system(size: 12.5, weight: active ? .bold : .semibold, design: .rounded))
                     }
-                    .foregroundStyle(active ? Color(hex: "#FFFDF7") : AppTheme.deepPineInk)
+                    .foregroundStyle(active ? Color.white : Color(hex: "#5A4D43"))
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 9)
-                    .background(
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(active ? Color(hex: "#123437") : AppTheme.timberWarm.opacity(0.35))
-                                .offset(y: active ? 2.5 : 1.5)
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(active ? AppTheme.forestTeal : AppTheme.warmPaper)
-                            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                .stroke(
-                                    active ? Color.white.opacity(0.35) : AppTheme.timberWarm.opacity(0.45),
-                                    style: StrokeStyle(lineWidth: 1, dash: [3, 2.5])
-                                )
-                                .padding(2.5)
+                    .padding(.vertical, 8.5)
+                    .background {
+                        if active {
+                            Capsule(style: .continuous)
+                                .fill(AppTheme.forestTeal)
+                                .shadow(color: AppTheme.forestTeal.opacity(0.24), radius: 5, y: 2)
                         }
-                    )
-                    .padding(.bottom, 2.5)
+                    }
                 }
-                .buttonStyle(TactileGameButtonStyle(pressScale: 0.96, pressOffsetY: 1.5))
+                .buttonStyle(.plain)
             }
+        }
+        .padding(4)
+        .background {
+            Capsule(style: .continuous)
+                .fill(Color(hex: "#EFE7D8").opacity(0.92))
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(Color(hex: "#D5C5AE").opacity(0.65), lineWidth: 0.85)
+                )
         }
     }
 }

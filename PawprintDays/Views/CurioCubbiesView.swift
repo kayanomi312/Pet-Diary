@@ -44,16 +44,16 @@ struct CurioCubbiesView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        // 紅檜木內凹展示櫃區塊（支援「全圖鑑剪影 X/16」與「已收藏清單」切換！）
+                        // 統一暖棉紙展示櫃區塊（柔光淺暖木色系，與街區、陽光室、日記 100% 視覺一致！）
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(alignment: .center, spacing: 8) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("街區拾遺圖鑑 · \(discoveredCurioIDs.count)/\(CurioCatalog.all.count)")
-                                        .font(AppTheme.serifTitle(16))
-                                        .foregroundStyle(Color(hex: "#FFF9EE"))
+                                        .font(AppTheme.serifTitle(16.5))
+                                        .foregroundStyle(Color(hex: "#2F2A26"))
                                     Text("今日拾遺 \(coordinator.todaysPocketFindCount)/\(coordinator.dailyPocketFindCap) 件 · 再走 \(coordinator.stepsUntilNextPocketFind) 步拾獲下一件")
-                                        .font(AppTheme.diegeticLabel(10.5))
-                                        .foregroundStyle(Color(hex: "#F5E8CF"))
+                                        .font(AppTheme.diegeticLabel(11))
+                                        .foregroundStyle(AppTheme.forestTeal)
                                 }
                                 Spacer(minLength: 4)
                                 Button {
@@ -62,11 +62,12 @@ struct CurioCubbiesView: View {
                                     }
                                 } label: {
                                     Text(showFullCompendium ? "只看已拾獲" : "看全圖鑑")
-                                        .font(AppTheme.diegeticLabel(10.5))
-                                        .foregroundStyle(AppTheme.deepPineInk)
-                                        .padding(.horizontal, 9)
-                                        .padding(.vertical, 5)
-                                        .background(AppTheme.warmPaper.opacity(0.94), in: Capsule())
+                                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                                        .foregroundStyle(AppTheme.forestTeal)
+                                        .padding(.horizontal, 11)
+                                        .padding(.vertical, 6)
+                                        .background(Color(hex: "#FFFDF8"), in: Capsule())
+                                        .overlay(Capsule().stroke(Color(hex: "#D5C5AE").opacity(0.75), lineWidth: 0.9))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -98,56 +99,54 @@ struct CurioCubbiesView: View {
                                             .padding(12)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                             .background(
-                                                ZStack {
-                                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                                        .fill(AppTheme.warmPaper)
-                                                        .colorEffect(ShaderLibrary.storybookPaperSurface())
-                                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                                        .stroke(Color(hex: "#6B4728"), lineWidth: 2.0)
-                                                }
+                                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                                    .fill(Color(hex: "#FFFDF8"))
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                                            .stroke(Color(hex: "#D5C5AE").opacity(0.70), lineWidth: 0.9)
+                                                    )
                                             )
-                                            .shadow(color: Color(hex: "#4A2E17").opacity(0.28), radius: 4, y: 2)
+                                            .shadow(color: Color(hex: "#2D241E").opacity(0.07), radius: 6, y: 2)
                                         } else {
-                                            // Undiscovered silhouette cubby with gentle zero-FOMO weather/place hint!
+                                            // Undiscovered silhouette cubby in soft warm linen!
                                             VStack(alignment: .leading, spacing: 6) {
                                                 HStack {
                                                     PaintedCurioStampView(curioID: spec.id, size: 38)
                                                         .saturation(0.0)
-                                                        .brightness(-0.22)
-                                                        .opacity(0.32)
+                                                        .opacity(0.30)
                                                     Spacer()
                                                     Image(systemName: spec.weatherTag.sfSymbol)
                                                         .font(.system(size: 12))
-                                                        .foregroundStyle(Color(hex: "#E6D5B8").opacity(0.75))
+                                                        .foregroundStyle(Color(hex: "#9A8A76"))
                                                 }
                                                 Text("尚未拾獲的小物")
-                                                    .font(AppTheme.serifTitle(13))
-                                                    .foregroundStyle(Color(hex: "#FAF0DC").opacity(0.88))
+                                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                                    .foregroundStyle(Color(hex: "#6B5E50"))
                                                 Text("\(spec.weatherTag.displayName)的「\(spec.placeCategory)」附近也許能撿到…")
                                                     .font(AppTheme.handwritten(11.5))
-                                                    .foregroundStyle(Color(hex: "#EAD8B8").opacity(0.78))
+                                                    .foregroundStyle(Color(hex: "#8A7B68"))
                                                     .lineLimit(2)
                                             }
                                             .padding(12)
                                             .frame(maxWidth: .infinity, minHeight: 128, alignment: .leading)
-                                            .background(Color(hex: "#6D4B2E").opacity(0.56), in: RoundedRectangle(cornerRadius: 14))
+                                            .background(Color(hex: "#EFE7D8").opacity(0.75), in: RoundedRectangle(cornerRadius: 16))
                                             .overlay(
-                                                RoundedRectangle(cornerRadius: 14)
-                                                    .stroke(Color(hex: "#52351E").opacity(0.68), style: StrokeStyle(lineWidth: 1.3, dash: [4, 3]))
+                                                RoundedRectangle(cornerRadius: 16)
+                                                    .stroke(Color(hex: "#D5C5AE").opacity(0.55), lineWidth: 0.9)
                                             )
                                         }
                                     }
                                 }
                             } else if coordinator.ledger.foragedCurios.isEmpty {
                                 VStack(spacing: 10) {
-                                    Text("紅檜木格還空著，帶著散步夥伴累積 1,400 步就能帶回第一件拾遺小物。")
+                                    Text("拾遺展示櫃還空著，帶著散步夥伴累積 1,400 步就能帶回第一件拾遺小物。")
                                         .font(AppTheme.handwritten(14))
-                                        .foregroundStyle(Color(hex: "#FAF0DC"))
+                                        .foregroundStyle(Color(hex: "#6B5E50"))
                                         .multilineTextAlignment(.center)
                                 }
                                 .frame(maxWidth: .infinity)
-                                .padding(14)
-                                .background(Color(hex: "#7D5736").opacity(0.62), in: RoundedRectangle(cornerRadius: 16))
+                                .padding(16)
+                                .background(Color(hex: "#EFE7D8").opacity(0.72), in: RoundedRectangle(cornerRadius: 16))
                             } else {
                                 LazyVGrid(columns: columns, spacing: 12) {
                                     ForEach(coordinator.ledger.foragedCurios) { entry in
@@ -174,28 +173,27 @@ struct CurioCubbiesView: View {
                                         .padding(12)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .background(
-                                            ZStack {
-                                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                                    .fill(AppTheme.warmPaper)
-                                                    .colorEffect(ShaderLibrary.storybookPaperSurface())
-                                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                                    .stroke(Color(hex: "#6B4728"), lineWidth: 2.5)
-                                            }
+                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                                .fill(Color(hex: "#FFFDF8"))
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                                        .stroke(Color(hex: "#D5C5AE").opacity(0.70), lineWidth: 0.9)
+                                                )
                                         )
-                                        .shadow(color: Color(hex: "#4A2E17").opacity(0.32), radius: 5, y: 3)
+                                        .shadow(color: Color(hex: "#2D241E").opacity(0.07), radius: 6, y: 2)
                                     }
                                 }
                             }
                         }
-                        .padding(14)
+                        .padding(16)
                         .background(
                             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .fill(Color(hex: "#8A613C").opacity(0.88))
+                                .fill(Color(hex: "#FAF5EB").opacity(0.92))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                        .stroke(Color(hex: "#634124"), lineWidth: 2.5)
+                                        .stroke(Color(hex: "#D5C5AE").opacity(0.65), lineWidth: 0.9)
                                 )
-                                .shadow(color: AppTheme.timberDeep.opacity(0.35), radius: 8, y: 4)
+                                .shadow(color: Color(hex: "#2D241E").opacity(0.08), radius: 10, y: 4)
                         )
 
                         // 刺繡步數幣袋卡片（立體手繪錢袋 ＋ 街角紀念小舖）
