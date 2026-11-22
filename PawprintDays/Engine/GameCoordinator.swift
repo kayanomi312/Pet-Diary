@@ -351,13 +351,31 @@ final class GameCoordinator {
         for pet in existingPets where !validIDs.contains(pet.petID) {
             modelContext.delete(pet)
         }
+        var insertedFreshStarter = false
         for spec in PetCatalog.allPets {
             if let existing = existingPets.first(where: { $0.petID == spec.id }) {
                 if existing.nickname != spec.name && existing.nickname.allSatisfy(\.isASCII) {
                     existing.nickname = spec.name
                 }
             } else {
-                modelContext.insert(PetResidentState(petID: spec.id, nickname: spec.name))
+                // Start every new journey with exactly ONE mystical starter companion (pet.03 餘燼)!
+                let isStarter = (spec.id == "pet.03")
+                if isStarter { insertedFreshStarter = true }
+                modelContext.insert(
+                    PetResidentState(
+                        petID: spec.id,
+                        nickname: spec.name,
+                        inviteState: isStarter ? .invitedHome : .unmet
+                    )
+                )
+            }
+        }
+        // If upgrading an existing profile with 0 invited companions yet, invite starter 餘燼 cleanly.
+        if !insertedFreshStarter {
+            let refreshedPets = (try? modelContext.fetch(FetchDescriptor<PetResidentState>())) ?? []
+            if !refreshedPets.contains(where: { $0.inviteState == .invitedHome }),
+               let starter = refreshedPets.first(where: { $0.petID == "pet.03" }) {
+                starter.inviteState = .invitedHome
             }
         }
 

@@ -613,6 +613,8 @@ final class Stage2To4VerificationTests: XCTestCase {
         XCTAssertEqual(coordinator.ledger.coinBalance, 0)
         XCTAssertTrue(coordinator.encounters.isEmpty)
         XCTAssertTrue(coordinator.ledger.foragedCurios.isEmpty)
-        XCTAssertEqual(coordinator.residents.filter { $0.inviteState == .invitedHome }.count, 0)
+        let starterResidents = coordinator.residents.filter { $0.inviteState == .invitedHome }
+        XCTAssertEqual(starterResidents.count, 1, "New game must start with exactly 1 mystical starter companion")
+        XCTAssertEqual(starterResidents.first?.petID, "pet.03")
     }
 }

@@ -17,10 +17,11 @@ struct StartStrollSatchelSheet: View {
 
     private var availableCompanions: [PetSpec] {
         let invitedIDs = Set(coordinator.residents.filter { $0.inviteState == .invitedHome }.map(\.petID))
-        if invitedIDs.isEmpty {
-            return Array(PetCatalog.allPets.prefix(4))
+        let invitedSpecs = PetCatalog.allPets.filter { invitedIDs.contains($0.id) }
+        if invitedSpecs.isEmpty {
+            return [PetCatalog.pet(id: "pet.03")]
         }
-        return PetCatalog.allPets.filter { invitedIDs.contains($0.id) }
+        return invitedSpecs
     }
 
     var body: some View {
@@ -71,7 +72,7 @@ struct StartStrollSatchelSheet: View {
                                             )
                                             .frame(width: 72, height: 72)
 
-                                            Text(spec.name)
+                                            Text(coordinator.displayName(for: spec.id))
                                                 .font(AppTheme.serifTitle(14))
                                                 .foregroundStyle(AppTheme.deepPineInk)
 
@@ -89,6 +90,33 @@ struct StartStrollSatchelSheet: View {
                                         )
                                     }
                                     .buttonStyle(TactileGameButtonStyle())
+                                }
+
+                                let remainingCount = max(0, PetCatalog.allPets.count - availableCompanions.count)
+                                if remainingCount > 0 {
+                                    VStack(spacing: 6) {
+                                        Image(systemName: "sparkles")
+                                            .font(.system(size: 20, weight: .semibold))
+                                            .foregroundStyle(Color(hex: "#A89882"))
+                                            .frame(width: 56, height: 56)
+                                            .background(Circle().fill(Color(hex: "#EFE7D8").opacity(0.8)))
+                                        Text("尚有 \(remainingCount) 位靈獸")
+                                            .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                            .foregroundStyle(Color(hex: "#6B5E50"))
+                                        Text("散步街角遇見解鎖")
+                                            .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                                            .foregroundStyle(Color(hex: "#8A7B68"))
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                            .fill(Color(hex: "#F4EDE0").opacity(0.75))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                                    .stroke(Color(hex: "#CBBAA0").opacity(0.6), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                                            )
+                                    )
                                 }
                             }
                         }
