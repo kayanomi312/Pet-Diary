@@ -17,6 +17,7 @@ final class DiaryDayRecord {
     var linkedTraditionDateISO: String?
     var completedNeighborhoodLoop: Bool = false
     var revisitNotes: [String] = []
+    @Attribute(.externalStorage) var photoJPEGData: Data? = nil
 
     init(
         localDateISO: String,
@@ -381,6 +382,7 @@ final class WalletAndCurioLedger {
     var processedTxIDs: [String]
     var foragedCuriosData: Data?
     var stepIntervalsData: Data?
+    var gingerTeaActiveUntil: Date? = nil
 
     init(
         txUUID: String = "primary",
@@ -436,5 +438,26 @@ final class WalletAndCurioLedger {
         set {
             stepIntervalsData = try? JSONEncoder().encode(newValue)
         }
+    }
+
+    func isGingerTeaActive(at date: Date = Date()) -> Bool {
+        guard let until = gingerTeaActiveUntil else { return false }
+        return until > date
+    }
+}
+
+// MARK: - Explicit Versioned Schema (preserves top-level SwiftData model identities across upgrades)
+enum PawprintSchemaV2: VersionedSchema {
+    static let versionIdentifier = Schema.Version(2, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [
+            DiaryDayRecord.self,
+            AnchorSiteRecord.self,
+            EncounterLog.self,
+            PetResidentState.self,
+            HomeSpotPlacement.self,
+            TeachingIntention.self,
+            WalletAndCurioLedger.self
+        ]
     }
 }

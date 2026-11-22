@@ -69,6 +69,7 @@ struct ProceduralPetRigView: View {
     var applyMetalPaperShader: Bool = true
     var isStaticSnapshot: Bool = false
     var tapBounceScale: CGFloat = 0.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var playfulAction: PetPlayfulAction = .idle
     var actionTriggerDate: Date = .distantPast
 
@@ -78,7 +79,7 @@ struct ProceduralPetRigView: View {
 
     var body: some View {
         Group {
-            if isStaticSnapshot {
+            if isStaticSnapshot || reduceMotion {
                 celAnimationStack(time: 0.0)
             } else {
                 TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in

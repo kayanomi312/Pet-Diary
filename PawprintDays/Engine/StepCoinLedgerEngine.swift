@@ -203,10 +203,7 @@ enum StepCoinLedgerEngine {
 
             if findsEarned > 0 {
                 var existing = ledger.foragedCurios
-                var dailyCap = ledger.ownedOutfitIDs.contains("outfit.forager_satchel") ? 4 : 3
-                if ledger.activeOutingPack == .trailShelterTowel {
-                    dailyCap += 1
-                }
+                let dailyCap = dailyPocketFindCap(for: ledger)
                 let todaysCount = existing.filter { $0.localDateISO == localDateISO }.count
                 let allowedCount = max(0, min(findsEarned, dailyCap - todaysCount))
 
@@ -237,6 +234,14 @@ enum StepCoinLedgerEngine {
             updatedRemainder: ledger.stepCarryRemainder,
             isNearPocketFind: isNearPocketFind(progress: ledger.pocketFindStepProgress)
         )
+    }
+
+    static func dailyPocketFindCap(for ledger: WalletAndCurioLedger) -> Int {
+        var cap = ledger.ownedOutfitIDs.contains("outfit.forager_satchel") ? 4 : 3
+        if ledger.activeOutingPack == .trailShelterTowel {
+            cap += 1
+        }
+        return cap
     }
 
     static func isNearPocketFind(progress: Int) -> Bool {

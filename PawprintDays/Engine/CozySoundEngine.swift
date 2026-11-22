@@ -39,6 +39,7 @@ final class CozySoundEngine {
     private var foleyPlayer: AVAudioPlayerNode?
     private var rainPlayer: AVAudioPlayerNode?
     private var musicPlayer: AVAudioPlayerNode?
+    private var roomReverb: AVAudioUnitReverb?
     private var format: AVAudioFormat?
     private var isEngineRunning: Bool = false
     private var isRainPlaying: Bool = false
@@ -68,15 +69,21 @@ final class CozySoundEngine {
             let foley = AVAudioPlayerNode()
             let rain = AVAudioPlayerNode()
             let music = AVAudioPlayerNode()
+            let reverb = AVAudioUnitReverb()
+            reverb.loadFactoryPreset(.smallRoom)
+            reverb.wetDryMix = 14.0
+
             eng.attach(foley)
             eng.attach(rain)
             eng.attach(music)
+            eng.attach(reverb)
 
             let sampleRate: Double = 44_100
             guard let fmt = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1) else { return }
-            eng.connect(foley, to: eng.mainMixerNode, format: fmt)
+            eng.connect(foley, to: reverb, format: fmt)
+            eng.connect(music, to: reverb, format: fmt)
+            eng.connect(reverb, to: eng.mainMixerNode, format: fmt)
             eng.connect(rain, to: eng.mainMixerNode, format: fmt)
-            eng.connect(music, to: eng.mainMixerNode, format: fmt)
             eng.mainMixerNode.outputVolume = 0.65
 
             try eng.start()
@@ -84,6 +91,7 @@ final class CozySoundEngine {
             self.foleyPlayer = foley
             self.rainPlayer = rain
             self.musicPlayer = music
+            self.roomReverb = reverb
             self.format = fmt
             self.isEngineRunning = true
         } catch {

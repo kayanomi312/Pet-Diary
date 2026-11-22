@@ -33,6 +33,7 @@ final class GameCoordinator {
     var showAccessibleNearbyList: Bool = false
     var showFixtureDrawer: Bool = false
     var isSunroomPhotoMode: Bool = false
+    var pendingOpenStartStrollSheet: Bool = false
     var transientWhisper: String? = nil
     var latestFixtureReport: Stage1VerificationSummary? = nil
     var isDiscoveringAnchors: Bool = false
@@ -194,6 +195,56 @@ final class GameCoordinator {
 
     var stepsUntilNextPocketFind: Int {
         StepCoinLedgerEngine.stepsRemainingForPocketFind(progress: ledger.pocketFindStepProgress)
+    }
+
+    var dailyPocketFindCap: Int {
+        StepCoinLedgerEngine.dailyPocketFindCap(for: ledger)
+    }
+
+    var todaysPocketFindCount: Int {
+        let iso = currentLocalDateISO
+        return ledger.foragedCurios.filter { $0.localDateISO == iso }.count
+    }
+
+    var isGingerTeaActive: Bool {
+        ledger.isGingerTeaActive(at: currentSimulatedDate)
+    }
+
+    func displayName(for petID: String) -> String {
+        if let custom = resident(for: petID)?.nickname.trimmingCharacters(in: .whitespacesAndNewlines),
+           !custom.isEmpty {
+            return custom
+        }
+        return PetCatalog.pet(id: petID).name
+    }
+
+    func updatePetNickname(petID: String, nickname: String) {
+        guard let pet = resident(for: petID) else { return }
+        let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        pet.nickname = trimmed.isEmpty ? PetCatalog.pet(id: petID).name : String(trimmed.prefix(12))
+        try? modelContext.save()
+        reloadAll()
+        showWhisper("已替夥伴記下新暱稱「\(pet.nickname)」。")
+    }
+
+    func handleDeepLink(_ url: URL) {
+        guard url.scheme == "pawprintdays" else { return }
+        let host = url.host?.lowercased() ?? ""
+        switch host {
+        case "start-stroll":
+            currentScreen = .street
+            if activeStroll == nil {
+                pendingOpenStartStrollSheet = true
+            }
+        case "sunroom":
+            currentScreen = .home
+        case "diary":
+            currentScreen = .sketchbook
+        case "shop":
+            currentScreen = .curioCubbies
+        default:
+            currentScreen = .street
+        }
     }
 
     var visibleAnchors: [AnchorSiteRecord] {
@@ -369,6 +420,21 @@ final class GameCoordinator {
             .sorted { $0.createdAtUTC > $1.createdAtUTC }
         teachingIntentions = (try? modelContext.fetch(FetchDescriptor<TeachingIntention>())) ?? []
         locationService.syncRollingGeofences(for: anchors)
+
+        let todayISO = currentLocalDateISO
+        let todayDay = diaryDays.first(where: { $0.localDateISO == todayISO })
+        let todayCompanionID = todayDay?.companionPetID
+        let todayCompanionName = todayCompanionID.map { displayName(for: $0) } ?? "小動物夥伴"
+        let todayEncountersCount = encounters.filter { $0.localDateISO == todayISO }.count
+        StrollLiveActivityManager.shared.syncWidgetSnapshot(
+            companionName: todayCompanionName,
+            companionPetID: todayCompanionID,
+            weather: activeWeather,
+            stepsToday: todayDay?.acceptedSteps ?? 0,
+            stepsUntilPocketFind: stepsUntilNextPocketFind,
+            coinBalance: ledger.coinBalance,
+            encountersToday: todayEncountersCount
+        )
     }
 
     func todayDiaryRecord() -> DiaryDayRecord {
@@ -601,20 +667,14 @@ final class GameCoordinator {
             ? otherInvited[(anchor.totalVisitsCount + hour) % otherInvited.count].petID
             : nil
 
-        let line: String
-        if let friendID {
-            let friendSpec = PetCatalog.pet(id: friendID)
-            line = "\(bandLabel)經過「\(anchor.customLabel)」時，看見\(spec.name)正和\(friendSpec.name)並肩躲在屋簷下看路人。"
-        } else {
-            switch bandKey {
-            case "morning":
-                line = "\(spec.name)正在「\(anchor.customLabel)」的暖陽石階上伸了個懶腰，眼神安穩地目送你去上班。"
-            case "afternoon":
-                line = "\(spec.name)把下巴墊在前掌上，在「\(anchor.customLabel)」的木凳旁半瞇著眼打盹。"
-            default:
-                line = "街燈剛亮起，\(spec.name)仍在「\(anchor.customLabel)」的燈籠暖光下安靜等著晚歸的腳步。"
-            }
-        }
+        let friendSpec = friendID.map(PetCatalog.pet(id:))
+        let line = NarrativeEngine.revisitVignette(
+            pet: spec,
+            secondary: friendSpec,
+            anchorLabel: anchor.customLabel,
+            timeBandKey: bandKey,
+            weather: activeWeather
+        )
 
         if anchor.lastRevisitTimeBand != "\(currentLocalDateISO)|\(bandKey)" {
             anchor.lastRevisitTimeBand = "\(currentLocalDateISO)|\(bandKey)"
@@ -917,6 +977,16 @@ final class GameCoordinator {
         persistActiveStroll()
         beginLiveStrollStepStream(from: currentSimulatedDate)
 
+        let nearest = visibleAnchors.min(by: { distanceMeters(to: $0) < distanceMeters(to: $1) })
+        let liveCompanionName = day.companionPetID.map { displayName(for: $0) } ?? "小動物夥伴"
+        StrollLiveActivityManager.shared.startStrollLiveActivity(
+            companionName: liveCompanionName,
+            charmTitle: charm == .none ? "輕鬆漫步" : charm.title,
+            weather: activeWeather,
+            nearestCornerLabel: nearest?.customLabel ?? "鄰里街角",
+            nearestDistanceMeters: nearest.map { Int(distanceMeters(to: $0)) } ?? 50
+        )
+
         CozySoundEngine.shared.playCompassChime()
         HapticsEngine.shared.playPawRangeCue()
         let companionName = day.companionPetID.map { PetCatalog.pet(id: $0).name } ?? "小動物夥伴"
@@ -934,6 +1004,7 @@ final class GameCoordinator {
     func endStrollSession(autoArchived: Bool = false) -> CompletedStrollSummary? {
         guard let stroll = activeStroll else { return nil }
         pedometerService.stopLiveStrollUpdates()
+        StrollLiveActivityManager.shared.endStrollLiveActivity()
         activeStroll = nil
         persistActiveStroll()
 
@@ -1064,6 +1135,15 @@ final class GameCoordinator {
             stroll.sessionCuriosFound.append(contentsOf: newlyForagedIDs)
             activeStroll = stroll
             persistActiveStroll()
+
+            let nearest = visibleAnchors.min(by: { distanceMeters(to: $0) < distanceMeters(to: $1) })
+            StrollLiveActivityManager.shared.updateStrollLiveActivity(
+                steps: stroll.sessionSteps,
+                coinsEarned: stroll.sessionCoinsEarned,
+                nearestCornerLabel: nearest?.customLabel ?? "鄰里街角",
+                nearestDistanceMeters: nearest.map { Int(distanceMeters(to: $0)) } ?? 50,
+                isNearPocketFind: isNearPocketFind
+            )
         }
 
         if let firstCurio = result.newCuriosForaged.first {
@@ -1103,10 +1183,17 @@ final class GameCoordinator {
                 solveHomeRoomNow()
             } else if item.id == "treat.picnic_portion" {
                 createPicnicPortionSnapshot()
+            } else if item.id == "treat.ginger_tea" {
+                ledger.gingerTeaActiveUntil = currentSimulatedDate.addingTimeInterval(24 * 3600)
+                CozySoundEngine.shared.playTeapotClink()
             }
             try? modelContext.save()
             reloadAll()
-            showWhisper("已收進「\(item.name)」。")
+            if item.id == "treat.ginger_tea" {
+                showWhisper("陽光室已擺上熱呼呼的「雨天暖薑茶盤」（暖意持續 24 小時）！")
+            } else {
+                showWhisper("已收進「\(item.name)」。")
+            }
         } else {
             showWhisper("需要 \(item.priceCoins) 步數幣（袋中目前有 \(ledger.coinBalance) 幣）。")
         }
@@ -1194,6 +1281,101 @@ final class GameCoordinator {
         try? modelContext.save()
         reloadAll()
         showWhisper(note)
+    }
+
+    /// 街頭相遇偶發小禮物（第 6 天以上熟悉夥伴偶爾遞上壓花、紙星或 +1 步數幣）
+    @discardableResult
+    func awardStreetEncounterBonusGiftIfEligible(petID: String) -> String? {
+        guard let pet = resident(for: petID), pet.sharedDaysCount >= 6 else { return nil }
+        let name = displayName(for: petID)
+        ledger.coinBalance += 1
+        try? modelContext.save()
+        reloadAll()
+        let gifts: [String: String] = [
+            "pet.01": "\(name)輕輕把一枚曬暖的小銅釦推到你鞋尖旁（+1 步數幣）。",
+            "pet.02": "\(name)矜持地留下了一張摺痕筆直的黑金小紙符（+1 步數幣）。",
+            "pet.03": "\(name)害羞地送你一顆被烘得暖呼呼的小赤陶碎石（+1 步數幣）。",
+            "pet.04": "\(name)從星塵翅膀間滑落一顆旋轉的暮色翅果種子（+1 步數幣）。",
+            "pet.05": "\(name)開心地把在麵包店門口撿到的幸運小硬幣叼給你（+1 步數幣）。",
+            "pet.06": "\(name)用鼻尖把一顆亮晶晶的紫玻璃珠推到你手心（+1 步數幣）。",
+            "pet.07": "\(name)輕輕留下了一縷帶著香氣的蒲公英白絨（+1 步數幣）。",
+            "pet.08": "\(name)垂下鹿角送你一片帶著晨露的嫩綠蕨芽（+1 步數幣）。"
+        ]
+        return gifts[petID] ?? "\(name)悄悄推給你一份小小心意（+1 步數幣）。"
+    }
+
+    func sipGingerTea() {
+        CozySoundEngine.shared.playTeapotClink()
+        HapticsEngine.shared.playBrushStrokeTick()
+        showWhisper("啜了一口熱騰騰的暖薑茶，窗外微涼的天氣也跟著柔和起來。")
+    }
+
+    func saveWalkPhoto(for localDateISO: String, jpegData: Data?) {
+        guard let day = diaryDays.first(where: { $0.localDateISO == localDateISO }) else { return }
+        day.photoJPEGData = jpegData
+        try? modelContext.save()
+        reloadAll()
+        showWhisper(jpegData != nil ? "已把散步拍立得貼進今日速寫頁！" : "已取下該日照片。")
+    }
+
+    struct DiscoveredFriendship: Identifiable, Hashable, Sendable {
+        var id: String { "\(petA)+\(petB)" }
+        let petA: String
+        let petB: String
+        let bondKind: String
+        let memoryNote: String
+    }
+
+    var discoveredFriendships: [DiscoveredFriendship] {
+        var seen: [String: DiscoveredFriendship] = [:]
+        // 1. Mentorship bonds
+        for t in teachingIntentions where t.state == .mastered || t.state == .demonstrated {
+            let sorted = [t.mentorPetID, t.learnerPetID].sorted()
+            let key = "\(sorted[0])+\(sorted[1])"
+            let habit = HabitFamily(rawValue: t.habitFamilyID)?.title ?? "溫柔習慣"
+            let mentorName = displayName(for: t.mentorPetID)
+            let learnerName = displayName(for: t.learnerPetID)
+            seen[key] = DiscoveredFriendship(
+                petA: sorted[0],
+                petB: sorted[1],
+                bondKind: t.state == .mastered ? "跨物種師徒" : "共同練習中",
+                memoryNote: "\(mentorName)把「\(habit)」溫柔地分享給了\(learnerName)。"
+            )
+        }
+        // 2. Dual-pet encounters (Stroll Chains & Picnics)
+        for enc in encounters {
+            guard let sec = enc.secondaryPetID, sec != enc.petID else { continue }
+            let sorted = [enc.petID, sec].sorted()
+            let key = "\(sorted[0])+\(sorted[1])"
+            if seen[key] == nil {
+                let story = NarrativeEngine.pairDialogue(
+                    primary: PetCatalog.pet(id: sorted[0]),
+                    secondary: PetCatalog.pet(id: sorted[1]),
+                    anchorLabel: enc.siteDisplayLabel,
+                    weather: enc.weatherSnapshot
+                ).diary
+                seen[key] = DiscoveredFriendship(
+                    petA: sorted[0],
+                    petB: sorted[1],
+                    bondKind: "街角同遊夥伴",
+                    memoryNote: story
+                )
+            }
+        }
+        // 3. Shared Sunroom goodie pairings (2+ pets currently sharing a spot)
+        for spot in homeSpots where spot.currentOccupantPetIDs.count >= 2 {
+            let sorted = Array(spot.currentOccupantPetIDs.prefix(2)).sorted()
+            let key = "\(sorted[0])+\(sorted[1])"
+            if seen[key] == nil {
+                seen[key] = DiscoveredFriendship(
+                    petA: sorted[0],
+                    petB: sorted[1],
+                    bondKind: "陽光室同床室友",
+                    memoryNote: "曾一起在「\(spot.spotName)」依偎打盹。"
+                )
+            }
+        }
+        return Array(seen.values).sorted { $0.id < $1.id }
     }
 
     func placeGoodie(spotIndex: Int, goodieID: String) {

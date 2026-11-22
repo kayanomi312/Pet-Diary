@@ -18,6 +18,17 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.pawprintdays.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>pawprintdays</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
@@ -31,6 +42,8 @@
 	<string>足印日記需要你的精準位置，才能在真實巷口遇見奇幻毛孩、計算 75 公尺街角距離並繪製散步水彩軌跡（資料 100% 私密留存本機）。</string>
 	<key>NSMotionUsageDescription</key>
 	<string>足印日記透過計步器將你的日常步行自動換算為步數幣與口袋拾遺進度（不上傳任何健康資料）。</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>

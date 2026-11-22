@@ -1,5 +1,7 @@
 import SwiftUI
 import UIKit
+import PhotosUI
+import UniformTypeIdentifiers
 
 /// 精裝手繪日記本（繁體中文：單日書頁、月曆跨頁、年度約定「改天再來一次」、單日地點抹除）
 struct HardcoverSketchbookView: View {
@@ -17,6 +19,8 @@ struct HardcoverSketchbookView: View {
     @State private var confirmEraseDateISO: String? = nil
     @State private var renameTargetSiteID: String? = nil
     @State private var renameText: String = ""
+    @State private var backupExportURL: URL? = nil
+    @State private var showBackupImporter: Bool = false
 
     private var filteredDays: [DiaryDayRecord] {
         coordinator.diaryDays.filter { day in
@@ -78,6 +82,39 @@ struct HardcoverSketchbookView: View {
                     }
 
                     Spacer()
+
+                    Menu {
+                        if let url = backupExportURL {
+                            ShareLink(item: url) {
+                                Label("分享本機備份檔 (.json)", systemImage: "square.and.arrow.up")
+                            }
+                        } else {
+                            Button {
+                                backupExportURL = DiaryExportService.exportJSONBackup(coordinator: coordinator)
+                                coordinator.showWhisper("已產生本機日記備份，再點一次右上角即可分享存檔。")
+                            } label: {
+                                Label("產生本機日記備份 (.json)", systemImage: "doc.badge.arrow.up")
+                            }
+                        }
+                        Button {
+                            showBackupImporter = true
+                        } label: {
+                            Label("從備份檔還原手記 (.json)", systemImage: "tray.and.arrow.down")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(Color(hex: "#2F2A26"))
+                            .frame(width: 36, height: 36)
+                            .background {
+                                Circle()
+                                    .fill(.ultraThinMaterial)
+                                    .overlay(Circle().fill(Color(hex: "#FFFDF8").opacity(0.90)))
+                                    .overlay(Circle().stroke(Color(hex: "#CBBAA0").opacity(0.55), lineWidth: 0.85))
+                                    .shadow(color: Color(hex: "#2D241E").opacity(0.10), radius: 6, y: 2)
+                            }
+                    }
+                    .accessibilityLabel("日記備份與還原")
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 10)
@@ -101,6 +138,8 @@ struct HardcoverSketchbookView: View {
                     MonthSpreadGridView(
                         days: coordinator.diaryDays,
                         encounters: coordinator.encounters,
+                        curios: coordinator.ledger.foragedCurios,
+                        referenceDate: coordinator.currentSimulatedDate,
                         onSelectDate: { iso in
                             searchText = iso
                             activeTab = .pages
@@ -149,6 +188,19 @@ struct HardcoverSketchbookView: View {
                 onCancel: { renameTargetSiteID = nil }
             )
             .presentationDetents([.height(250)])
+        }
+        .fileImporter(
+            isPresented: $showBackupImporter,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            if case .success(let urls) = result, let first = urls.first {
+                let count = DiaryExportService.restoreJSONBackup(from: first, coordinator: coordinator)
+                coordinator.showWhisper(count > 0 ? "已從備份安全還原 \(count) 筆手記與約定！" : "備份內容已是最新，未覆蓋任何紀錄。")
+            }
+        }
+        .onAppear {
+            backupExportURL = DiaryExportService.exportJSONBackup(coordinator: coordinator)
         }
     }
 
@@ -210,6 +262,9 @@ struct HardcoverSketchbookView: View {
                             },
                             onRemoveEncounter: { uuid in
                                 coordinator.removeEncounter(uuid: uuid)
+                            },
+                            onSavePhoto: { jpegData in
+                                coordinator.saveWalkPhoto(for: day.localDateISO, jpegData: jpegData)
                             }
                         )
                     }
@@ -224,61 +279,228 @@ struct HardcoverSketchbookView: View {
 private struct MonthSpreadGridView: View {
     let days: [DiaryDayRecord]
     let encounters: [EncounterLog]
+    let curios: [ForagedCurioEntry]
+    let referenceDate: Date
     let onSelectDate: (String) -> Void
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 5)
+    @State private var displayedYear: Int
+    @State private var displayedMonth: Int
+    @State private var monthlyPDFURL: URL? = nil
+
+    private let weekdayHeaders = ["日", "一", "二", "三", "四", "五", "六"]
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
+
+    init(
+        days: [DiaryDayRecord],
+        encounters: [EncounterLog],
+        curios: [ForagedCurioEntry],
+        referenceDate: Date,
+        onSelectDate: @escaping (String) -> Void
+    ) {
+        self.days = days
+        self.encounters = encounters
+        self.curios = curios
+        self.referenceDate = referenceDate
+        self.onSelectDate = onSelectDate
+        let comps = Calendar.current.dateComponents([.year, .month], from: referenceDate)
+        self._displayedYear = State(initialValue: comps.year ?? 2026)
+        self._displayedMonth = State(initialValue: comps.month ?? 11)
+    }
+
+    private var monthPrefix: String {
+        String(format: "%04d-%02d-", displayedYear, displayedMonth)
+    }
+
+    private var monthDayMap: [Int: DiaryDayRecord] {
+        var map: [Int: DiaryDayRecord] = [:]
+        for d in days where d.localDateISO.hasPrefix(monthPrefix) {
+            let dayNum = CivilCalendarHelper.dayNumber(from: d.localDateISO)
+            map[dayNum] = d
+        }
+        return map
+    }
+
+    private var calendarCells: [Int?] {
+        let cal = Calendar.current
+        var comps = DateComponents()
+        comps.year = displayedYear
+        comps.month = displayedMonth
+        comps.day = 1
+        guard let firstOfMonth = cal.date(from: comps),
+              let range = cal.range(of: .day, in: .month, for: firstOfMonth) else {
+            return []
+        }
+        let leadingBlanks = cal.component(.weekday, from: firstOfMonth) - 1 // 1 = Sun -> 0 blanks
+        var cells: [Int?] = Array(repeating: nil, count: max(0, leadingBlanks))
+        for d in range { cells.append(d) }
+        return cells
+    }
+
+    private var monthStepsTotal: Int {
+        days.filter { $0.localDateISO.hasPrefix(monthPrefix) }.reduce(0) { $0 + $1.acceptedSteps }
+    }
+
+    private var monthCuriosCount: Int {
+        curios.filter { $0.localDateISO.hasPrefix(monthPrefix) }.count
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                if let firstISO = days.first?.localDateISO {
-                    Text(CivilCalendarHelper.monthTitle(from: firstISO))
+                // Month navigation header (< 2026年11月 >)
+                HStack {
+                    Button { shiftMonth(by: -1) } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                            .frame(width: 34, height: 34)
+                            .background(AppTheme.warmPaper, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("上一個月")
+
+                    Spacer()
+
+                    Text("\(displayedYear)年\(displayedMonth)月")
                         .font(AppTheme.serifTitle(20))
                         .foregroundStyle(AppTheme.deepPineInk)
+
+                    Spacer()
+
+                    Button { shiftMonth(by: 1) } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                            .frame(width: 34, height: 34)
+                            .background(AppTheme.warmPaper, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("下一個月")
                 }
 
-                LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(days.reversed(), id: \.localDateISO) { day in
-                        let dayEncs = encounters.filter { $0.localDateISO == day.localDateISO }
-                        Button {
-                            onSelectDate(day.localDateISO)
-                        } label: {
-                            VStack(spacing: 5) {
-                                HStack {
-                                    Text("\(CivilCalendarHelper.dayNumber(from: day.localDateISO))")
-                                        .font(AppTheme.serifTitle(14))
-                                        .foregroundStyle(AppTheme.deepPineInk)
-                                    Spacer()
-                                    if day.isStarredTradition {
-                                        Image(systemName: "star.fill")
-                                            .font(.system(size: 10))
-                                            .foregroundStyle(AppTheme.pawStrollChain)
-                                    }
-                                }
-                                Image(systemName: day.weatherMode.sfSymbol)
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(AppTheme.forestTeal)
+                // Sun..Sat column headers
+                LazyVGrid(columns: columns, spacing: 6) {
+                    ForEach(weekdayHeaders, id: \.self) { label in
+                        Text(label)
+                            .font(AppTheme.diegeticLabel(11))
+                            .foregroundStyle(label == "日" || label == "六" ? AppTheme.clothBookmark : AppTheme.softInk)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
 
-                                HStack(spacing: 3) {
-                                    ForEach(dayEncs.prefix(3), id: \.encounterUUID) { enc in
-                                        Circle()
-                                            .fill(Color(hex: PetCatalog.pet(id: enc.petID).primaryCoatHex))
-                                            .frame(width: 8, height: 8)
+                // True 7-Column Calendar Grid
+                let map = monthDayMap
+                LazyVGrid(columns: columns, spacing: 6) {
+                    ForEach(Array(calendarCells.enumerated()), id: \.offset) { _, dayNum in
+                        if let dayNum {
+                            if let record = map[dayNum] {
+                                let dayEncs = encounters.filter { $0.localDateISO == record.localDateISO }
+                                Button {
+                                    onSelectDate(record.localDateISO)
+                                } label: {
+                                    VStack(spacing: 3) {
+                                        HStack(spacing: 2) {
+                                            Text("\(dayNum)")
+                                                .font(.system(size: 12, weight: .bold, design: .serif))
+                                                .foregroundStyle(AppTheme.deepPineInk)
+                                            if record.isStarredTradition {
+                                                Image(systemName: "star.fill")
+                                                    .font(.system(size: 8))
+                                                    .foregroundStyle(AppTheme.pawStrollChain)
+                                            }
+                                        }
+                                        Image(systemName: record.weatherMode.sfSymbol)
+                                            .font(.system(size: 10))
+                                            .foregroundStyle(AppTheme.forestTeal)
+
+                                        HStack(spacing: 2) {
+                                            ForEach(dayEncs.prefix(3), id: \.encounterUUID) { enc in
+                                                Circle()
+                                                    .fill(Color(hex: PetCatalog.pet(id: enc.petID).primaryCoatHex))
+                                                    .frame(width: 5.5, height: 5.5)
+                                            }
+                                        }
+                                        .frame(height: 6)
                                     }
+                                    .padding(.vertical, 6)
+                                    .frame(maxWidth: .infinity, minHeight: 58)
+                                    .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 10))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(record.isStarredTradition ? AppTheme.pawStrollChain : AppTheme.timberWarm.opacity(0.45), lineWidth: record.isStarredTradition ? 1.4 : 1.0)
+                                    )
                                 }
-                                .frame(height: 10)
+                                .buttonStyle(.plain)
+                            } else {
+                                // Gentle cream blank paper day cell
+                                VStack {
+                                    Text("\(dayNum)")
+                                        .font(.system(size: 11, weight: .regular, design: .serif))
+                                        .foregroundStyle(AppTheme.softInk.opacity(0.48))
+                                    Spacer()
+                                }
+                                .padding(.top, 6)
+                                .frame(maxWidth: .infinity, minHeight: 58)
+                                .background(AppTheme.warmPaper.opacity(0.42), in: RoundedRectangle(cornerRadius: 10))
                             }
-                            .padding(8)
-                            .frame(maxWidth: .infinity, minHeight: 74)
-                            .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 12))
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.timberWarm.opacity(0.35)))
+                        } else {
+                            Color.clear.frame(height: 58)
                         }
-                        .buttonStyle(.plain)
+                    }
+                }
+
+                // Warm Monthly Reflection Footer + Printable Watercolor PDF Storybook Export!
+                StorybookPaperCard(cornerRadius: 18, accentColor: AppTheme.timberWarm, showWashiTape: true, paddingAmount: 14) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("本月散步小結")
+                            .font(AppTheme.serifTitle(16))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                        Text("本月共散步 \(map.count) 天 · \(monthStepsTotal.formatted()) 步 · 收藏 \(monthCuriosCount) 件拾遺")
+                            .font(AppTheme.handwritten(14))
+                            .foregroundStyle(AppTheme.forestTeal)
+
+                        if let pdfURL = monthlyPDFURL {
+                            ShareLink(item: pdfURL) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "doc.richtext.fill")
+                                        .font(.system(size: 13, weight: .bold))
+                                    Text("匯出・分享本月水彩繪本 PDF")
+                                        .font(AppTheme.diegeticLabel(12.5))
+                                }
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(AppTheme.forestTeal, in: RoundedRectangle(cornerRadius: 12))
+                            }
+                        }
                     }
                 }
             }
             .padding(16)
+            .padding(.bottom, 100)
         }
+        .onAppear { regenerateMonthlyPDF() }
+        .onChange(of: displayedYear) { _, _ in regenerateMonthlyPDF() }
+        .onChange(of: displayedMonth) { _, _ in regenerateMonthlyPDF() }
+    }
+
+    private func shiftMonth(by delta: Int) {
+        var m = displayedMonth + delta
+        var y = displayedYear
+        while m < 1 { m += 12; y -= 1 }
+        while m > 12 { m -= 12; y += 1 }
+        displayedYear = y
+        displayedMonth = m
+    }
+
+    private func regenerateMonthlyPDF() {
+        monthlyPDFURL = DiaryExportService.exportMonthlyPDF(
+            year: displayedYear,
+            month: displayedMonth,
+            days: days,
+            encounters: encounters,
+            curios: curios
+        )
     }
 }
 
@@ -412,6 +634,9 @@ private struct SketchbookDayPageCard: View {
     let onRequestErasePlace: () -> Void
     let onRenameStop: (String, String) -> Void
     let onRemoveEncounter: (UUID) -> Void
+    let onSavePhoto: (Data?) -> Void
+
+    @State private var selectedPhotoItem: PhotosPickerItem? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -564,6 +789,59 @@ private struct SketchbookDayPageCard: View {
                 }
             }
 
+            // Optional Real-World Walk Polaroid Photo Mount (100% private on-device)
+            if let jpegData = day.photoJPEGData, let photo = UIImage(data: jpegData) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ZStack(alignment: .top) {
+                        VStack(spacing: 6) {
+                            Image(uiImage: photo)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(height: 158)
+                                .frame(maxWidth: .infinity)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                            HStack {
+                                Text("散步拍立得 · \(CivilCalendarHelper.displayDate(from: day.localDateISO))")
+                                    .font(AppTheme.handwritten(12))
+                                    .foregroundStyle(AppTheme.softInk)
+                                Spacer()
+                                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                                    Text("更換")
+                                        .font(AppTheme.diegeticLabel(11))
+                                        .foregroundStyle(AppTheme.forestTeal)
+                                }
+                                Button("取下") {
+                                    onSavePhoto(nil)
+                                }
+                                .font(AppTheme.diegeticLabel(11))
+                                .foregroundStyle(AppTheme.clothBookmark)
+                            }
+                        }
+                        .padding(8)
+                        .background(Color.white, in: RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(AppTheme.timberWarm.opacity(0.35), lineWidth: 1))
+                        .shadow(color: AppTheme.deepPineInk.opacity(0.14), radius: 5, y: 3)
+
+                        WashiTapeStrip(color: Color(hex: "#C5D7C6"), angle: 1.8, width: 64)
+                            .offset(y: -7)
+                    }
+                    .padding(.top, 6)
+                }
+            } else {
+                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("貼上一張今天的散步拍立得（僅留存本機）")
+                            .font(AppTheme.diegeticLabel(11.5))
+                    }
+                    .foregroundStyle(AppTheme.forestTeal)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 7)
+                    .background(AppTheme.parchmentTray.opacity(0.72), in: Capsule())
+                }
+            }
+
             VStack(alignment: .leading, spacing: 4) {
                 Text("鋼筆手記")
                     .font(AppTheme.diegeticLabel(11))
@@ -608,6 +886,24 @@ private struct SketchbookDayPageCard: View {
             }
         )
         .shadow(color: AppTheme.deepPineInk.opacity(0.12), radius: 7, y: 4)
+        .onChange(of: selectedPhotoItem) { _, newItem in
+            guard let newItem else { return }
+            Task {
+                if let rawData = try? await newItem.loadTransferable(type: Data.self),
+                   let uiImage = UIImage(data: rawData) {
+                    let maxDim: CGFloat = 1080
+                    let scale = min(1.0, maxDim / max(uiImage.size.width, uiImage.size.height))
+                    let targetSize = CGSize(width: uiImage.size.width * scale, height: uiImage.size.height * scale)
+                    let renderer = UIGraphicsImageRenderer(size: targetSize)
+                    let resized = renderer.image { _ in uiImage.draw(in: CGRect(origin: .zero, size: targetSize)) }
+                    let compressed = resized.jpegData(compressionQuality: 0.72)
+                    await MainActor.run {
+                        onSavePhoto(compressed)
+                        selectedPhotoItem = nil
+                    }
+                }
+            }
+        }
     }
 }
 
