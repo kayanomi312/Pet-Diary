@@ -11,7 +11,6 @@ struct HomeSunroomView: View {
     @State private var teaSteaming: Bool = false
     @State private var bouncingPetID: String? = nil
     @State private var isDecoratingMode: Bool = false
-    @State private var isPhotoMode: Bool = false
     @State private var roamingEngine = SunroomRoamingEngine()
 
     private var maxPan: CGFloat {
@@ -93,61 +92,27 @@ struct HomeSunroomView: View {
                     }
             )
 
-            if isPhotoMode {
+            if coordinator.isSunroomPhotoMode {
                 VStack {
                     Spacer()
-                    CutePlushButton(
-                        title: "結束純淨賞景模式",
-                        tone: .milkCream,
-                        fontSize: 12,
-                        horizontalPadding: 14,
-                        verticalPadding: 8,
-                        icon: { Image(systemName: "eye.fill").font(.system(size: 11, weight: .bold)) },
-                        action: {
-                            CozySoundEngine.shared.playPaperFlip()
-                            withAnimation(.easeInOut(duration: 0.25)) {
-                                isPhotoMode = false
-                            }
+                    CozyHeroActionButton(
+                        title: "結束純淨賞景",
+                        systemImage: "eye.fill",
+                        style: .sage
+                    ) {
+                        CozySoundEngine.shared.playPaperFlip()
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            coordinator.isSunroomPhotoMode = false
                         }
-                    )
-                    .padding(.bottom, 22)
+                    }
+                    .padding(.bottom, 28)
                 }
                 .transition(.opacity)
             } else {
-            VStack {
-                ClothBookmarkBar(
-                    onOpenSketchbook: { coordinator.currentScreen = .sketchbook },
-                    onOpenCubbies: { coordinator.currentScreen = .curioCubbies },
-                    onOpenFixture: { coordinator.showFixtureDrawer = true },
-                    dayTitle: "陽光室 · \(coordinator.homeSpots.count) 處角落",
-                    weather: coordinator.activeWeather,
-                    coinBalance: coordinator.ledger.coinBalance
-                )
-                .padding(.top, 8)
-
-                HStack(spacing: 8) {
-                    CutePlushButton(
-                        title: invitedPets.isEmpty ? "到街角遇見室友" : "室友 \(invitedPets.count)/8",
-                        tone: .strawberryCream,
-                        fontSize: 12,
-                        horizontalPadding: 12,
-                        verticalPadding: 6.5,
-                        icon: { Image(systemName: "heart.fill").font(.system(size: 11, weight: .bold)).foregroundStyle(.white) },
-                        action: {
-                            CozySoundEngine.shared.playPaperFlip()
-                            showPetRibbonDrawer = true
-                        }
-                    )
-
-                    // 一鍵切換陽光室光影（搭配手繪微笑天氣臉！）
-                    CutePlushButton(
-                        title: coordinator.activeWeather.displayName,
-                        tone: .milkCream,
-                        fontSize: 11.5,
-                        horizontalPadding: 10,
-                        verticalPadding: 6,
-                        icon: { CuteWeatherFaceIcon(weather: coordinator.activeWeather, size: 18) },
-                        action: {
+                VStack(spacing: 8) {
+                    // MARK: Single Ultra-Clean Top Bar (No squished 2nd row!)
+                    HStack(spacing: 8) {
+                        Button {
                             let cycle: [WeatherMode] = [.clearMorning, .lightRain, .dusk, .overcast]
                             let currentIdx = cycle.firstIndex(of: coordinator.activeWeather) ?? 0
                             let nextWeather = cycle[(currentIdx + 1) % cycle.count]
@@ -155,164 +120,195 @@ struct HomeSunroomView: View {
                                 coordinator.setManualWeatherPreview(nextWeather)
                             }
                             CozySoundEngine.shared.playPaperFlip()
+                        } label: {
+                            CozyGlassPill(horizontalPadding: 11, verticalPadding: 6) {
+                                HStack(spacing: 6) {
+                                    CuteWeatherFaceIcon(weather: coordinator.activeWeather, size: 20)
+                                    Text("陽光室")
+                                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                                        .foregroundStyle(Color(hex: "#2F2A26"))
+                                    Text("·")
+                                        .foregroundStyle(Color(hex: "#B5A590"))
+                                    Text(coordinator.activeWeather.displayName)
+                                        .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                                        .foregroundStyle(AppTheme.forestTeal)
+                                }
+                            }
                         }
-                    )
-
-                    Spacer(minLength: 4)
-
-                    // 一鍵丟出手工縫布球讓毛孩在 2.5D 地板上追逐玩耍！
-                    if !invitedPets.isEmpty && !isDecoratingMode {
-                        CutePlushButton(
-                            title: "丟布球",
-                            tone: .butterHoney,
-                            fontSize: 11.5,
-                            horizontalPadding: 9,
-                            verticalPadding: 6,
-                            icon: { Image(systemName: "circle.dashed.inset.filled").font(.system(size: 11, weight: .bold)) },
-                            action: {
-                                HapticsEngine.shared.playDogBallRoll()
-                                CozySoundEngine.shared.playPawTap()
-                                _ = roamingEngine.tossClothBall()
+                        .buttonStyle(TactileGameButtonStyle(pressScale: 0.95, pressOffsetY: 1))
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 1.2).onEnded { _ in
+                                HapticsEngine.shared.playBrushStrokeTick()
+                                coordinator.showFixtureDrawer = true
                             }
                         )
-                    }
 
-                    // 2.5D 自由拖曳佈置模式切換鈕
-                    CutePlushButton(
-                        title: isDecoratingMode ? "完成佈置" : "佈置",
-                        tone: isDecoratingMode ? .butterHoney : .milkCream,
-                        fontSize: 11.5,
-                        horizontalPadding: 9,
-                        verticalPadding: 6,
-                        icon: { Image(systemName: isDecoratingMode ? "checkmark.circle.fill" : "move.3d").font(.system(size: 11, weight: .bold)) },
-                        action: {
-                            HapticsEngine.shared.playBrushStrokeTick()
+                        Spacer(minLength: 4)
+
+                        // Audio / BGM cycle
+                        CozyIconCircleButton(
+                            systemImage: !CozySoundEngine.shared.isSoundEnabled
+                                ? "speaker.slash.fill"
+                                : (CozySoundEngine.shared.isMusicEnabled ? "music.note" : "speaker.wave.2.fill"),
+                            tint: CozySoundEngine.shared.isSoundEnabled ? AppTheme.forestTeal : AppTheme.softInk,
+                            size: 36,
+                            accessibilityLabelText: "切換背景音樂與音效"
+                        ) {
+                            if !CozySoundEngine.shared.isSoundEnabled {
+                                CozySoundEngine.shared.isSoundEnabled = true
+                                CozySoundEngine.shared.isMusicEnabled = true
+                                CozySoundEngine.shared.setCozyMusic(active: true, weather: coordinator.activeWeather)
+                                CozySoundEngine.shared.setRainAmbience(active: coordinator.activeWeather.isRainy)
+                                coordinator.showWhisper("已開啟療癒白噪音與拇指琴輕音樂 ♪")
+                            } else if CozySoundEngine.shared.isMusicEnabled {
+                                CozySoundEngine.shared.isMusicEnabled = false
+                                coordinator.showWhisper("已切換為純環境音效（關閉輕音樂）")
+                            } else {
+                                CozySoundEngine.shared.isSoundEnabled = false
+                                coordinator.showWhisper("已靜音全部音效")
+                            }
+                        }
+
+                        // Pure Photo / Zen mode
+                        CozyIconCircleButton(
+                            systemImage: "camera.fill",
+                            tint: Color(hex: "#5A4D43"),
+                            size: 36,
+                            accessibilityLabelText: "純淨賞景模式"
+                        ) {
                             CozySoundEngine.shared.playPaperFlip()
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.72)) {
-                                isDecoratingMode.toggle()
-                            }
-                            if isDecoratingMode {
-                                coordinator.showWhisper("拖曳地板上的家具即可自由調整 2.5D 位置！")
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                isDecoratingMode = false
+                                coordinator.isSunroomPhotoMode = true
                             }
                         }
-                    )
-
-                    // 純淨賞景／截圖模式按鈕（一鍵隱藏介面細賞 2.5D 陽光室）
-                    Button {
-                        HapticsEngine.shared.playBrushStrokeTick()
-                        CozySoundEngine.shared.playPaperFlip()
-                        withAnimation(.easeInOut(duration: 0.25)) {
-                            isDecoratingMode = false
-                            isPhotoMode = true
-                        }
-                    } label: {
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 11.5, weight: .bold))
-                            .foregroundStyle(AppTheme.timberDeep)
-                            .frame(width: 31, height: 31)
-                            .background(
-                                Circle()
-                                    .fill(Color(hex: "#FFFDF7"))
-                                    .overlay(Circle().stroke(AppTheme.timberWarm.opacity(0.5), lineWidth: 1.1))
-                                    .shadow(color: AppTheme.deepPineInk.opacity(0.12), radius: 3, y: 1.5)
-                            )
                     }
-                    .buttonStyle(TactileGameButtonStyle())
-                    .accessibilityLabel("純淨賞景與拍照模式")
-
-                    // 療癒音效與輕音樂開關小鈕
-                    Button {
-                        HapticsEngine.shared.playBrushStrokeTick()
-                        if !CozySoundEngine.shared.isSoundEnabled {
-                            CozySoundEngine.shared.isSoundEnabled = true
-                            CozySoundEngine.shared.isMusicEnabled = true
-                            CozySoundEngine.shared.setCozyMusic(active: true, weather: coordinator.activeWeather)
-                            CozySoundEngine.shared.setRainAmbience(active: coordinator.activeWeather.isRainy)
-                            coordinator.showWhisper("已開啟療癒白噪音與拇指琴背景音樂 ♪")
-                        } else if CozySoundEngine.shared.isMusicEnabled {
-                            CozySoundEngine.shared.isMusicEnabled = false
-                            coordinator.showWhisper("已切換為純環境音效（關閉背景音樂）")
-                        } else {
-                            CozySoundEngine.shared.isSoundEnabled = false
-                            coordinator.showWhisper("已靜音全部音效")
-                        }
-                    } label: {
-                        Image(systemName: !CozySoundEngine.shared.isSoundEnabled
-                              ? "speaker.slash.fill"
-                              : (CozySoundEngine.shared.isMusicEnabled ? "music.note" : "speaker.wave.2.fill"))
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(CozySoundEngine.shared.isSoundEnabled ? AppTheme.forestTeal : AppTheme.softInk)
-                            .frame(width: 31, height: 31)
-                            .background(
-                                Circle()
-                                    .fill(Color(hex: "#FFFDF7"))
-                                    .overlay(Circle().stroke(AppTheme.timberWarm.opacity(0.5), lineWidth: 1.1))
-                                    .shadow(color: AppTheme.deepPineInk.opacity(0.12), radius: 3, y: 1.5)
-                            )
-                    }
-                    .buttonStyle(TactileGameButtonStyle())
-                    .accessibilityLabel("切換背景音樂與音效")
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
 
                     if let ready = readyMentorships.first {
-                        CutePlushButton(
-                            title: "觀摩傳承",
-                            tone: .butterHoney,
-                            fontSize: 12,
-                            horizontalPadding: 11,
-                            verticalPadding: 6.5,
-                            icon: { Image(systemName: "sparkles").font(.system(size: 11, weight: .bold)) },
-                            action: {
-                                CozySoundEngine.shared.playCompassChime()
-                                coordinator.completeMentorshipLesson(intentionUUID: ready.intentionUUID)
+                        CozyHeroActionButton(
+                            title: "觀摩跨物種傳承 ✦",
+                            systemImage: "sparkles",
+                            style: .amber
+                        ) {
+                            CozySoundEngine.shared.playCompassChime()
+                            coordinator.completeMentorshipLesson(intentionUUID: ready.intentionUUID)
+                        }
+                        .padding(.top, 2)
+                    }
+
+                    if let whisper = coordinator.transientWhisper {
+                        TornPaperSlipView(text: whisper)
+                            .padding(.horizontal, 18)
+                            .padding(.top, 2)
+                    }
+
+                    Spacer()
+
+                    // MARK: Clean 3-Action Sunroom Toolbar right above the Unified Dock!
+                    if isDecoratingMode {
+                        HStack(spacing: 10) {
+                            Button {
+                                CozySoundEngine.shared.playPaperFlip()
+                                showWickerDrawer = true
+                            } label: {
+                                CozyGlassPill(horizontalPadding: 14, verticalPadding: 10) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "chair.lounge.fill")
+                                            .font(.system(size: 13, weight: .semibold))
+                                        Text("更換家飾")
+                                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    }
+                                    .foregroundStyle(Color(hex: "#2F2A26"))
+                                }
                             }
-                        )
+                            .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1))
+
+                            CozyHeroActionButton(
+                                title: "完成佈置",
+                                systemImage: "checkmark",
+                                style: .sage
+                            ) {
+                                CozySoundEngine.shared.playPaperFlip()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                                    isDecoratingMode = false
+                                }
+                            }
+                        }
+                        .padding(.bottom, 86)
+                    } else {
+                        HStack(spacing: 10) {
+                            if !invitedPets.isEmpty {
+                                Button {
+                                    HapticsEngine.shared.playDogBallRoll()
+                                    CozySoundEngine.shared.playPawTap()
+                                    _ = roamingEngine.tossClothBall()
+                                } label: {
+                                    CozyGlassPill(horizontalPadding: 13, verticalPadding: 9) {
+                                        HStack(spacing: 5) {
+                                            Image(systemName: "circle.dashed.inset.filled")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundStyle(Color(hex: "#D96B52"))
+                                            Text("丟布球")
+                                                .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                                .foregroundStyle(Color(hex: "#2F2A26"))
+                                        }
+                                    }
+                                }
+                                .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1))
+                            }
+
+                            Button {
+                                CozySoundEngine.shared.playPaperFlip()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                                    isDecoratingMode = true
+                                }
+                                coordinator.showWhisper("拖曳地板上的家具即可自由調整 2.5D 位置！")
+                            } label: {
+                                CozyGlassPill(horizontalPadding: 13, verticalPadding: 9) {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "slider.horizontal.3")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundStyle(AppTheme.forestTeal)
+                                        Text("佈置")
+                                            .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                            .foregroundStyle(Color(hex: "#2F2A26"))
+                                    }
+                                }
+                            }
+                            .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1))
+
+                            Button {
+                                CozySoundEngine.shared.playPaperFlip()
+                                showPetRibbonDrawer = true
+                            } label: {
+                                CozyGlassPill(horizontalPadding: 13, verticalPadding: 9) {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "pawprint.fill")
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundStyle(Color(hex: "#C98D26"))
+                                        Text("室友 \(invitedPets.count)/8")
+                                            .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                            .foregroundStyle(Color(hex: "#2F2A26"))
+                                    }
+                                }
+                            }
+                            .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1))
+
+                            CozyIconCircleButton(
+                                systemImage: "cup.and.saucer.fill",
+                                tint: Color(hex: "#4A7276"),
+                                size: 38,
+                                accessibilityLabelText: "泡暖薑茶與挑選散步夥伴"
+                            ) {
+                                CozySoundEngine.shared.playTeapotClink()
+                                showTeapotDrawer = true
+                            }
+                        }
+                        .padding(.bottom, 86)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 4)
-
-                if let whisper = coordinator.transientWhisper {
-                    TornPaperSlipView(text: whisper)
-                        .padding(.horizontal, 18)
-                        .padding(.top, 4)
-                }
-
-                Spacer()
-
-                HStack(alignment: .bottom) {
-                    WickerBasketCornerButton(
-                        badgeText: "\(coordinator.ledger.ownedGoodieIDs.count)",
-                        action: {
-                            CozySoundEngine.shared.playPaperFlip()
-                            showWickerDrawer = true
-                        }
-                    )
-
-                    Spacer()
-
-                    BrassPocketCompassButton(
-                        destinationLabel: "出門回到街區地圖",
-                        iconSystemName: "map.fill",
-                        onTap: {
-                            CozySoundEngine.shared.playCompassChime()
-                            coordinator.currentScreen = .street
-                        },
-                        onLongPress: { coordinator.showFixtureDrawer = true }
-                    )
-
-                    Spacer()
-
-                    CeramicTeapotCornerButton(
-                        isSteaming: teaSteaming,
-                        action: {
-                            CozySoundEngine.shared.playTeapotClink()
-                            showTeapotDrawer = true
-                        }
-                    )
-                }
-                .padding(.horizontal, 18)
-                .padding(.bottom, 14)
-            }
             }
         }
         .onAppear {

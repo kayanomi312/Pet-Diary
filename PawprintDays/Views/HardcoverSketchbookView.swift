@@ -68,46 +68,20 @@ struct HardcoverSketchbookView: View {
 
             VStack(spacing: 0) {
                 HStack {
-                    WoodPlaqueButton(
-                        title: "闔上日記",
-                        systemImage: "chevron.left",
-                        tone: .warmCream,
-                        fontSize: 12.5,
-                        horizontalPadding: 11,
-                        verticalPadding: 7
-                    ) {
-                        CozySoundEngine.shared.playPaperFlip()
-                        coordinator.currentScreen = .street
-                    }
-
-                    Spacer()
-
-                    VStack(spacing: 1) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text("足印手繪日記")
-                            .font(AppTheme.serifTitle(19))
+                            .font(AppTheme.serifTitle(22))
                             .foregroundStyle(AppTheme.deepPineInk)
-                        Text("已記錄 \(coordinator.diaryDays.count) 頁時光")
-                            .font(AppTheme.diegeticLabel(10))
+                        Text("已記錄 \(coordinator.diaryDays.count) 頁時光 · 100% 留存本機")
+                            .font(AppTheme.diegeticLabel(11))
                             .foregroundStyle(AppTheme.softInk)
                     }
 
                     Spacer()
-
-                    Button {
-                        CozySoundEngine.shared.playPaperFlip()
-                        coordinator.currentScreen = .curioCubbies
-                    } label: {
-                        PaintedPouchIconView(size: 24)
-                            .frame(width: 38, height: 38)
-                            .background(AppTheme.warmPaper, in: Circle())
-                            .overlay(Circle().stroke(AppTheme.brassDark.opacity(0.55), lineWidth: 1.1))
-                            .shadow(color: AppTheme.deepPineInk.opacity(0.14), radius: 4, y: 2)
-                    }
-                    .buttonStyle(TactileGameButtonStyle())
-                    .accessibilityLabel("前往拾遺木格櫃")
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 18)
+                .padding(.top, 10)
+                .padding(.bottom, 8)
 
                 // 手縫布書籤頁籤（取代制式 iOS Segmented Picker）
                 StitchedClothTabBar(selection: $activeTab) { tab in
@@ -241,7 +215,7 @@ struct HardcoverSketchbookView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 28)
+                .padding(.bottom, 100)
             }
         }
     }

@@ -32,6 +32,7 @@ final class GameCoordinator {
     var showOnboardingPaperSlip: Bool = false
     var showAccessibleNearbyList: Bool = false
     var showFixtureDrawer: Bool = false
+    var isSunroomPhotoMode: Bool = false
     var transientWhisper: String? = nil
     var latestFixtureReport: Stage1VerificationSummary? = nil
     var isDiscoveringAnchors: Bool = false

@@ -14,6 +14,7 @@ struct TactileCareView: View {
     @State private var showSnackPicker: Bool = false
     @State private var showKindredLessonSheet: Bool = false
     @State private var showFieldGuideSheet: Bool = false
+    @State private var activeTrayTab: Int = 0 // 0 = 互動陪玩, 1 = 換上衣飾
     @State private var draggingOutfitID: String? = nil
     @State private var draggingOffset: CGSize = .zero
     @State private var touchSparkles: [TouchSparkleSeed] = []
@@ -38,127 +39,108 @@ struct TactileCareView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                HStack(spacing: 8) {
-                    WoodPlaqueButton(
-                        title: "陽光室",
-                        systemImage: "chevron.left",
-                        tone: .warmCream,
-                        fontSize: 12.5,
-                        horizontalPadding: 11,
-                        verticalPadding: 7
-                    ) {
+                // Clean Minimal Top Bar
+                HStack(spacing: 10) {
+                    Button {
                         CozySoundEngine.shared.playPaperFlip()
                         coordinator.currentScreen = .home
+                    } label: {
+                        CozyGlassPill(horizontalPadding: 11, verticalPadding: 7) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 12, weight: .bold))
+                                Text("陽光室")
+                                    .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                            }
+                            .foregroundStyle(Color(hex: "#2F2A26"))
+                        }
                     }
+                    .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1))
 
                     Spacer()
 
-                    WoodPlaqueButton(
-                        title: "點心",
-                        systemImage: "fork.knife",
-                        tone: .terracotta,
-                        fontSize: 11.5,
-                        horizontalPadding: 10,
-                        verticalPadding: 7
+                    CozyIconCircleButton(
+                        systemImage: "book.pages.fill",
+                        tint: AppTheme.forestTeal,
+                        size: 36,
+                        accessibilityLabelText: "打開毛孩繪本小檔案"
                     ) {
-                        showSnackPicker = true
+                        CozySoundEngine.shared.playPaperFlip()
+                        showFieldGuideSheet = true
                     }
-                    .accessibilityLabel("餵食小點心")
 
-                    WoodPlaqueButton(
-                        title: (resident?.isPinned == true) ? "已常駐" : "常駐",
-                        systemImage: (resident?.isPinned == true) ? "pin.fill" : "pin",
-                        tone: (resident?.isPinned == true) ? .brassGold : .warmCream,
-                        fontSize: 11.5,
-                        horizontalPadding: 10,
-                        verticalPadding: 7
-                    ) {
-                        coordinator.togglePinFavorite(petID: petID)
-                        triggerPetBounce()
+                    Menu {
+                        Button {
+                            coordinator.togglePinFavorite(petID: petID)
+                            triggerPetBounce()
+                        } label: {
+                            Label(
+                                (resident?.isPinned == true) ? "取消常駐陽光室" : "釘選為常駐室友",
+                                systemImage: (resident?.isPinned == true) ? "pin.slash" : "pin.fill"
+                            )
+                        }
+                        Button {
+                            showMentorshipSheet = true
+                        } label: {
+                            Label("規劃跨物種傳承練習", systemImage: "sparkles")
+                        }
+                        Button {
+                            CozySoundEngine.shared.playCompassChime()
+                            coordinator.setWalkCompanion(petID: petID)
+                            triggerPlayfulAction(.happyTwirl, bubble: "好耶！帶我出門玩♡")
+                        } label: {
+                            Label(
+                                coordinator.activeWalkCompanionID == petID ? "目前是今日散步夥伴" : "設為今日散步夥伴",
+                                systemImage: "figure.walk"
+                            )
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(Color(hex: "#2F2A26"))
+                            .frame(width: 36, height: 36)
+                            .background {
+                                Circle()
+                                    .fill(.ultraThinMaterial)
+                                    .overlay(Circle().fill(Color(hex: "#FFFDF8").opacity(0.88)))
+                                    .overlay(Circle().stroke(Color(hex: "#CBBAA0").opacity(0.55), lineWidth: 0.85))
+                                    .shadow(color: Color(hex: "#2D241E").opacity(0.11), radius: 8, y: 3)
+                            }
                     }
-                    .accessibilityLabel("釘選為常駐陽光室的室友")
-
-                    WoodPlaqueButton(
-                        title: "傳承",
-                        systemImage: "pawprint.fill",
-                        tone: .forestTeal,
-                        fontSize: 11.5,
-                        horizontalPadding: 10,
-                        verticalPadding: 7
-                    ) {
-                        showMentorshipSheet = true
-                    }
-                    .accessibilityLabel("規劃跨物種傳承練習")
+                    .accessibilityLabel("更多照護選項")
                 }
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 16)
                 .padding(.top, 10)
 
-                // 可愛貓耳奶油名牌與 3 顆愛心照護進度
+                // Clean Refined Nameplate & 3-Heart Care Progress
                 VStack(spacing: 4) {
-                    ZStack(alignment: .top) {
-                        CatEarAccentShape(
-                            fillColor: Color(hex: "#FFFDF7"),
-                            innerEarColor: Color(hex: "#F4B4A8"),
-                            strokeColor: Color(hex: "#D2B692")
-                        )
-                        .scaleEffect(0.75)
-                        .offset(y: -11)
+                    HStack(spacing: 8) {
+                        Text(petSpec.name)
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color(hex: "#2F2A26"))
 
-                        HStack(spacing: 8) {
-                            Text(petSpec.name)
-                                .font(.system(size: 24, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color(hex: "#3E2F28"))
-
-                            HStack(spacing: 4) {
-                                ForEach(0..<3, id: \.self) { idx in
-                                    Image(systemName: idx < brushStrokeCount ? "heart.fill" : "heart")
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundStyle(idx < brushStrokeCount ? Color(hex: "#E87266") : AppTheme.timberWarm.opacity(0.45))
-                                        .scaleEffect(idx < brushStrokeCount ? 1.18 : 1.0)
-                                        .animation(.spring(response: 0.3, dampingFraction: 0.55), value: brushStrokeCount)
-                                }
+                        HStack(spacing: 3.5) {
+                            ForEach(0..<3, id: \.self) { idx in
+                                Image(systemName: idx < brushStrokeCount ? "heart.fill" : "heart")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(idx < brushStrokeCount ? Color(hex: "#E36B5E") : Color(hex: "#CBBAA0"))
+                                    .scaleEffect(idx < brushStrokeCount ? 1.15 : 1.0)
+                                    .animation(.spring(response: 0.3, dampingFraction: 0.55), value: brushStrokeCount)
                             }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3.5)
-                            .background(Color(hex: "#FFF6EA"), in: Capsule())
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 7)
-                        .background(
-                            Capsule()
-                                .fill(Color(hex: "#FFFDF7"))
-                                .overlay(Capsule().stroke(Color(hex: "#D5B895"), lineWidth: 1.3))
-                                .shadow(color: AppTheme.deepPineInk.opacity(0.12), radius: 5, y: 2)
-                        )
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(hex: "#FFF7EC"), in: Capsule())
                     }
 
                     HStack(spacing: 6) {
                         SpeciesFolkloreBadgeView(kind: petSpec.kind)
-                        Button {
-                            CozySoundEngine.shared.playPaperFlip()
-                            showFieldGuideSheet = true
-                        } label: {
-                            HStack(spacing: 3) {
-                                Image(systemName: "book.pages.fill")
-                                    .font(.system(size: 10, weight: .bold))
-                                Text("小檔案")
-                                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                            }
-                            .foregroundStyle(AppTheme.forestTeal)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3.5)
-                            .background(Color(hex: "#FFFDF7"), in: Capsule())
-                            .overlay(Capsule().stroke(AppTheme.forestTeal.opacity(0.45), lineWidth: 1))
-                        }
-                        .buttonStyle(TactileGameButtonStyle())
+                        Text("\(resident?.milestoneTitle ?? "初次相遇") · 相伴 \(resident?.sharedDaysCount ?? 1) 天")
+                            .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                            .foregroundStyle(AppTheme.softInk)
                     }
-                    .padding(.top, 2)
-
-                    Text("\(resident?.milestoneTitle ?? "初次相遇") · 相伴 \(resident?.sharedDaysCount ?? 1) 天")
-                        .font(.system(size: 12.5, weight: .medium, design: .rounded))
-                        .foregroundStyle(AppTheme.softInk)
                 }
-                .padding(.top, 10)
+                .padding(.top, 8)
 
                 if let credits = resident?.learnedHabitCredits, !credits.isEmpty {
                     VStack(spacing: 3) {
@@ -332,200 +314,170 @@ struct TactileCareView: View {
 
                 Text(activePlayAction == .cozyNap
                      ? "\(petSpec.name)蓋著小被子發出甜甜的呼嚕聲…"
-                     : (brushStrokeCount >= 3
-                        ? "\(petSpec.name)滿足地瞇起彎彎笑眼！（點牠肚皮或用下方小玩具一起玩吧）"
-                        : "輕戳肚皮、左右滑動梳毛，或挑選下方可愛玩具陪\(petSpec.name)玩！"))
-                    .font(AppTheme.handwritten(13.5))
-                    .foregroundStyle(Color(hex: "#4A392E"))
+                     : "輕點頭頂、抓下巴、戳肚皮或滑動梳毛來陪伴\(petSpec.name)")
+                    .font(.system(size: 12.5, weight: .medium, design: .rounded))
+                    .foregroundStyle(Color(hex: "#6B5E53"))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 10)
 
-                // 超可愛 6 款手繪互動玩具列（戳肚皮、逗玩撲跳、拋魚餅、蓋被被午睡、轉圈撒嬌、今日散步夥伴）
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        careToyChip(title: "戳肚皮", kind: .bellyPoke, active: activePlayAction == .bellyBoop) {
-                            HapticsEngine.shared.playPawRangeCue()
-                            CozySoundEngine.shared.playCompassChime()
-                            emitBurstSparkles()
-                            triggerPlayfulAction(.bellyBoop, bubble: cuteReactionLine(for: .bellyBoop))
-                        }
-
-                        careToyChip(title: petSpec.kind.isCatFamily ? "逗貓棒" : "滾布球", kind: .teaserWand, active: activePlayAction == .pounceHop) {
-                            HapticsEngine.shared.playDogBallRoll()
-                            CozySoundEngine.shared.playBrushSwish()
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) { wavingTeaserActive = true }
-                            triggerPlayfulAction(.pounceHop, bubble: cuteReactionLine(for: .pounceHop))
-                            coordinator.completeTactileCare(petID: petID)
-                            Task { @MainActor in
-                                try? await Task.sleep(for: .milliseconds(1200))
-                                withAnimation(.easeOut(duration: 0.25)) { wavingTeaserActive = false }
-                            }
-                        }
-
-                        careToyChip(title: "拋魚餅", kind: .fishSnack, active: activePlayAction == .eatMunch) {
-                            HapticsEngine.shared.playCurioUnpack()
-                            CozySoundEngine.shared.playTeapotClink()
-                            flyingSnackProgress = 0.0
-                            withAnimation(.easeInOut(duration: 0.55)) {
-                                flyingSnackProgress = 1.0
-                            }
-                            Task { @MainActor in
-                                try? await Task.sleep(for: .milliseconds(500))
-                                flyingSnackProgress = nil
-                                emitBurstSparkles()
-                                triggerPlayfulAction(.eatMunch, bubble: cuteReactionLine(for: .eatMunch))
-                                coordinator.completeTactileCare(petID: petID)
-                            }
-                        }
-
-                        careToyChip(title: activePlayAction == .cozyNap ? "起床囉" : "蓋被被", kind: .cozyBlanket, active: activePlayAction == .cozyNap) {
-                            HapticsEngine.shared.playBrushStrokeTick()
-                            CozySoundEngine.shared.playPaperFlip()
-                            if activePlayAction == .cozyNap {
-                                triggerPlayfulAction(.bellyBoop, bubble: "伸個大懶腰～早安！")
-                            } else {
-                                withAnimation(.spring(response: 0.4, dampingFraction: 0.72)) {
-                                    activePlayAction = .cozyNap
-                                    actionTriggerDate = Date()
-                                    liveReactionBubble = "蓋好被被…呼呼…"
-                                }
-                            }
-                        }
-
-                        careToyChip(title: "踏踏舞", kind: .happyTwirl, active: activePlayAction == .happyTwirl) {
-                            HapticsEngine.shared.playCurioUnpack()
-                            CozySoundEngine.shared.playWardrobeSnap(withBell: true)
-                            emitBurstSparkles()
-                            triggerPlayfulAction(.happyTwirl, bubble: cuteReactionLine(for: .happyTwirl))
-                        }
-
-                        careToyChip(
-                            title: coordinator.activeWalkCompanionID == petID ? "同行夥伴" : "帶去散步",
-                            kind: .walkBuddy,
-                            active: coordinator.activeWalkCompanionID == petID
-                        ) {
-                            CozySoundEngine.shared.playCompassChime()
-                            coordinator.setWalkCompanion(petID: petID)
-                            triggerPlayfulAction(.happyTwirl, bubble: "好耶！帶我出門玩♡")
-                        }
-
-                        if let res = resident, res.sharedDaysCount >= 10, !res.kindredPracticeCompleted {
-                            CutePlushButton(
-                                title: "習慣練習",
-                                tone: .butterHoney,
-                                fontSize: 11.5,
-                                horizontalPadding: 11,
-                                verticalPadding: 8,
-                                icon: { Image(systemName: "sparkles").font(.system(size: 12, weight: .bold)) },
-                                action: { showKindredLessonSheet = true }
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 14)
-                }
-                .padding(.bottom, 8)
-
-                Spacer()
-
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        HStack(spacing: 6) {
-                            Image(systemName: "hanger")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(Color(hex: "#F6E9CE"))
-                            Text("木製掛衣架 · 點擊或上拖配戴")
-                                .font(AppTheme.diegeticLabel(12))
-                                .foregroundStyle(Color(hex: "#FFF9EE"))
-                        }
+                // MARK: Clean Unified Warm-Linen Bottom Care Tray (2 Tidy Tabs: 互動陪玩 / 換上衣飾)
+                VStack(spacing: 12) {
+                    HStack(spacing: 6) {
+                        trayTabPill(title: "互動陪玩", icon: "sparkles", index: 0)
+                        trayTabPill(title: "換上衣飾", icon: "hanger", index: 1)
                         Spacer()
-                        Button {
-                            CozySoundEngine.shared.playPaperFlip()
-                            coordinator.currentScreen = .curioCubbies
-                        } label: {
-                            Text("步數幣小舖 ▸")
-                                .font(AppTheme.diegeticLabel(11))
-                                .foregroundStyle(Color(hex: "#FFE7B2"))
+                        if activeTrayTab == 1 {
+                            Button {
+                                CozySoundEngine.shared.playPaperFlip()
+                                coordinator.currentScreen = .curioCubbies
+                            } label: {
+                                Text("前往小舖 ▸")
+                                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                                    .foregroundStyle(AppTheme.forestTeal)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 16)
 
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            PegRackItemCard(
-                                itemID: nil,
-                                title: "素頸自然",
-                                swatchHex: "#E8DFCE",
-                                secondaryHex: "#FAF6EE",
-                                isEquipped: resident?.activeOutfitID == nil
-                            ) {
-                                coordinator.equipOutfit(petID: petID, outfitID: nil)
-                                CozySoundEngine.shared.playPaperFlip()
-                                triggerPetBounce()
-                            }
+                    if activeTrayTab == 0 {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                careToyChip(title: petSpec.kind.isCatFamily ? "逗貓棒" : "滾布球", kind: .teaserWand, active: activePlayAction == .pounceHop) {
+                                    HapticsEngine.shared.playDogBallRoll()
+                                    CozySoundEngine.shared.playBrushSwish()
+                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) { wavingTeaserActive = true }
+                                    triggerPlayfulAction(.pounceHop, bubble: cuteReactionLine(for: .pounceHop))
+                                    coordinator.completeTactileCare(petID: petID)
+                                    Task { @MainActor in
+                                        try? await Task.sleep(for: .milliseconds(1200))
+                                        withAnimation(.easeOut(duration: 0.25)) { wavingTeaserActive = false }
+                                    }
+                                }
 
-                            ForEach(ownedWardrobe) { item in
-                                PegRackItemCard(
-                                    itemID: item.id,
-                                    title: item.name,
-                                    swatchHex: item.swatchHex,
-                                    secondaryHex: item.secondaryHex,
-                                    isEquipped: resident?.activeOutfitID == item.id
+                                careToyChip(title: "餵點心", kind: .fishSnack, active: activePlayAction == .eatMunch) {
+                                    CozySoundEngine.shared.playPaperFlip()
+                                    showSnackPicker = true
+                                }
+
+                                careToyChip(title: activePlayAction == .cozyNap ? "起床囉" : "蓋被被", kind: .cozyBlanket, active: activePlayAction == .cozyNap) {
+                                    HapticsEngine.shared.playBrushStrokeTick()
+                                    CozySoundEngine.shared.playPaperFlip()
+                                    if activePlayAction == .cozyNap {
+                                        triggerPlayfulAction(.bellyBoop, bubble: "伸個大懶腰～早安！")
+                                    } else {
+                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.72)) {
+                                            activePlayAction = .cozyNap
+                                            actionTriggerDate = Date()
+                                            liveReactionBubble = "蓋好被被…呼呼…"
+                                        }
+                                    }
+                                }
+
+                                careToyChip(title: "踏踏舞", kind: .happyTwirl, active: activePlayAction == .happyTwirl) {
+                                    HapticsEngine.shared.playCurioUnpack()
+                                    CozySoundEngine.shared.playWardrobeSnap(withBell: true)
+                                    emitBurstSparkles()
+                                    triggerPlayfulAction(.happyTwirl, bubble: cuteReactionLine(for: .happyTwirl))
+                                }
+
+                                careToyChip(
+                                    title: coordinator.activeWalkCompanionID == petID ? "同行中" : "帶去散步",
+                                    kind: .walkBuddy,
+                                    active: coordinator.activeWalkCompanionID == petID
                                 ) {
-                                    coordinator.equipOutfit(petID: petID, outfitID: item.id)
-                                    HapticsEngine.shared.playPawRangeCue()
-                                    CozySoundEngine.shared.playWardrobeSnap(withBell: item.id == "outfit.occasion_collar")
+                                    CozySoundEngine.shared.playCompassChime()
+                                    coordinator.setWalkCompanion(petID: petID)
+                                    triggerPlayfulAction(.happyTwirl, bubble: "好耶！帶我出門玩♡")
+                                }
+
+                                if let res = resident, res.sharedDaysCount >= 10, !res.kindredPracticeCompleted {
+                                    CutePlushButton(
+                                        title: "習慣練習",
+                                        tone: .butterHoney,
+                                        fontSize: 11.5,
+                                        horizontalPadding: 11,
+                                        verticalPadding: 10,
+                                        icon: { Image(systemName: "sparkles").font(.system(size: 12, weight: .bold)) },
+                                        action: { showKindredLessonSheet = true }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                        }
+                    } else {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                PegRackItemCard(
+                                    itemID: nil,
+                                    title: "素頸自然",
+                                    swatchHex: "#E8DFCE",
+                                    secondaryHex: "#FAF6EE",
+                                    isEquipped: resident?.activeOutfitID == nil
+                                ) {
+                                    coordinator.equipOutfit(petID: petID, outfitID: nil)
+                                    CozySoundEngine.shared.playPaperFlip()
                                     triggerPetBounce()
                                 }
-                                .offset(draggingOutfitID == item.id ? draggingOffset : .zero)
-                                .zIndex(draggingOutfitID == item.id ? 20 : 0)
-                                .simultaneousGesture(
-                                    DragGesture(minimumDistance: 14)
-                                        .onChanged { value in
-                                            if value.translation.height < -14 {
-                                                draggingOutfitID = item.id
-                                                draggingOffset = value.translation
+
+                                ForEach(ownedWardrobe) { item in
+                                    PegRackItemCard(
+                                        itemID: item.id,
+                                        title: item.name,
+                                        swatchHex: item.swatchHex,
+                                        secondaryHex: item.secondaryHex,
+                                        isEquipped: resident?.activeOutfitID == item.id
+                                    ) {
+                                        coordinator.equipOutfit(petID: petID, outfitID: item.id)
+                                        HapticsEngine.shared.playPawRangeCue()
+                                        CozySoundEngine.shared.playWardrobeSnap(withBell: item.id == "outfit.occasion_collar")
+                                        triggerPetBounce()
+                                    }
+                                    .offset(draggingOutfitID == item.id ? draggingOffset : .zero)
+                                    .zIndex(draggingOutfitID == item.id ? 20 : 0)
+                                    .simultaneousGesture(
+                                        DragGesture(minimumDistance: 14)
+                                            .onChanged { value in
+                                                if value.translation.height < -14 {
+                                                    draggingOutfitID = item.id
+                                                    draggingOffset = value.translation
+                                                }
                                             }
-                                        }
-                                        .onEnded { value in
-                                            if draggingOutfitID == item.id && value.translation.height < -65 {
-                                                coordinator.equipOutfit(petID: petID, outfitID: item.id)
-                                                HapticsEngine.shared.playPawRangeCue()
-                                                CozySoundEngine.shared.playWardrobeSnap(withBell: item.id == "outfit.occasion_collar")
-                                                triggerPetBounce()
+                                            .onEnded { value in
+                                                if draggingOutfitID == item.id && value.translation.height < -65 {
+                                                    coordinator.equipOutfit(petID: petID, outfitID: item.id)
+                                                    HapticsEngine.shared.playPawRangeCue()
+                                                    CozySoundEngine.shared.playWardrobeSnap(withBell: item.id == "outfit.occasion_collar")
+                                                    triggerPetBounce()
+                                                }
+                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                                                    draggingOutfitID = nil
+                                                    draggingOffset = .zero
+                                                }
                                             }
-                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
-                                                draggingOutfitID = nil
-                                                draggingOffset = .zero
-                                            }
-                                        }
-                                )
+                                    )
+                                }
                             }
+                            .padding(.horizontal, 16)
                         }
-                        .padding(.horizontal, 16)
                     }
                 }
                 .padding(.vertical, 14)
                 .background(
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .fill(Color(hex: "#674325"))
-                            .offset(y: 3)
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(hex: "#B5865A"), Color(hex: "#8F633B")],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(Color(hex: "#DFB889").opacity(0.45), lineWidth: 1.2)
-                    }
-                    .shadow(color: AppTheme.deepPineInk.opacity(0.26), radius: 8, y: -2)
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .fill(Color(hex: "#FFFDF8").opacity(0.90))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                .stroke(Color(hex: "#D5C5AE").opacity(0.65), lineWidth: 0.9)
+                        )
+                        .shadow(color: Color(hex: "#2D241E").opacity(0.11), radius: 14, y: -3)
                 )
-                .padding(.horizontal, 10)
+                .padding(.horizontal, 14)
                 .padding(.bottom, 12)
             }
         }
@@ -665,33 +617,50 @@ struct TactileCareView: View {
         }
     }
 
+    private func trayTabPill(title: String, icon: String, index: Int) -> some View {
+        let active = (activeTrayTab == index)
+        return Button {
+            HapticsEngine.shared.playBrushStrokeTick()
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+                activeTrayTab = index
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .bold))
+                Text(title)
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+            }
+            .foregroundStyle(active ? .white : Color(hex: "#5A4D43"))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(active ? AppTheme.forestTeal : Color(hex: "#F2EBDD"))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     private func careToyChip(title: String, kind: CuteCareToyIcon.Kind, active: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            VStack(spacing: 3) {
+            VStack(spacing: 4) {
                 CuteCareToyIcon(kind: kind, size: 24)
                 Text(title)
                     .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                    .foregroundStyle(active ? Color(hex: "#FFFDF7") : Color(hex: "#4A362B"))
+                    .foregroundStyle(active ? Color.white : Color(hex: "#3A312B"))
             }
-            .frame(width: 64, height: 54)
+            .frame(width: 68, height: 60)
             .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(active ? Color(hex: "#9B4236") : Color(hex: "#D4C2A5"))
-                        .offset(y: 3)
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(active ? Color(hex: "#E67B6A") : Color(hex: "#FFFDF7"))
-                    RoundedRectangle(cornerRadius: 13, style: .continuous)
-                        .stroke(active ? Color.white.opacity(0.45) : Color(hex: "#E5D3B5"), style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
-                        .padding(3)
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color(hex: "#5A4234").opacity(0.24), lineWidth: 1)
-                }
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(active ? AppTheme.forestTeal : Color(hex: "#F7F1E5"))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(active ? Color.clear : Color(hex: "#D5C5AE").opacity(0.65), lineWidth: 0.9)
+                    )
             )
-            .padding(.bottom, 3)
-            .shadow(color: AppTheme.deepPineInk.opacity(0.14), radius: 4, y: 2)
         }
-        .buttonStyle(TactileGameButtonStyle(pressScale: 0.90, pressOffsetY: 2.5))
+        .buttonStyle(TactileGameButtonStyle(pressScale: 0.93, pressOffsetY: 1.5))
     }
 }
 
@@ -738,17 +707,17 @@ private struct PegRackItemCard: View {
 
                 Text(title)
                     .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                    .foregroundStyle(isEquipped ? Color(hex: "#FFF9DE") : AppTheme.warmPaper)
+                    .foregroundStyle(isEquipped ? Color.white : Color(hex: "#3A312B"))
                     .lineLimit(1)
             }
-            .frame(width: 88)
+            .frame(width: 84)
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(isEquipped ? AppTheme.forestTeal.opacity(0.92) : AppTheme.timberDeep.opacity(0.42))
+                    .fill(isEquipped ? AppTheme.forestTeal : Color(hex: "#F7F1E5"))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(isEquipped ? AppTheme.pawStrollChain.opacity(0.85) : Color.white.opacity(0.14), lineWidth: 1.2)
+                            .stroke(isEquipped ? Color.clear : Color(hex: "#D5C5AE").opacity(0.65), lineWidth: 0.9)
                     )
             )
         }
