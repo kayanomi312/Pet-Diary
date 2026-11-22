@@ -764,4 +764,37 @@ final class Stage2To4VerificationTests: XCTestCase {
         }
         XCTAssertEqual(totalChapters, 30)
     }
+
+    func testSunroomDirectInWorldAnimationsAndFloatingBursts() throws {
+        let coordinator = try makeInMemoryCoordinator()
+        coordinator.resident(for: "pet.07")?.inviteState = .invitedHome
+
+        let roaming = SunroomRoamingEngine()
+        let now = Date()
+        roaming.syncResidents(invitedPetIDs: ["pet.03", "pet.07"], spots: coordinator.homeSpots, verandaUnlocked: false, now: now)
+        XCTAssertEqual(roaming.actors.count, 2)
+
+        // 1. Gather all pets over to the physical tea tray
+        roaming.gatherAllPets(near: CGPoint(x: 0.72, y: 0.72), bubble: "好香的暖薑茶♡", now: now)
+        XCTAssertTrue(roaming.actors["pet.03"]?.isWalking == true)
+        XCTAssertTrue(roaming.actors["pet.07"]?.isWalking == true)
+
+        // 2. Pair dance for courtship nesting & live skits + floating heart burst
+        roaming.performPairDance(petA: "pet.03", petB: "pet.07", bubbleA: "一起築巢♡", bubbleB: "好期待✦", heartBurst: true, now: now)
+        XCTAssertEqual(roaming.actors["pet.03"]?.facingRight, true)
+        XCTAssertEqual(roaming.actors["pet.07"]?.facingRight, false)
+        XCTAssertFalse(roaming.floatingBursts.isEmpty)
+
+        // 3. Hide-and-Seek pop-out reveal + Solo Errand door walk + Feather-wand chase
+        roaming.popOutHidingPet(petID: "pet.03", from: CGPoint(x: 0.30, y: 0.40), now: now)
+        XCTAssertEqual(roaming.actors["pet.03"]?.speechBubble, "被你找到啦！♡")
+
+        roaming.sendPetOutDoor(petID: "pet.03", destination: "老街紅磚麵包巷", now: now)
+        XCTAssertEqual(roaming.actors["pet.03"]?.facingRight, true)
+        roaming.welcomePetBackInDoor(petID: "pet.03", coins: 4, now: now)
+        XCTAssertEqual(roaming.actors["pet.03"]?.facingRight, false)
+
+        roaming.chaseFeatherWand(at: CGPoint(x: 0.48, y: 0.60), now: now)
+        XCTAssertGreaterThanOrEqual(roaming.floatingBursts.count, 3)
+    }
 }

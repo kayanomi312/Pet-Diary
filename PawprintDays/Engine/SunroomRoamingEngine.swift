@@ -61,6 +61,15 @@ final class SunroomRoamingEngine {
         let createdAt: Date
     }
 
+    /// 漂浮於 2.5D 陽光室場景中的即時回饋特效（+1 幣、♡ 溫柔、✦ 破殼、♪ 叮噹）
+    struct FloatingSunroomBurst: Identifiable {
+        let id = UUID()
+        let position: CGPoint
+        let text: String
+        let colorHex: String
+        let createdAt: Date
+    }
+
     /// 杜松（黑曜惡魔貓）悄悄留在紅檜木地板上的摺紙契約小符（點擊可拾取傲嬌紙條與 +1 步數幣！）
     struct OrigamiCharmDrop: Identifiable, Equatable {
         let id = UUID()
@@ -92,6 +101,7 @@ final class SunroomRoamingEngine {
 
     var actors: [String: RoamingPetActor] = [:]
     var floorRipples: [FloorTapRipple] = []
+    var floatingBursts: [FloatingSunroomBurst] = []
     var origamiDrops: [OrigamiCharmDrop] = []
     var rollingBall: RollingClothBall? = nil
     var customSpotPositions: [Int: CGPoint] = [:]
@@ -238,6 +248,9 @@ final class SunroomRoamingEngine {
 
         if floorRipples.contains(where: { now.timeIntervalSince($0.createdAt) > 1.25 }) {
             floorRipples.removeAll { now.timeIntervalSince($0.createdAt) > 1.25 }
+        }
+        if floatingBursts.contains(where: { now.timeIntervalSince($0.createdAt) > 2.0 }) {
+            floatingBursts.removeAll { now.timeIntervalSince($0.createdAt) > 2.0 }
         }
         if let ball = rollingBall, ball.position(at: now) == nil {
             rollingBall = nil
@@ -423,6 +436,160 @@ final class SunroomRoamingEngine {
         actor.tapExcitedUntil = now.addingTimeInterval(2.4)
         actors[actor.petID] = actor
         return actor.petID
+    }
+
+    // MARK: - Direct In-World Live Animations (Zero-Menu Tactile Reactions!)
+
+    func emitFloatingBurst(at roomUV: CGPoint, text: String, colorHex: String = "#C98D26", now: Date = Date()) {
+        let clamped = CGPoint(
+            x: max(0.08, min(0.92, roomUV.x)),
+            y: max(0.10, min(0.88, roomUV.y))
+        )
+        floatingBursts.append(FloatingSunroomBurst(position: clamped, text: text, colorHex: colorHex, createdAt: now))
+        if floatingBursts.count > 16 {
+            floatingBursts.removeFirst(floatingBursts.count - 16)
+        }
+    }
+
+    /// Makes every roaming pet visibly trot over in a warm semicircle around an active station (tea, origami, nest)!
+    func gatherAllPets(near targetUV: CGPoint, bubble: String, now: Date = Date()) {
+        let ids = Array(actors.keys).sorted()
+        let count = max(1, ids.count)
+        for (idx, petID) in ids.enumerated() {
+            guard var actor = actors[petID] else { continue }
+            let startPos = actor.interpolatedPosition(at: now)
+            actor.position = startPos
+            let spread = CGFloat(idx) - CGFloat(count - 1) * 0.5
+            let dest = CGPoint(
+                x: max(0.10, min(0.90, targetUV.x + spread * 0.11 - 0.06)),
+                y: max(0.22, min(0.84, targetUV.y + (idx % 2 == 0 ? -0.05 : 0.04)))
+            )
+            let dist = hypot(dest.x - startPos.x, dest.y - startPos.y)
+            let dur = max(1.4, min(4.2, Double(dist) * 8.2))
+            actor.facingRight = dest.x > startPos.x
+            actor.behavior = .walking(from: startPos, to: dest, startedAt: now, duration: dur, arrivalSpotIndex: nil)
+            actor.speechBubble = idx == 0 ? bubble : ["好期待♪", "我也來！♡", "香香的～"][idx % 3]
+            actor.bubbleExpiresAt = now.addingTimeInterval(3.8)
+            actor.tapExcitedUntil = now.addingTimeInterval(2.5)
+            actors[petID] = actor
+        }
+    }
+
+    /// Choreographs two companions walking face-to-face on the rug for Live Skits or Mystical Courtship Nesting!
+    func performPairDance(petA: String, petB: String, bubbleA: String, bubbleB: String, heartBurst: Bool = false, now: Date = Date()) {
+        let leftDest = CGPoint(x: 0.43, y: 0.58)
+        let rightDest = CGPoint(x: 0.57, y: 0.58)
+
+        if var a = actors[petA] {
+            let cur = a.interpolatedPosition(at: now)
+            a.position = cur
+            let dist = hypot(leftDest.x - cur.x, leftDest.y - cur.y)
+            a.facingRight = true
+            a.behavior = .walking(from: cur, to: leftDest, startedAt: now, duration: max(1.1, min(3.2, Double(dist) * 7.5)), arrivalSpotIndex: nil)
+            a.speechBubble = bubbleA
+            a.bubbleExpiresAt = now.addingTimeInterval(5.2)
+            a.tapExcitedUntil = now.addingTimeInterval(4.0)
+            actors[petA] = a
+        }
+
+        if var b = actors[petB] {
+            let cur = b.interpolatedPosition(at: now)
+            b.position = cur
+            let dist = hypot(rightDest.x - cur.x, rightDest.y - cur.y)
+            b.facingRight = false
+            b.behavior = .walking(from: cur, to: rightDest, startedAt: now, duration: max(1.1, min(3.2, Double(dist) * 7.5)), arrivalSpotIndex: nil)
+            b.speechBubble = bubbleB
+            b.bubbleExpiresAt = now.addingTimeInterval(5.2)
+            b.tapExcitedUntil = now.addingTimeInterval(4.0)
+            actors[petB] = b
+        }
+
+        emitFloatingBurst(
+            at: CGPoint(x: 0.50, y: 0.48),
+            text: heartBurst ? "♡ 結緣築巢 ✦" : "✦ 小劇場上演中",
+            colorHex: heartBurst ? "#D96B7E" : "#C98D26",
+            now: now
+        )
+    }
+
+    /// Hide-and-Seek reveal: pops the found pet right out beside the furniture with a joyful pounce!
+    func popOutHidingPet(petID: String, from spotUV: CGPoint, now: Date = Date()) {
+        let revealUV = CGPoint(
+            x: max(0.12, min(0.88, spotUV.x + 0.06)),
+            y: max(0.22, min(0.84, spotUV.y + 0.06))
+        )
+        if var actor = actors[petID] {
+            actor.position = revealUV
+            actor.behavior = .playingBall(until: now.addingTimeInterval(3.2), spotIndex: nil)
+            actor.speechBubble = "被你找到啦！♡"
+            actor.bubbleExpiresAt = now.addingTimeInterval(3.6)
+            actor.tapExcitedUntil = now.addingTimeInterval(2.6)
+            actors[petID] = actor
+        }
+        emitFloatingBurst(at: revealUV, text: "+1 幣 ✦ 找到啦！", colorHex: "#D98A36", now: now)
+    }
+
+    /// Solo Errand departure animation: companion waves and trots out toward the right sunroom doorway!
+    func sendPetOutDoor(petID: String, destination: String, now: Date = Date()) {
+        guard var actor = actors[petID] else { return }
+        let cur = actor.interpolatedPosition(at: now)
+        actor.position = cur
+        let doorUV = CGPoint(x: 0.91, y: 0.48)
+        let dist = hypot(doorUV.x - cur.x, doorUV.y - cur.y)
+        actor.facingRight = true
+        actor.behavior = .walking(from: cur, to: doorUV, startedAt: now, duration: max(1.4, min(3.8, Double(dist) * 8.0)), arrivalSpotIndex: nil)
+        actor.speechBubble = "去\(destination)探險囉♪"
+        actor.bubbleExpiresAt = now.addingTimeInterval(4.2)
+        actor.tapExcitedUntil = now.addingTimeInterval(3.0)
+        actors[petID] = actor
+        emitFloatingBurst(at: doorUV, text: "出發小探險！✦", colorHex: "#4A7A76", now: now)
+    }
+
+    /// Solo Errand return animation: companion happily trots back from the doorway onto the rug!
+    func welcomePetBackInDoor(petID: String, coins: Int, now: Date = Date()) {
+        let doorUV = CGPoint(x: 0.90, y: 0.48)
+        let centerUV = CGPoint(x: 0.56, y: 0.56)
+        if var actor = actors[petID] {
+            actor.position = doorUV
+            actor.facingRight = false
+            actor.behavior = .walking(from: doorUV, to: centerUV, startedAt: now, duration: 2.2, arrivalSpotIndex: nil)
+            actor.speechBubble = "我回來囉！帶禮物給你♡"
+            actor.bubbleExpiresAt = now.addingTimeInterval(4.5)
+            actor.tapExcitedUntil = now.addingTimeInterval(3.5)
+            actors[petID] = actor
+        }
+        emitFloatingBurst(at: centerUV, text: "+\(coins) 幣 ✦ 滿載而歸", colorHex: "#C98D26", now: now)
+    }
+
+    /// Responsive Feather-Wand chase: nearest pet sprints quickly toward the wand tip and pounces when close!
+    func chaseFeatherWand(at roomUV: CGPoint, now: Date = Date()) {
+        let clamped = CGPoint(
+            x: max(0.09, min(0.91, roomUV.x)),
+            y: max(0.16, min(0.86, roomUV.y))
+        )
+        guard let nearest = actors.values.min(by: {
+            let p0 = $0.interpolatedPosition(at: now)
+            let p1 = $1.interpolatedPosition(at: now)
+            return hypot(p0.x - clamped.x, p0.y - clamped.y) < hypot(p1.x - clamped.x, p1.y - clamped.y)
+        }) else { return }
+
+        var actor = nearest
+        let startPos = actor.interpolatedPosition(at: now)
+        actor.position = startPos
+        let dist = hypot(clamped.x - startPos.x, clamped.y - startPos.y)
+        if dist < 0.11 {
+            actor.behavior = .playingBall(until: now.addingTimeInterval(1.4), spotIndex: nil)
+            actor.speechBubble = "抓到羽毛啦！✦"
+            actor.bubbleExpiresAt = now.addingTimeInterval(2.0)
+            actor.tapExcitedUntil = now.addingTimeInterval(1.5)
+            emitFloatingBurst(at: clamped, text: "✦ 撲住羽毛！", colorHex: "#E87A6A", now: now)
+        } else {
+            let dur = max(0.85, min(2.6, Double(dist) * 5.2))
+            actor.facingRight = clamped.x > startPos.x
+            actor.behavior = .walking(from: startPos, to: clamped, startedAt: now, duration: dur, arrivalSpotIndex: nil)
+            actor.tapExcitedUntil = now.addingTimeInterval(1.4)
+        }
+        actors[actor.petID] = actor
     }
 
     private func speciesContextualWhisper(for petID: String, weather: WeatherMode) -> String {
