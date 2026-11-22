@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "pet_01_m8.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
