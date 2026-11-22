@@ -14,6 +14,7 @@ struct Sunroom25DStageView: View {
     let onTapSpot: (HomeSpotPlacement) -> Void
     let onCompleteMentorship: (TeachingIntention) -> Void
     var onCollectOrigami: ((SunroomRoamingEngine.OrigamiCharmDrop) -> Void)? = nil
+    var onTapWindowsillCurio: ((ForagedCurioEntry) -> Void)? = nil
 
     @State private var draggingSpotIndex: Int? = nil
     @State private var draggingSpotUV: CGPoint? = nil
@@ -64,10 +65,16 @@ struct Sunroom25DStageView: View {
                     .offset(x: effectivePan * 0.55)
 
                 if !coordinator.ledger.foragedCurios.isEmpty {
-                    WindowsillCurioShelfView(curios: Array(coordinator.ledger.foragedCurios.prefix(6)))
-                        .position(x: stageW * 0.50, y: floorHorizonY - 26)
-                        .offset(x: effectivePan * 0.60)
-                        .allowsHitTesting(false)
+                    WindowsillCurioShelfView(
+                        curios: Array(coordinator.ledger.foragedCurios.prefix(6)),
+                        onTapCurio: { entry in
+                            HapticsEngine.shared.playBrushStrokeTick()
+                            CozySoundEngine.shared.playTeapotClink()
+                            onTapWindowsillCurio?(entry)
+                        }
+                    )
+                    .position(x: stageW * 0.50, y: floorHorizonY - 26)
+                    .offset(x: effectivePan * 0.60)
                 }
 
                 // MARK: Layer 2 — Interactive 2.5D Depth-Sorted Floor Stage (Furniture + Free-Roaming Pets)
@@ -202,7 +209,11 @@ struct Sunroom25DStageView: View {
                             }
                             .position(x: bPt.x, y: bPt.y - 6 * bScale)
                             .zIndex(Double(ballUV.y * 1000.0) + 5)
-                            .allowsHitTesting(false)
+                            .onTapGesture {
+                                HapticsEngine.shared.playDogBallRoll()
+                                CozySoundEngine.shared.playPawTap()
+                                _ = roaming.tossClothBall(now: now)
+                            }
                         }
 
                         // Clickable Origami Paper Charms left on the wooden floor by Juniper (pet.02 DemonCat)!
@@ -280,6 +291,22 @@ struct Sunroom25DStageView: View {
                                     if !isDecoratingMode { onTapPet(actor.petID) }
                                 } label: {
                                     ZStack {
+                                        // Warm golden hearth-glow pool beneath napping DragonCat (pet.03)!
+                                        if spec.kind == .dragonCat && actor.isNapping {
+                                            Ellipse()
+                                                .fill(
+                                                    RadialGradient(
+                                                        colors: [Color(hex: "#F5B864").opacity(0.36), .clear],
+                                                        center: .center,
+                                                        startRadius: 8,
+                                                        endRadius: 58
+                                                    )
+                                                )
+                                                .frame(width: 112, height: 34)
+                                                .offset(y: 44)
+                                                .allowsHitTesting(false)
+                                        }
+
                                         // Species-specific magical room aura (Dragon hearth embers, Spirit cloud puffs, Antler forest leaves!)
                                         SpeciesRoomMagicAuraCanvas(petKind: spec.kind, weather: coordinator.activeWeather, time: now.timeIntervalSinceReferenceDate)
                                             .frame(width: 126, height: 126)
@@ -299,6 +326,13 @@ struct Sunroom25DStageView: View {
                                         .frame(width: 118, height: 118)
                                         .scaleEffect(x: actor.facingRight ? -1.0 : 1.0, y: 1.0)
                                         .animation(.easeInOut(duration: 0.16), value: actor.facingRight)
+
+                                        // Foreground cardboard front-wall occlusion rim when a cat tucks INSIDE the bakery box!
+                                        if isInBox {
+                                            BakeryBoxForegroundRimView()
+                                                .offset(y: 36)
+                                                .allowsHitTesting(false)
+                                        }
                                     }
                                 }
                                 .buttonStyle(.plain)
@@ -537,16 +571,23 @@ private struct ForegroundBotanicalParallaxOverlay: View {
     }
 }
 
-/// Sunlit wooden windowsill shelf displaying up to 6 foraged street curios inside the 2.5D Sunroom!
+/// Sunlit wooden windowsill shelf displaying up to 6 tappable foraged street curios inside the 2.5D Sunroom!
 private struct WindowsillCurioShelfView: View {
     let curios: [ForagedCurioEntry]
+    let onTapCurio: (ForagedCurioEntry) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 ForEach(curios) { entry in
-                    PaintedCurioStampView(curioID: entry.curioID, size: 24)
-                        .shadow(color: AppTheme.deepPineInk.opacity(0.22), radius: 2, y: 1)
+                    Button {
+                        onTapCurio(entry)
+                    } label: {
+                        PaintedCurioStampView(curioID: entry.curioID, size: 26)
+                            .shadow(color: AppTheme.deepPineInk.opacity(0.24), radius: 2, y: 1)
+                    }
+                    .buttonStyle(TactileGameButtonStyle(pressScale: 0.88, pressOffsetY: 1))
+                    .accessibilityLabel(CurioCatalog.curio(id: entry.curioID).name)
                 }
             }
             .padding(.horizontal, 12)
@@ -560,8 +601,36 @@ private struct WindowsillCurioShelfView: View {
                         endPoint: .bottom
                     )
                 )
-                .frame(width: CGFloat(curios.count) * 32 + 26, height: 7)
+                .frame(width: CGFloat(curios.count) * 34 + 26, height: 7)
                 .shadow(color: Color(hex: "#3B2412").opacity(0.30), radius: 3, y: 2)
+        }
+    }
+}
+
+/// Foreground cardboard front-wall + folded rim occluding a cat's belly so it visibly sits INSIDE the bakery box!
+private struct BakeryBoxForegroundRimView: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(Color(hex: "#E4C498"))
+                .frame(width: 82, height: 8)
+                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color(hex: "#8A6238"), lineWidth: 1.1))
+            RoundedRectangle(cornerRadius: 6)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: "#D5AE7C"), Color(hex: "#BC915D")],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 78, height: 34)
+                .overlay(
+                    Text("麵包坊")
+                        .font(.system(size: 8.5, weight: .bold, design: .serif))
+                        .foregroundStyle(Color(hex: "#6F4B2A").opacity(0.72))
+                )
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#7A5530"), lineWidth: 1.2))
+                .shadow(color: AppTheme.deepPineInk.opacity(0.22), radius: 4, y: 2)
         }
     }
 }

@@ -819,72 +819,96 @@ private struct AccessibleNearbyListSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section("探索真實周遭街角") {
-                    Button {
-                        Task {
-                            await coordinator.discoverRealNeighborhoodAnchors(
-                                around: coordinator.locationService.currentLocation.coordinate
-                            )
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    CutePlushButton(
+                        title: coordinator.isDiscoveringAnchors ? "正在尋找附近可步行街角…" : "探索目前位置的真實街角足印",
+                        tone: .butterHoney,
+                        fontSize: 13,
+                        horizontalPadding: 14,
+                        verticalPadding: 10,
+                        icon: { Image(systemName: "location.magnifyingglass").font(.system(size: 12, weight: .bold)) },
+                        action: {
+                            Task {
+                                await coordinator.discoverRealNeighborhoodAnchors(
+                                    around: coordinator.locationService.currentLocation.coordinate
+                                )
+                            }
                         }
-                    } label: {
-                        Label(
-                            coordinator.isDiscoveringAnchors ? "正在尋找附近可步行街角…" : "探索目前位置的真實街角足印",
-                            systemImage: "location.magnifyingglass"
-                        )
-                    }
+                    )
                     .disabled(coordinator.isDiscoveringAnchors)
-                }
 
-                Section("附近街角足印") {
+                    Text("附近街角足印（\(coordinator.visibleAnchors.count) 處）")
+                        .font(AppTheme.diegeticLabel(12))
+                        .foregroundStyle(AppTheme.softInk)
+                        .padding(.top, 4)
+
                     ForEach(coordinator.visibleAnchors, id: \.siteID) { anchor in
                         let dist = Int(coordinator.distanceMeters(to: anchor))
                         let state = coordinator.pawState(for: anchor)
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(anchor.customLabel)
-                                    .font(AppTheme.serifTitle(16))
-                                    .foregroundStyle(AppTheme.deepPineInk)
-                                Text("\(dist) 公尺 · \(state == .strollChain ? "金色漫步連鎖！" : state == .inRange ? "已在 75m 範圍內" : state == .metToday ? "今日已打招呼" : "需再走近一些")")
-                                    .font(AppTheme.serifBody(13))
-                                    .foregroundStyle(AppTheme.softInk)
-                            }
-                            Spacer()
-                            if state == .inRange || (state == .strollChain && dist <= 75) {
-                                Button("打招呼") {
-                                    dismiss()
-                                    _ = coordinator.attemptOpenAnchor(anchor)
+                        StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.timberWarm, paddingAmount: 12) {
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(anchor.customLabel)
+                                        .font(AppTheme.serifTitle(16))
+                                        .foregroundStyle(AppTheme.deepPineInk)
+                                    Text("\(dist) 公尺 · \(state == .strollChain ? "金色漫步連鎖！" : state == .inRange ? "已在 75m 範圍內" : state == .metToday ? "今日已打招呼" : "需再走近一些")")
+                                        .font(AppTheme.serifBody(12.5))
+                                        .foregroundStyle(AppTheme.softInk)
                                 }
-                                .buttonStyle(.borderedProminent)
-                                .tint(AppTheme.forestTeal)
-                            } else if state == .distant || state == .strollChain {
-                                Button("模擬走近") {
-                                    let target = AnchorRotationEngine.coordinateAhead(
-                                        from: CLLocationCoordinate2D(latitude: anchor.lat, longitude: anchor.lon),
-                                        meters: 15,
-                                        bearingDegrees: 180
+                                Spacer(minLength: 4)
+                                if state == .inRange || (state == .strollChain && dist <= 75) {
+                                    CutePlushButton(
+                                        title: "打招呼",
+                                        tone: .matchaMint,
+                                        fontSize: 12,
+                                        horizontalPadding: 11,
+                                        verticalPadding: 7,
+                                        icon: { Image(systemName: "pawprint.fill").font(.system(size: 10, weight: .bold)) },
+                                        action: {
+                                            dismiss()
+                                            _ = coordinator.attemptOpenAnchor(anchor)
+                                        }
                                     )
-                                    coordinator.locationService.walkSimulated(to: target)
+                                } else if state == .distant || state == .strollChain {
+                                    CutePlushButton(
+                                        title: "模擬走近",
+                                        tone: .milkCream,
+                                        fontSize: 12,
+                                        horizontalPadding: 10,
+                                        verticalPadding: 7,
+                                        icon: { Image(systemName: "figure.walk").font(.system(size: 10, weight: .bold)) },
+                                        action: {
+                                            let target = AnchorRotationEngine.coordinateAhead(
+                                                from: CLLocationCoordinate2D(latitude: anchor.lat, longitude: anchor.lon),
+                                                meters: 15,
+                                                bearingDegrees: 180
+                                            )
+                                            coordinator.locationService.walkSimulated(to: target)
+                                        }
+                                    )
                                 }
-                                .buttonStyle(.bordered)
-                            }
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button("隱藏", role: .destructive) {
-                                coordinator.hideAnchor(siteID: anchor.siteID)
-                            }
-                            if let mergeTarget = coordinator.visibleAnchors.first(where: { $0.siteID != anchor.siteID }) {
-                                Button("合併至鄰近") {
-                                    coordinator.mergeAnchor(sourceSiteID: anchor.siteID, intoTargetSiteID: mergeTarget.siteID)
+                                Menu {
+                                    if let mergeTarget = coordinator.visibleAnchors.first(where: { $0.siteID != anchor.siteID }) {
+                                        Button("合併至「\(mergeTarget.customLabel)」") {
+                                            coordinator.mergeAnchor(sourceSiteID: anchor.siteID, intoTargetSiteID: mergeTarget.siteID)
+                                        }
+                                    }
+                                    Button("隱藏此街角", role: .destructive) {
+                                        coordinator.hideAnchor(siteID: anchor.siteID)
+                                    }
+                                } label: {
+                                    Image(systemName: "ellipsis.circle")
+                                        .font(.system(size: 18))
+                                        .foregroundStyle(AppTheme.softInk)
                                 }
-                                .tint(AppTheme.forestTeal)
                             }
                         }
                     }
                 }
+                .padding(16)
             }
-            .scrollContentBackground(.hidden)
-            .background(AppTheme.warmPaper)
+            .background(AppTheme.parchmentTray)
             .navigationTitle("鄰近街角列表")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

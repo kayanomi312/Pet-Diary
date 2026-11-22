@@ -22,7 +22,14 @@ private final class CelFrameImageCache: @unchecked Sendable {
         if let cached = cache.object(forKey: key) {
             return cached
         }
-        guard let loaded = UIImage(named: name) else { return nil }
+        let loaded: UIImage?
+        if let url = Bundle.main.url(forResource: name, withExtension: "heic", subdirectory: "PetFrames"),
+           let fromFile = UIImage(contentsOfFile: url.path) {
+            loaded = fromFile
+        } else {
+            loaded = UIImage(named: name)
+        }
+        guard let loaded else { return nil }
         let bytes = Int(loaded.size.width * loaded.scale * loaded.size.height * loaded.scale * 4)
         cache.setObject(loaded, forKey: key, cost: max(1, bytes))
         return loaded

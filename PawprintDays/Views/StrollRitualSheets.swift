@@ -211,11 +211,12 @@ struct StartStrollSatchelSheet: View {
     }
 }
 
-/// 返家結算水彩明信片（散步收工時彈出：朱紅印章、同行夥伴、本次步數、水彩路線縮圖、拾遺與步數幣）
+/// 返家結算水彩明信片（散步收工時彈出：朱紅印章、同行夥伴、本次步數、水彩路線縮圖、拾遺與步數幣，並支援一鍵分享實體明信片圖檔！）
 struct StrollSummaryPostcardSheet: View {
     let summary: CompletedStrollSummary
     let weather: WeatherMode
     let onDismiss: () -> Void
+    @State private var renderedPostcardImage: UIImage? = nil
 
     private var companionSpec: PetSpec? {
         summary.companionPetID.map(PetCatalog.pet(id:))
@@ -227,123 +228,24 @@ struct StrollSummaryPostcardSheet: View {
 
             ScrollView {
                 VStack(spacing: 18) {
-                    ZStack(alignment: .topTrailing) {
-                        StorybookPaperCard(cornerRadius: 22, accentColor: AppTheme.timberWarm, showWashiTape: true, paddingAmount: 18) {
-                            VStack(spacing: 14) {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text("今日散步結算明信片")
-                                            .font(AppTheme.serifTitle(20))
-                                            .foregroundStyle(AppTheme.deepPineInk)
-                                        Text("\(CivilCalendarHelper.displayDate(from: summary.localDateISO)) · 漫步約 \(summary.durationMinutes) 分鐘")
-                                            .font(AppTheme.diegeticLabel(12))
-                                            .foregroundStyle(AppTheme.softInk)
-                                    }
-                                    Spacer()
-                                }
-
-                                if let companionSpec {
-                                    HStack(spacing: 12) {
-                                        ProceduralPetRigView(
-                                            pet: companionSpec,
-                                            pose: .respond,
-                                            weatherMode: weather,
-                                            isHappySquint: true,
-                                            applyMetalPaperShader: false,
-                                            isStaticSnapshot: true
-                                        )
-                                        .frame(width: 96, height: 96)
-
-                                        VStack(alignment: .leading, spacing: 5) {
-                                            Text("同行夥伴：\(companionSpec.name)")
-                                                .font(AppTheme.serifTitle(17))
-                                                .foregroundStyle(AppTheme.deepPineInk)
-                                            SpeciesFolkloreBadgeView(kind: companionSpec.kind)
-                                            if summary.packedCharm != .none {
-                                                Text("帆布袋小物：\(summary.packedCharm.title)")
-                                                    .font(AppTheme.handwritten(13))
-                                                    .foregroundStyle(AppTheme.forestTeal)
-                                            }
-                                        }
-                                        Spacer()
-                                    }
-                                    .padding(10)
-                                    .background(AppTheme.parchmentTray.opacity(0.65), in: RoundedRectangle(cornerRadius: 14))
-                                }
-
-                                // 散步收穫統計格
-                                HStack(spacing: 10) {
-                                    strollStatBadge(title: "本次步數", value: "\(summary.totalSteps.formatted())", icon: "figure.walk", tint: AppTheme.forestTeal)
-                                    strollStatBadge(title: "遇見街角", value: "\(summary.encountersCount) 處", icon: "pawprint.fill", tint: AppTheme.pawInRange)
-                                    strollStatBadge(title: "收穫步數幣", value: "+\(summary.coinsEarned)", icon: "circle.fill", tint: AppTheme.pawStrollChain)
-                                }
-
-                                // 水彩路線縮圖
-                                if summary.routePoints.count >= 2 {
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        Text("剛畫下的水彩散步足跡")
-                                            .font(AppTheme.diegeticLabel(11))
-                                            .foregroundStyle(AppTheme.softInk)
-                                        StrollRouteInkCanvas(points: summary.routePoints)
-                                            .frame(height: 76)
-                                            .background(AppTheme.parchmentTray.opacity(0.75), in: RoundedRectangle(cornerRadius: 12))
-                                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.timberWarm.opacity(0.35), lineWidth: 1))
-                                    }
-                                }
-
-                                // 撿回的小物
-                                if !summary.curiosFoundIDs.isEmpty {
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text("沿途帶回的口袋拾遺")
-                                            .font(AppTheme.diegeticLabel(11))
-                                            .foregroundStyle(AppTheme.forestTeal)
-                                        HStack(spacing: 8) {
-                                            ForEach(summary.curiosFoundIDs, id: \.self) { cid in
-                                                HStack(spacing: 5) {
-                                                    PaintedCurioStampView(curioID: cid, size: 26)
-                                                    Text(CurioCatalog.curio(id: cid).name)
-                                                        .font(AppTheme.diegeticLabel(11.5))
-                                                        .foregroundStyle(AppTheme.deepPineInk)
-                                                }
-                                                .padding(.horizontal, 9)
-                                                .padding(.vertical, 5)
-                                                .background(AppTheme.parchmentTray, in: Capsule())
-                                            }
-                                        }
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                }
-
-                                if let bonus = summary.bonusNote {
-                                    TornPaperSlipView(text: bonus)
-                                }
-                            }
-                        }
-
-                        HankoCelebrationStampView(
-                            title: "散步收錄 ✦",
-                            subtitle: "已夾進今日日記",
-                            stampColor: AppTheme.clothBookmark
-                        )
-                        .offset(x: -10, y: 12)
-                    }
-                    .padding(.top, 12)
+                    postcardBody
+                        .padding(.top, 12)
 
                     HStack(spacing: 10) {
-                        ShareLink(
-                            item: "足印日記 · \(CivilCalendarHelper.displayDate(from: summary.localDateISO))\n今天散步了 \(summary.totalSteps.formatted()) 步（約 \(summary.durationMinutes) 分鐘），遇見 \(summary.encountersCount) 個街角，收穫 +\(summary.coinsEarned) 枚步數幣！"
-                        ) {
-                            HStack(spacing: 5) {
-                                Image(systemName: "square.and.arrow.up")
-                                    .font(.system(size: 13, weight: .bold))
-                                Text("分享明信片")
-                                    .font(AppTheme.diegeticLabel(13.5))
+                        if let rendered = renderedPostcardImage {
+                            let shareImg = Image(uiImage: rendered)
+                            ShareLink(
+                                item: shareImg,
+                                preview: SharePreview("足印日記 · \(CivilCalendarHelper.displayDate(from: summary.localDateISO))散步明信片", image: shareImg)
+                            ) {
+                                shareButtonLabel
                             }
-                            .foregroundStyle(AppTheme.deepPineInk)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 13)
-                            .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(AppTheme.timberWarm.opacity(0.65), lineWidth: 1.2))
+                        } else {
+                            ShareLink(
+                                item: "足印日記 · \(CivilCalendarHelper.displayDate(from: summary.localDateISO))\n今天散步了 \(summary.totalSteps.formatted()) 步（約 \(summary.durationMinutes) 分鐘），遇見 \(summary.encountersCount) 個街角，收穫 +\(summary.coinsEarned) 枚步數幣！"
+                            ) {
+                                shareButtonLabel
+                            }
                         }
 
                         WoodPlaqueButton(
@@ -359,6 +261,138 @@ struct StrollSummaryPostcardSheet: View {
                 }
                 .padding(20)
             }
+        }
+        .onAppear {
+            bakePostcardImage()
+        }
+    }
+
+    private var shareButtonLabel: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: 13, weight: .bold))
+            Text("珍藏分享")
+                .font(AppTheme.diegeticLabel(13.5))
+        }
+        .foregroundStyle(AppTheme.deepPineInk)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
+        .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(AppTheme.timberWarm.opacity(0.65), lineWidth: 1.2))
+    }
+
+    @MainActor
+    private func bakePostcardImage() {
+        let renderer = ImageRenderer(
+            content: postcardBody
+                .padding(18)
+                .frame(width: 360)
+                .background(AppTheme.parchmentTray)
+        )
+        renderer.scale = 2.5
+        renderedPostcardImage = renderer.uiImage
+    }
+
+    private var postcardBody: some View {
+        ZStack(alignment: .topTrailing) {
+            StorybookPaperCard(cornerRadius: 22, accentColor: AppTheme.timberWarm, showWashiTape: true, paddingAmount: 18) {
+                VStack(spacing: 14) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("今日散步結算明信片")
+                                .font(AppTheme.serifTitle(20))
+                                .foregroundStyle(AppTheme.deepPineInk)
+                            Text("\(CivilCalendarHelper.displayDate(from: summary.localDateISO)) · 漫步約 \(summary.durationMinutes) 分鐘")
+                                .font(AppTheme.diegeticLabel(12))
+                                .foregroundStyle(AppTheme.softInk)
+                        }
+                        Spacer()
+                    }
+
+                    if let companionSpec {
+                        HStack(spacing: 12) {
+                            ProceduralPetRigView(
+                                pet: companionSpec,
+                                pose: .respond,
+                                weatherMode: weather,
+                                isHappySquint: true,
+                                applyMetalPaperShader: false,
+                                isStaticSnapshot: true
+                            )
+                            .frame(width: 96, height: 96)
+
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text("同行夥伴：\(companionSpec.name)")
+                                    .font(AppTheme.serifTitle(17))
+                                    .foregroundStyle(AppTheme.deepPineInk)
+                                SpeciesFolkloreBadgeView(kind: companionSpec.kind)
+                                if summary.packedCharm != .none {
+                                    Text("帆布袋小物：\(summary.packedCharm.title)")
+                                        .font(AppTheme.handwritten(13))
+                                        .foregroundStyle(AppTheme.forestTeal)
+                                }
+                            }
+                            Spacer()
+                        }
+                        .padding(10)
+                        .background(AppTheme.parchmentTray.opacity(0.65), in: RoundedRectangle(cornerRadius: 14))
+                    }
+
+                    // 散步收穫統計格
+                    HStack(spacing: 10) {
+                        strollStatBadge(title: "本次步數", value: "\(summary.totalSteps.formatted())", icon: "figure.walk", tint: AppTheme.forestTeal)
+                        strollStatBadge(title: "遇見街角", value: "\(summary.encountersCount) 處", icon: "pawprint.fill", tint: AppTheme.pawInRange)
+                        strollStatBadge(title: "收穫步數幣", value: "+\(summary.coinsEarned)", icon: "circle.fill", tint: AppTheme.pawStrollChain)
+                    }
+
+                    // 水彩路線縮圖
+                    if summary.routePoints.count >= 2 {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("剛畫下的水彩散步足跡")
+                                .font(AppTheme.diegeticLabel(11))
+                                .foregroundStyle(AppTheme.softInk)
+                            StrollRouteInkCanvas(points: summary.routePoints)
+                                .frame(height: 76)
+                                .background(AppTheme.parchmentTray.opacity(0.75), in: RoundedRectangle(cornerRadius: 12))
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.timberWarm.opacity(0.35), lineWidth: 1))
+                        }
+                    }
+
+                    // 撿回的小物
+                    if !summary.curiosFoundIDs.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("沿途帶回的口袋拾遺")
+                                .font(AppTheme.diegeticLabel(11))
+                                .foregroundStyle(AppTheme.forestTeal)
+                            HStack(spacing: 8) {
+                                ForEach(summary.curiosFoundIDs, id: \.self) { cid in
+                                    HStack(spacing: 5) {
+                                        PaintedCurioStampView(curioID: cid, size: 26)
+                                        Text(CurioCatalog.curio(id: cid).name)
+                                            .font(AppTheme.diegeticLabel(11.5))
+                                            .foregroundStyle(AppTheme.deepPineInk)
+                                    }
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 5)
+                                    .background(AppTheme.parchmentTray, in: Capsule())
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    if let bonus = summary.bonusNote {
+                        TornPaperSlipView(text: bonus)
+                    }
+                }
+            }
+
+            HankoCelebrationStampView(
+                title: "散步收錄 ✦",
+                subtitle: "已夾進今日日記",
+                stampColor: AppTheme.clothBookmark
+            )
+            .offset(x: -10, y: 12)
         }
     }
 

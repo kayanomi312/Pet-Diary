@@ -65,6 +65,10 @@ struct HomeSunroomView: View {
                 },
                 onCollectOrigami: { drop in
                     coordinator.collectOrigamiCharmGift(note: drop.note)
+                },
+                onTapWindowsillCurio: { entry in
+                    let spec = CurioCatalog.curio(id: entry.curioID)
+                    coordinator.showWhisper("窗台珍藏「\(spec.name)」(\(entry.placeLabel))：\(spec.journalNote)")
                 }
             )
             .overlay(alignment: .bottom) {
@@ -133,6 +137,23 @@ struct HomeSunroomView: View {
                     )
 
                     Spacer(minLength: 4)
+
+                    // 一鍵丟出手工縫布球讓毛孩在 2.5D 地板上追逐玩耍！
+                    if !invitedPets.isEmpty && !isDecoratingMode {
+                        CutePlushButton(
+                            title: "丟布球",
+                            tone: .butterHoney,
+                            fontSize: 11.5,
+                            horizontalPadding: 9,
+                            verticalPadding: 6,
+                            icon: { Image(systemName: "circle.dashed.inset.filled").font(.system(size: 11, weight: .bold)) },
+                            action: {
+                                HapticsEngine.shared.playDogBallRoll()
+                                CozySoundEngine.shared.playPawTap()
+                                _ = roamingEngine.tossClothBall()
+                            }
+                        )
+                    }
 
                     // 2.5D 自由拖曳佈置模式切換鈕
                     CutePlushButton(
