@@ -44,18 +44,21 @@ final class HapticsEngine {
             do {
                 let newEngine = try CHHapticEngine()
                 newEngine.playsHapticsOnly = true
-                newEngine.stoppedHandler = { [weak self] _ in
-                    Task { @MainActor in
-                        self?.engineNeedsStart = true
+                Self.installLifecycleHandlers(
+                    on: newEngine,
+                    onStop: { [weak self] in
+                        Task { @MainActor [weak self] in
+                            self?.engineNeedsStart = true
+                        }
+                    },
+                    onReset: { [weak self] in
+                        Task { @MainActor [weak self] in
+                            self?.engineNeedsStart = true
+                            try? self?.engine?.start()
+                            self?.engineNeedsStart = false
+                        }
                     }
-                }
-                newEngine.resetHandler = { [weak self] in
-                    Task { @MainActor in
-                        self?.engineNeedsStart = true
-                        try? self?.engine?.start()
-                        self?.engineNeedsStart = false
-                    }
-                }
+                )
                 try newEngine.start()
                 self.engine = newEngine
                 self.engineNeedsStart = false
@@ -163,5 +166,15 @@ final class HapticsEngine {
             engineNeedsStart = true
             return false
         }
+    }
+
+    /// Strictly `nonisolated` so CoreHaptics background server callbacks never trip Swift 6 `@MainActor` assertions.
+    nonisolated private static func installLifecycleHandlers(
+        on engine: CHHapticEngine,
+        onStop: @escaping @Sendable () -> Void,
+        onReset: @escaping @Sendable () -> Void
+    ) {
+        engine.stoppedHandler = { _ in onStop() }
+        engine.resetHandler = { onReset() }
     }
 }

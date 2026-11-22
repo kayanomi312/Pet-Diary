@@ -10,7 +10,7 @@ struct DisjointPedometerBucket: Sendable {
 @MainActor
 @Observable
 final class PedometerService {
-    private let pedometer = CMPedometer()
+    nonisolated(unsafe) private let pedometer = CMPedometer()
 
     var isStepCountingAvailable: Bool {
         CMPedometer.isStepCountingAvailable()
@@ -35,8 +35,7 @@ final class PedometerService {
         stopLiveStrollUpdates()
         lastStreamedCumulativeSteps = 0
         isStreamingLiveStroll = true
-        pedometer.startUpdates(from: startDate) { [weak self] data, error in
-            guard error == nil, let totalSteps = data?.numberOfSteps.intValue else { return }
+        Self.beginUpdates(pedometer: pedometer, from: startDate) { [weak self] totalSteps in
             Task { @MainActor [weak self] in
                 guard let self, self.isStreamingLiveStroll else { return }
                 let delta = totalSteps - self.lastStreamedCumulativeSteps
@@ -103,6 +102,11 @@ final class PedometerService {
     }
 
     private func querySingleBucket(from start: Date, to end: Date) async -> Int? {
+        await Self.querySteps(pedometer: pedometer, from: start, to: end)
+    }
+
+    /// Strictly `nonisolated` so CoreMotion's background dispatch queue callback NEVER trips Swift 6's `@MainActor` executor assertion.
+    nonisolated private static func querySteps(pedometer: CMPedometer, from start: Date, to end: Date) async -> Int? {
         await withCheckedContinuation { continuation in
             pedometer.queryPedometerData(from: start, to: end) { data, error in
                 if error != nil {
@@ -111,6 +115,18 @@ final class PedometerService {
                     continuation.resume(returning: data?.numberOfSteps.intValue)
                 }
             }
+        }
+    }
+
+    /// Strictly `nonisolated` wrapper for `CMPedometer.startUpdates` background callbacks.
+    nonisolated private static func beginUpdates(
+        pedometer: CMPedometer,
+        from startDate: Date,
+        onTotalSteps: @escaping @Sendable (Int) -> Void
+    ) {
+        pedometer.startUpdates(from: startDate) { data, error in
+            guard error == nil, let totalSteps = data?.numberOfSteps.intValue else { return }
+            onTotalSteps(totalSteps)
         }
     }
 }
