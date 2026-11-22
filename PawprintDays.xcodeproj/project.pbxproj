@@ -15,6 +15,7 @@
 		15CE874DE2B01B22BA78CC3B /* TactileCareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C2DCCD080EBEEA8618B504 /* TactileCareView.swift */; };
 		18EDD519764D4B0D48A499A8 /* CurioCubbiesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5396DC8F62A51EA4DBF5FA0 /* CurioCubbiesView.swift */; };
 		1EA24F4C854908AC4C4ACEBE /* StepCoinLedgerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95711078B296384E1C6AD9A3 /* StepCoinLedgerEngine.swift */; };
+		261C0EF6829472C2765DA40C /* IndoorPlayHubSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F40312D192B1DAF66279AE /* IndoorPlayHubSheet.swift */; };
 		2964DFA28D5E109109BEEE50 /* PawprintDaysWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AE753BFE83AECF2523A7649 /* PawprintDaysWidgets.swift */; };
 		29D2B56A5B1A15CF8920CA22 /* RoomOccupancySolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23804B7F9F2AAAFBDCD72CC /* RoomOccupancySolver.swift */; };
 		32AD8FA0C4478A92BC144378 /* Stage2To4VerificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */; };
@@ -38,6 +39,7 @@
 		928FC998F4E5361185438FB3 /* PedometerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006EAF955D692AACB215D604 /* PedometerService.swift */; };
 		934FE6CD834B229109168153 /* PawprintDaysWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D9C06CF7A23756CD0CFB07BF /* PawprintDaysWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9536B357EA0BC33DABC7932F /* paw_range.ahap in Resources */ = {isa = PBXBuildFile; fileRef = 3658077F88E869B7E55F647E /* paw_range.ahap */; };
+		A8FE120F10CDB1D4D24374A6 /* IndoorAndRaisingModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E03777EE489788915164AF7 /* IndoorAndRaisingModels.swift */; };
 		B2FFA362B31165E5FEF5E441 /* StrollLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67E854C8AC9CCB40C6F312CC /* StrollLiveActivityManager.swift */; };
 		B9E0D6FF5ADD861C160546AC /* GameCoordinator+Fixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 695FB44687F27EE0E023B4EB /* GameCoordinator+Fixtures.swift */; };
 		C129648729AE2C786C4E8CD7 /* PawprintAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A37DA5888EB9B52CFF84855E /* PawprintAppIntents.swift */; };
@@ -47,6 +49,7 @@
 		C965EDB14F54B1C970770E42 /* StreetOverworldView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E7D5485F75FC57B5EBD6075 /* StreetOverworldView.swift */; };
 		CA8581F4D6976F1140243EA6 /* RootStageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA4F7120974E6DAA6C348D1B /* RootStageView.swift */; };
 		D03F5B5256D397DB58C261A1 /* StorybookGameUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9131649D46AD6C948295A1D7 /* StorybookGameUI.swift */; };
+		D2DA54B2E0A7B9E6385CE914 /* GameCoordinator+IndoorAndRaising.swift in Sources */ = {isa = PBXBuildFile; fileRef = 187676AF72A63606215B3006 /* GameCoordinator+IndoorAndRaising.swift */; };
 		D61598D9F86F05DED885F12B /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514894921375578990F18305 /* AppTheme.swift */; };
 		D64A6D405769C13E1DA11AB4 /* PetFrames in Resources */ = {isa = PBXBuildFile; fileRef = AEB687F1A5B3765C222D233C /* PetFrames */; };
 		D831966FC956CB4BAE66930C /* StrollRitualSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 577B6815AA46FB69A029BEF6 /* StrollRitualSheets.swift */; };
@@ -95,6 +98,7 @@
 		006EAF955D692AACB215D604 /* PedometerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PedometerService.swift; sourceTree = "<group>"; };
 		071983DCB25BE655FF909410 /* DiegeticProps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiegeticProps.swift; sourceTree = "<group>"; };
 		0740C979C9E98A4DEB2763B7 /* PawprintDaysApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PawprintDaysApp.swift; sourceTree = "<group>"; };
+		187676AF72A63606215B3006 /* GameCoordinator+IndoorAndRaising.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GameCoordinator+IndoorAndRaising.swift"; sourceTree = "<group>"; };
 		1BB82F737C708433848BA4E4 /* Stage1VerificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stage1VerificationTests.swift; sourceTree = "<group>"; };
 		240A215BE2D51BF1C17FC3C6 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		294ECBE64107C69E3AE79B88 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -122,6 +126,7 @@
 		8607EA677A0697AC9B749D7A /* NarrativeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NarrativeEngine.swift; sourceTree = "<group>"; };
 		8BF59BCC71DE351874829DEE /* SwiftDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataModels.swift; sourceTree = "<group>"; };
 		8D31E76984681A384C3B6706 /* SidewalkEncounterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidewalkEncounterView.swift; sourceTree = "<group>"; };
+		8E03777EE489788915164AF7 /* IndoorAndRaisingModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndoorAndRaisingModels.swift; sourceTree = "<group>"; };
 		8FA68C348F168F5266C8FF2B /* cat_purr.ahap */ = {isa = PBXFileReference; path = cat_purr.ahap; sourceTree = "<group>"; };
 		9131649D46AD6C948295A1D7 /* StorybookGameUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorybookGameUI.swift; sourceTree = "<group>"; };
 		95711078B296384E1C6AD9A3 /* StepCoinLedgerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCoinLedgerEngine.swift; sourceTree = "<group>"; };
@@ -145,6 +150,7 @@
 		F175005BD67145CD1D5A8672 /* DiaryExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryExportService.swift; sourceTree = "<group>"; };
 		F23804B7F9F2AAAFBDCD72CC /* RoomOccupancySolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomOccupancySolver.swift; sourceTree = "<group>"; };
 		F8E7501CACD547594CF9F3CB /* CuteKawaiiIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuteKawaiiIcons.swift; sourceTree = "<group>"; };
+		F9F40312D192B1DAF66279AE /* IndoorPlayHubSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndoorPlayHubSheet.swift; sourceTree = "<group>"; };
 		FC0F049D89ACEE9B47D5F487 /* SunroomRoamingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunroomRoamingEngine.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -156,6 +162,7 @@
 				A5396DC8F62A51EA4DBF5FA0 /* CurioCubbiesView.swift */,
 				4A74C81C1FC7B537AAD7B171 /* HardcoverSketchbookView.swift */,
 				C1BB69ACCDDB09346B6CD70E /* HomeSunroomView.swift */,
+				F9F40312D192B1DAF66279AE /* IndoorPlayHubSheet.swift */,
 				8D31E76984681A384C3B6706 /* SidewalkEncounterView.swift */,
 				7E7D5485F75FC57B5EBD6075 /* StreetOverworldView.swift */,
 				577B6815AA46FB69A029BEF6 /* StrollRitualSheets.swift */,
@@ -196,6 +203,7 @@
 			isa = PBXGroup;
 			children = (
 				5A600ABFFADCDFB70A967183 /* GameTypes.swift */,
+				8E03777EE489788915164AF7 /* IndoorAndRaisingModels.swift */,
 				B209268D8883F60AFD479A29 /* PetCatalog.swift */,
 				8BF59BCC71DE351874829DEE /* SwiftDataModels.swift */,
 			);
@@ -259,6 +267,7 @@
 				33F2454D976BB67C83BE9F36 /* DiarySnapshotBaker.swift */,
 				A93CFFA2DFDC1657DFAD6BE0 /* GameCoordinator.swift */,
 				695FB44687F27EE0E023B4EB /* GameCoordinator+Fixtures.swift */,
+				187676AF72A63606215B3006 /* GameCoordinator+IndoorAndRaising.swift */,
 				9C568E5706C32C149A0CC402 /* HapticsEngine.swift */,
 				240A215BE2D51BF1C17FC3C6 /* LocationService.swift */,
 				E0B2764B24738456F6E6AFF4 /* MapKitAnchorDiscoveryService.swift */,
@@ -447,11 +456,14 @@
 				4C5A2CDC1017220D0F44DA8B /* DiarySnapshotBaker.swift in Sources */,
 				C93E1B479E8580F215D66CD8 /* DiegeticProps.swift in Sources */,
 				B9E0D6FF5ADD861C160546AC /* GameCoordinator+Fixtures.swift in Sources */,
+				D2DA54B2E0A7B9E6385CE914 /* GameCoordinator+IndoorAndRaising.swift in Sources */,
 				DDED72C953C9AC79544709AF /* GameCoordinator.swift in Sources */,
 				EC6DD98609A3BF8E763BF9EE /* GameTypes.swift in Sources */,
 				C881DC0B473CB523E163DC1F /* HapticsEngine.swift in Sources */,
 				EA98F78935CA143C0BF14B9F /* HardcoverSketchbookView.swift in Sources */,
 				578BC54F831104EB75548792 /* HomeSunroomView.swift in Sources */,
+				A8FE120F10CDB1D4D24374A6 /* IndoorAndRaisingModels.swift in Sources */,
+				261C0EF6829472C2765DA40C /* IndoorPlayHubSheet.swift in Sources */,
 				4047114F86E909BFEB2CCFE0 /* LocationService.swift in Sources */,
 				84940EB4D785441D0E90E20E /* MapKitAnchorDiscoveryService.swift in Sources */,
 				6BAD6FE020F29A88D2B224C3 /* NarrativeEngine.swift in Sources */,

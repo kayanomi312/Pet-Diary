@@ -1017,6 +1017,8 @@ final class GameCoordinator {
 
         try? modelContext.save()
         reloadAll()
+        markDailyWishCompleted(.streetGreeting)
+        nurtureAllGrowingOffspring(axis: .brave, bonusSteps: 0)
         return log
     }
 
@@ -1164,6 +1166,7 @@ final class GameCoordinator {
 
         if result.newlyAcceptedSteps > 0 {
             advanceMentorshipSteps(by: result.newlyAcceptedSteps)
+            nurtureAllGrowingOffspring(axis: .brave, bonusSteps: result.newlyAcceptedSteps, countAsActivity: false)
         }
 
         var newlyForagedIDs = result.newCuriosForaged.map(\.curioID)
@@ -1315,6 +1318,8 @@ final class GameCoordinator {
         _ = todayDiaryRecord()
         try? modelContext.save()
         reloadAll()
+        markDailyWishCompleted(.streetGreeting)
+        nurtureAllGrowingOffspring(axis: .brave, bonusSteps: 0)
         return log
     }
 
@@ -1488,6 +1493,7 @@ final class GameCoordinator {
         }
         try? modelContext.save()
         reloadAll()
+        nurtureAllGrowingOffspring(axis: .gentle, bonusSteps: 0)
     }
 
     func togglePinFavorite(petID: String) {
@@ -1550,6 +1556,9 @@ final class GameCoordinator {
         day.personalNote = note
         try? modelContext.save()
         reloadAll()
+        if !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            markDailyWishCompleted(.writeDiary)
+        }
     }
 
     func toggleStarredTradition(for localDateISO: String) {

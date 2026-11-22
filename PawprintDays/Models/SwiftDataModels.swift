@@ -383,6 +383,7 @@ final class WalletAndCurioLedger {
     var foragedCuriosData: Data?
     var stepIntervalsData: Data?
     var gingerTeaActiveUntil: Date? = nil
+    var indoorStateData: Data? = nil
 
     init(
         txUUID: String = "primary",
@@ -443,6 +444,16 @@ final class WalletAndCurioLedger {
     func isGingerTeaActive(at date: Date = Date()) -> Bool {
         guard let until = gingerTeaActiveUntil else { return false }
         return until > date
+    }
+
+    var indoorState: SunroomIndoorState {
+        get {
+            guard let data = indoorStateData else { return SunroomIndoorState() }
+            return (try? JSONDecoder().decode(SunroomIndoorState.self, from: data)) ?? SunroomIndoorState()
+        }
+        set {
+            indoorStateData = try? JSONEncoder().encode(newValue)
+        }
     }
 }
 

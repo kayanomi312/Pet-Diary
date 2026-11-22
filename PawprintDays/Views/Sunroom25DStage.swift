@@ -10,15 +10,27 @@ struct Sunroom25DStageView: View {
     let effectivePan: CGFloat
     let bouncingPetID: String?
     var isDecoratingMode: Bool = false
+    var isFeatherWandMode: Bool = false
+    var hidingSpotIndex: Int? = nil
+    var hidingPetID: String? = nil
     let onTapPet: (String) -> Void
     let onTapSpot: (HomeSpotPlacement) -> Void
     let onCompleteMentorship: (TeachingIntention) -> Void
     var onCollectOrigami: ((SunroomRoamingEngine.OrigamiCharmDrop) -> Void)? = nil
     var onTapWindowsillCurio: ((ForagedCurioEntry) -> Void)? = nil
+    var onTapOffspring: ((MysticalOffspringRecord) -> Void)? = nil
+    var onFoundHidingPet: ((String) -> Void)? = nil
+    var onTriggerSkit: ((String, String) -> Void)? = nil
+    var onCompleteFeatherWandChase: (() -> Void)? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var draggingSpotIndex: Int? = nil
     @State private var draggingSpotUV: CGPoint? = nil
+    @State private var wandScreenPoint: CGPoint? = nil
+    @State private var lastWandPoint: CGPoint? = nil
+    @State private var wandChaseDistance: CGFloat = 0
+    @State private var lastWandCallDate: Date = .distantPast
+    @State private var windChimeRingPulse: Bool = false
 
     var body: some View {
         GeometryReader { geo in
@@ -92,6 +104,52 @@ struct Sunroom25DStageView: View {
                     .offset(x: effectivePan * 0.60)
                 }
 
+                // Hanging Window Beam Decor: Swipeable Edo Glass Wind Chime + Crafted Origamis!
+                HangingWindowDecorBeamView(
+                    origamis: coordinator.indoorState.hangingOrigamis,
+                    isRinging: windChimeRingPulse,
+                    onRingChime: {
+                        coordinator.ringSunroomWindChime()
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.35)) {
+                            windChimeRingPulse = true
+                        }
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(700))
+                            withAnimation(.easeOut(duration: 0.3)) { windChimeRingPulse = false }
+                        }
+                    }
+                )
+                .position(x: stageW * 0.50, y: max(116, floorHorizonY - 126))
+                .offset(x: effectivePan * 0.50)
+
+                // Pinned Watercolor Diary Postcard mounted with Washi Tape on the back left wall
+                if let pinnedID = coordinator.indoorState.pinnedPostcardEncounterID,
+                   let enc = coordinator.encounters.first(where: { $0.encounterUUID == pinnedID }),
+                   let pngData = enc.bakedSnapshotPNGData,
+                   let img = UIImage(data: pngData) {
+                    PinnedWallPostcardView(image: img, placeLabel: enc.siteDisplayLabel) {
+                        HapticsEngine.shared.playBrushStrokeTick()
+                        CozySoundEngine.shared.playPaperFlip()
+                        coordinator.showWhisper("牆上的珍藏明信片：\(enc.narrativeLine)")
+                    }
+                    .position(x: stageW * 0.24, y: floorHorizonY - 76)
+                    .offset(x: effectivePan * 0.44)
+                }
+
+                // Shy Undiscovered Mystical Companion peeking outside the Sunroom Window!
+                if !isDecoratingMode, !isFeatherWandMode, let visitorID = coordinator.currentWindowVisitorPetID {
+                    let visits = coordinator.indoorState.windowVisitCounts[visitorID] ?? 0
+                    SunroomWindowVisitorView(
+                        petSpec: PetCatalog.pet(id: visitorID),
+                        weather: coordinator.activeWeather,
+                        visitCount: visits
+                    ) {
+                        coordinator.greetWindowVisitor(petID: visitorID)
+                    }
+                    .position(x: stageW * 0.76, y: floorHorizonY - 46)
+                    .offset(x: effectivePan * 0.52)
+                }
+
                 // MARK: Layer 2 — Interactive 2.5D Depth-Sorted Floor Stage (Furniture + Free-Roaming Pets)
                 TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
                     let now = timeline.date
@@ -154,6 +212,31 @@ struct Sunroom25DStageView: View {
                                         hasStitchedPatch: spot.hasStitchedPatch,
                                         isWide: spot.currentOccupantPetIDs.count > 1
                                     )
+
+                                    // Sunroom Hide-and-Seek playful peeking sparkle behind this furniture spot!
+                                    if !isDecoratingMode, !isFeatherWandMode,
+                                       hidingSpotIndex == spot.spotIndex,
+                                       let foundPet = hidingPetID {
+                                        Button {
+                                            onFoundHidingPet?(foundPet)
+                                        } label: {
+                                            HStack(spacing: 3) {
+                                                Image(systemName: "eyes")
+                                                    .font(.system(size: 11, weight: .bold))
+                                                Text("找到你！")
+                                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                            }
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color(hex: "#D98A36"), in: Capsule())
+                                            .overlay(Capsule().stroke(Color(hex: "#FFFDF8"), lineWidth: 1.4))
+                                            .shadow(color: AppTheme.deepPineInk.opacity(0.26), radius: 4, y: 2)
+                                        }
+                                        .buttonStyle(TactileGameButtonStyle(pressScale: 0.90, pressOffsetY: 1))
+                                        .offset(x: 24, y: -22)
+                                        .accessibilityLabel("發現躲貓貓的小靈獸")
+                                    }
                                 }
                                 Text(isDecoratingMode ? "拖曳移動 · \(spot.spotName)" : (spot.hasLovedPatina ? "✦ \(spot.spotName)" : spot.spotName))
                                     .font(.system(size: 9.5, weight: .bold, design: .rounded))
@@ -275,7 +358,50 @@ struct Sunroom25DStageView: View {
                             .zIndex(Double(teaUV.y * 1000.0) + 18)
                         }
 
+                        // Raised Mystical Eggs & Hybrid Hatchlings living on the 2.5D Sunroom floor!
+                        let nurseryFloorSpots: [CGPoint] = [
+                            CGPoint(x: 0.36, y: 0.70),
+                            CGPoint(x: 0.63, y: 0.72),
+                            CGPoint(x: 0.49, y: 0.80)
+                        ]
+                        ForEach(Array(coordinator.sunroomOffsprings.prefix(3).enumerated()), id: \.element.id) { idx, child in
+                            let cUV = nurseryFloorSpots[idx % nurseryFloorSpots.count]
+                            let cPt = floorPoint(uv: cUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
+                            let cScale = depthScale(for: cUV.y) * child.growthStage.sunroomScaleMultiplier
+
+                            Button {
+                                if !isDecoratingMode && !isFeatherWandMode {
+                                    HapticsEngine.shared.playPawRangeCue()
+                                    CozySoundEngine.shared.playPetChirp()
+                                    onTapOffspring?(child)
+                                }
+                            } label: {
+                                VStack(spacing: 2) {
+                                    HybridOffspringRigView(
+                                        offspring: child,
+                                        weather: coordinator.activeWeather,
+                                        size: 98
+                                    )
+                                    Text(child.growthStage == .egg ? "✦ 奇幻靈卵" : "\(child.name) \(child.gender.symbol)")
+                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                        .foregroundStyle(Color(hex: "#4A3628"))
+                                        .padding(.horizontal, 7)
+                                        .padding(.vertical, 2)
+                                        .background(Color(hex: "#FFFDF7").opacity(0.92), in: Capsule())
+                                        .overlay(Capsule().stroke(Color(hex: child.gender.badgeHex).opacity(0.55), lineWidth: 0.9))
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .scaleEffect(cScale)
+                            .position(x: cPt.x, y: cPt.y - 24 * cScale)
+                            .zIndex(Double(cUV.y * 1000.0) + 6)
+                            .accessibilityLabel("\(child.name)，點擊打開奇幻育兒窩")
+                        }
+
                         // 2.5D Free-Roaming Hand-Animated Pets (pure 60fps interpolated position + species magical auras!)
+                        let sortedActorIDs = roaming.actors.keys.sorted()
+                        let skitHostPetID: String? = (sortedActorIDs.count >= 2 && !isDecoratingMode && !isFeatherWandMode) ? sortedActorIDs[1] : nil
+                        let skitPartnerPetID: String? = (sortedActorIDs.count >= 2) ? sortedActorIDs[0] : nil
                         ForEach(Array(roaming.actors.values), id: \.petID) { actor in
                             let spec = PetCatalog.pet(id: actor.petID)
                             let resident = coordinator.resident(for: actor.petID)
@@ -311,13 +437,31 @@ struct Sunroom25DStageView: View {
                                         icon: { Image(systemName: "sparkles").font(.system(size: 10, weight: .bold)) },
                                         action: { onCompleteMentorship(ready) }
                                     )
+                                } else if actor.petID == skitHostPetID, let partner = skitPartnerPetID {
+                                    Button {
+                                        onTriggerSkit?(partner, actor.petID)
+                                    } label: {
+                                        HStack(spacing: 3) {
+                                            Image(systemName: "sparkles")
+                                                .font(.system(size: 9.5, weight: .bold))
+                                            Text("室友小劇場")
+                                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                        }
+                                        .foregroundStyle(Color(hex: "#5A3D16"))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color(hex: "#FFF4D6"), in: Capsule())
+                                        .overlay(Capsule().stroke(Color(hex: "#D9A441"), lineWidth: 1.1))
+                                        .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 3, y: 1.5)
+                                    }
+                                    .buttonStyle(TactileGameButtonStyle(pressScale: 0.92, pressOffsetY: 1))
                                 } else if let bubble = actor.speechBubble {
                                     SunroomPetSpeechBubble(text: bubble)
                                         .offset(y: 6)
                                 }
 
                                 Button {
-                                    if !isDecoratingMode { onTapPet(actor.petID) }
+                                    if !isDecoratingMode && !isFeatherWandMode { onTapPet(actor.petID) }
                                 } label: {
                                     ZStack {
                                         // Directional Window-Lit Ground Shadow (shifts opposite sunbeam angle!)
@@ -397,6 +541,47 @@ struct Sunroom25DStageView: View {
                             .scaleEffect(scale * (isInBox ? 0.86 : 1.0))
                             .position(x: pt.x, y: pt.y - (isInBox ? 32 : 44) * scale)
                             .zIndex(Double(liveUV.y * 1000.0))
+                        }
+
+                        // Live Feather-Wand Interactive Floor Chase Mode (`逗貓棒追逐`)
+                        if isFeatherWandMode {
+                            Color.clear
+                                .contentShape(Rectangle())
+                                .gesture(
+                                    DragGesture(minimumDistance: 0, coordinateSpace: .named("sunroomFloor"))
+                                        .onChanged { value in
+                                            let pt = value.location
+                                            wandScreenPoint = pt
+                                            if let prev = lastWandPoint {
+                                                wandChaseDistance += hypot(pt.x - prev.x, pt.y - prev.y)
+                                            }
+                                            lastWandPoint = pt
+
+                                            let clampedY = max(floorHorizonY + 6, min(floorBottomY, pt.y))
+                                            let u = max(0.08, min(0.92, pt.x / stageW))
+                                            let depth = max(0.14, min(0.88, (clampedY - floorHorizonY) / max(1, floorBottomY - floorHorizonY)))
+                                            if now.timeIntervalSince(lastWandCallDate) >= 0.22 {
+                                                lastWandCallDate = now
+                                                roaming.callNearestPet(to: CGPoint(x: u, y: depth), now: now)
+                                                HapticsEngine.shared.playBrushStrokeTick()
+                                            }
+                                            if wandChaseDistance >= 340 {
+                                                wandChaseDistance = 0
+                                                onCompleteFeatherWandChase?()
+                                            }
+                                        }
+                                        .onEnded { _ in
+                                            wandScreenPoint = nil
+                                            lastWandPoint = nil
+                                        }
+                                )
+                                .zIndex(1900)
+
+                            if let wandPt = wandScreenPoint {
+                                FeatherWandRibbonOverlay(tipPoint: wandPt, time: now.timeIntervalSinceReferenceDate)
+                                    .allowsHitTesting(false)
+                                    .zIndex(2000)
+                            }
                         }
 
                         // Empty sunroom welcoming guide when the player hasn't invited a pet yet
@@ -854,6 +1039,193 @@ private struct SeasonalWindowAmbianceOverlay: View {
                     }
                 }
             }
+        }
+    }
+}
+
+/// Interactive Edo Glass Wind Chime + Dangling Hand-Folded Origamis hanging from the top window beam!
+private struct HangingWindowDecorBeamView: View {
+    let origamis: [OrigamiCraftKind]
+    let isRinging: Bool
+    let onRingChime: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            // Swipeable / Tappable Edo Glass Wind Chime (`江戶風鈴`)
+            Button(action: onRingChime) {
+                VStack(spacing: 0) {
+                    Rectangle()
+                        .fill(Color(hex: "#8A6238").opacity(0.75))
+                        .frame(width: 1.5, height: 14)
+                    ZStack {
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [Color(hex: "#E8F6FA").opacity(0.95), Color(hex: "#84BCC8").opacity(0.72)],
+                                    center: .topLeading,
+                                    startRadius: 2,
+                                    endRadius: 15
+                                )
+                            )
+                            .frame(width: 24, height: 22)
+                            .overlay(Circle().stroke(Color(hex: "#4A7276").opacity(0.55), lineWidth: 1))
+                        Image(systemName: "sparkle")
+                            .font(.system(size: 7, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .offset(x: -4, y: -3)
+                    }
+                    Rectangle()
+                        .fill(Color(hex: "#B84A62"))
+                        .frame(width: 1.2, height: 7)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(Color(hex: "#FFFDF6"))
+                        .frame(width: 11, height: 22)
+                        .overlay(
+                            VStack(spacing: 2) {
+                                Circle().fill(Color(hex: "#D46B52").opacity(0.65)).frame(width: 4, height: 4)
+                                RoundedRectangle(cornerRadius: 1).fill(Color(hex: "#5B4A3C").opacity(0.45)).frame(width: 2, height: 8)
+                            }
+                        )
+                        .overlay(RoundedRectangle(cornerRadius: 2).stroke(Color(hex: "#D5C5AE"), lineWidth: 0.8))
+                        .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 2, y: 1)
+                }
+                .rotationEffect(.degrees(isRinging ? 14 : -3), anchor: .top)
+            }
+            .buttonStyle(.plain)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 8)
+                    .onEnded { _ in onRingChime() }
+            )
+            .accessibilityLabel("輕撥江戶風鈴")
+
+            // Crafted Origami Charms dangling along the sunlit window beam
+            ForEach(Array(origamis.enumerated()), id: \.offset) { idx, kind in
+                VStack(spacing: 0) {
+                    Rectangle()
+                        .fill(Color(hex: "#9E784B").opacity(0.65))
+                        .frame(width: 1.2, height: CGFloat(14 + (idx % 2) * 10))
+                    Image(systemName: kind.sfSymbol)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color(hex: kind.colorHex))
+                        .padding(6)
+                        .background(Color(hex: "#FFFDF8").opacity(0.92), in: RoundedRectangle(cornerRadius: 7))
+                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color(hex: kind.colorHex).opacity(0.6), lineWidth: 1))
+                        .shadow(color: AppTheme.deepPineInk.opacity(0.15), radius: 2, y: 1.5)
+                        .rotationEffect(.degrees(isRinging ? (idx % 2 == 0 ? 10 : -10) : (idx % 2 == 0 ? -4 : 4)), anchor: .top)
+                }
+            }
+        }
+    }
+}
+
+/// Pinned Watercolor Diary Postcard framed with Washi Tape on the back Sunroom wall!
+private struct PinnedWallPostcardView: View {
+    let image: UIImage
+    let placeLabel: String
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            ZStack(alignment: .top) {
+                VStack(spacing: 3) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 58, height: 42)
+                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                    Text(placeLabel)
+                        .font(.system(size: 7.5, weight: .bold, design: .serif))
+                        .foregroundStyle(Color(hex: "#5B4A3C"))
+                        .lineLimit(1)
+                        .frame(maxWidth: 58)
+                }
+                .padding(5)
+                .background(Color(hex: "#FFFDF8"), in: RoundedRectangle(cornerRadius: 5))
+                .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color(hex: "#D5C5AE"), lineWidth: 1))
+                .shadow(color: AppTheme.deepPineInk.opacity(0.22), radius: 4, y: 2)
+
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(Color(hex: "#E6CFA3").opacity(0.88))
+                    .frame(width: 24, height: 6)
+                    .offset(y: -3)
+            }
+            .rotationEffect(.degrees(-3.5))
+        }
+        .buttonStyle(TactileGameButtonStyle(pressScale: 0.92, pressOffsetY: 1))
+        .accessibilityLabel("牆上珍藏的明信片：\(placeLabel)")
+    }
+}
+
+/// Shy undiscovered mystical companion peeking gently outside the Sunroom window!
+private struct SunroomWindowVisitorView: View {
+    let petSpec: PetSpec
+    let weather: WeatherMode
+    let visitCount: Int
+    let onGreet: () -> Void
+
+    var body: some View {
+        Button(action: onGreet) {
+            VStack(spacing: 2) {
+                HStack(spacing: 3) {
+                    Image(systemName: "hand.wave.fill")
+                        .font(.system(size: 9.5, weight: .bold))
+                    Text("窗外揮手 \(visitCount)/3")
+                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                }
+                .foregroundStyle(Color(hex: "#2F2A26"))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3.5)
+                .background(Color(hex: "#FFFDF8").opacity(0.94), in: Capsule())
+                .overlay(Capsule().stroke(Color(hex: "#D9A441"), lineWidth: 1))
+                .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 3, y: 1)
+
+                ProceduralPetRigView(
+                    pet: petSpec,
+                    pose: .notice,
+                    weatherMode: weather,
+                    applyMetalPaperShader: false,
+                    isStaticSnapshot: true
+                )
+                .frame(width: 68, height: 68)
+                .opacity(0.86)
+                .clipped()
+            }
+        }
+        .buttonStyle(TactileGameButtonStyle(pressScale: 0.92, pressOffsetY: 1))
+        .accessibilityLabel("向窗外探頭的\(petSpec.name)揮手")
+    }
+}
+
+/// Flowing hand-painted ribbon + wooden wand + fluttering feathers drawn during Live Feather-Wand Chase Mode!
+private struct FeatherWandRibbonOverlay: View {
+    let tipPoint: CGPoint
+    let time: Double
+
+    var body: some View {
+        Canvas { ctx, _ in
+            let sway = CGFloat(sin(time * 9.0) * 14.0)
+            let handlePt = CGPoint(x: tipPoint.x + 88, y: tipPoint.y - 110)
+            let midCtrl = CGPoint(x: (handlePt.x + tipPoint.x) * 0.5 + sway, y: (handlePt.y + tipPoint.y) * 0.5 + 18)
+
+            // Wooden wand rod (top half)
+            let rodTip = CGPoint(x: tipPoint.x + 36, y: tipPoint.y - 52)
+            var rod = Path()
+            rod.move(to: handlePt)
+            rod.addLine(to: rodTip)
+            ctx.stroke(rod, with: .color(Color(hex: "#8A5F39")), style: StrokeStyle(lineWidth: 4.0, lineCap: .round))
+
+            // Flowing pink-gold silk ribbon string
+            var ribbon = Path()
+            ribbon.move(to: rodTip)
+            ribbon.addQuadCurve(to: tipPoint, control: midCtrl)
+            ctx.stroke(ribbon, with: .color(Color(hex: "#E88B84")), style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
+
+            // Fluttering watercolor feather plume at the tip
+            let plumeRect = CGRect(x: tipPoint.x - 14, y: tipPoint.y - 10, width: 28, height: 18)
+            ctx.fill(Path(ellipseIn: plumeRect), with: .color(Color(hex: "#F2A08D").opacity(0.92)))
+            let accentPlume = CGRect(x: tipPoint.x - 9, y: tipPoint.y - 6, width: 18, height: 11)
+            ctx.fill(Path(ellipseIn: accentPlume), with: .color(Color(hex: "#F6D178").opacity(0.92)))
+            ctx.fill(Path(ellipseIn: CGRect(x: tipPoint.x - 3, y: tipPoint.y - 3, width: 6, height: 6)), with: .color(.white))
         }
     }
 }

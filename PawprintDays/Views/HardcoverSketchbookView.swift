@@ -317,6 +317,11 @@ struct HardcoverSketchbookView: View {
                             },
                             onSavePhoto: { jpegData in
                                 coordinator.saveWalkPhoto(for: day.localDateISO, jpegData: jpegData)
+                            },
+                            pinnedPostcardEncounterID: coordinator.indoorState.pinnedPostcardEncounterID,
+                            onTogglePinPostcard: { encounterID in
+                                let isCurrentlyPinned = (coordinator.indoorState.pinnedPostcardEncounterID == encounterID)
+                                coordinator.pinPostcardToSunroomWall(encounterID: isCurrentlyPinned ? nil : encounterID)
                             }
                         )
                     }
@@ -687,6 +692,8 @@ private struct SketchbookDayPageCard: View {
     let onRenameStop: (String, String) -> Void
     let onRemoveEncounter: (UUID) -> Void
     let onSavePhoto: (Data?) -> Void
+    let pinnedPostcardEncounterID: UUID?
+    let onTogglePinPostcard: (UUID) -> Void
 
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
 
@@ -744,22 +751,46 @@ private struct SketchbookDayPageCard: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
                                     .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 5, y: 3)
                                     .overlay(alignment: .bottomTrailing) {
-                                        ShareLink(
-                                            item: shareImg,
-                                            preview: SharePreview("\(PetCatalog.pet(id: enc.petID).name)的街角明信片", image: shareImg)
-                                        ) {
-                                            HStack(spacing: 4) {
-                                                Image(systemName: "square.and.arrow.up")
-                                                    .font(.system(size: 11, weight: .bold))
-                                                Text("珍藏分享")
-                                                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                                        let isPinned = (pinnedPostcardEncounterID == enc.encounterUUID)
+                                        HStack(spacing: 6) {
+                                            Button {
+                                                onTogglePinPostcard(enc.encounterUUID)
+                                            } label: {
+                                                HStack(spacing: 3.5) {
+                                                    Image(systemName: isPinned ? "pin.fill" : "pin")
+                                                        .font(.system(size: 10.5, weight: .bold))
+                                                    Text(isPinned ? "已掛牆上" : "掛進陽光室")
+                                                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                                                }
+                                                .foregroundStyle(isPinned ? .white : AppTheme.forestTeal)
+                                                .padding(.horizontal, 9)
+                                                .padding(.vertical, 5)
+                                                .background(
+                                                    (isPinned ? AppTheme.forestTeal : Color(hex: "#FFFDF7").opacity(0.94)),
+                                                    in: Capsule()
+                                                )
+                                                .overlay(Capsule().stroke(isPinned ? Color.clear : AppTheme.timberWarm.opacity(0.55), lineWidth: 1))
+                                                .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 3, y: 1.5)
                                             }
-                                            .foregroundStyle(AppTheme.deepPineInk)
-                                            .padding(.horizontal, 9)
-                                            .padding(.vertical, 5)
-                                            .background(Color(hex: "#FFFDF7").opacity(0.94), in: Capsule())
-                                            .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.55), lineWidth: 1))
-                                            .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 3, y: 1.5)
+                                            .buttonStyle(TactileGameButtonStyle(pressScale: 0.93, pressOffsetY: 1))
+
+                                            ShareLink(
+                                                item: shareImg,
+                                                preview: SharePreview("\(PetCatalog.pet(id: enc.petID).name)的街角明信片", image: shareImg)
+                                            ) {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: "square.and.arrow.up")
+                                                        .font(.system(size: 11, weight: .bold))
+                                                    Text("珍藏分享")
+                                                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                                                }
+                                                .foregroundStyle(AppTheme.deepPineInk)
+                                                .padding(.horizontal, 9)
+                                                .padding(.vertical, 5)
+                                                .background(Color(hex: "#FFFDF7").opacity(0.94), in: Capsule())
+                                                .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.55), lineWidth: 1))
+                                                .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 3, y: 1.5)
+                                            }
                                         }
                                         .padding(8)
                                     }

@@ -11,7 +11,19 @@ struct HomeSunroomView: View {
     @State private var teaSteaming: Bool = false
     @State private var bouncingPetID: String? = nil
     @State private var isDecoratingMode: Bool = false
+    @State private var isFeatherWandMode: Bool = false
+    @State private var showIndoorHubSheet: Bool = false
+    @State private var indoorHubInitialTab: IndoorPlayHubSheet.HubTab = .wishes
+    @State private var hidingSpotIndex: Int? = nil
+    @State private var hidingPetID: String? = nil
+    @State private var activeSkitOverlay: SunroomPairSkit? = nil
     @State private var roamingEngine = SunroomRoamingEngine()
+
+    private var indoorHubBadgeCount: Int {
+        let wishBadges = coordinator.unclaimedCompletedWishesCount
+        let errandBadge = (coordinator.indoorState.activeErrand?.isReadyToReturn(at: coordinator.currentSimulatedDate) == true) ? 1 : 0
+        return wishBadges + errandBadge
+    }
 
     private var maxPan: CGFloat {
         coordinator.ledger.verandaUnlocked ? 180 : 100
@@ -38,6 +50,9 @@ struct HomeSunroomView: View {
                 effectivePan: effectivePan,
                 bouncingPetID: bouncingPetID,
                 isDecoratingMode: isDecoratingMode,
+                isFeatherWandMode: isFeatherWandMode,
+                hidingSpotIndex: hidingSpotIndex,
+                hidingPetID: hidingPetID,
                 onTapPet: { petID in
                     HapticsEngine.shared.playPawRangeCue()
                     let spec = PetCatalog.pet(id: petID)
@@ -69,6 +84,32 @@ struct HomeSunroomView: View {
                 onTapWindowsillCurio: { entry in
                     let spec = CurioCatalog.curio(id: entry.curioID)
                     coordinator.showWhisper("窗台珍藏「\(spec.name)」(\(entry.placeLabel))：\(spec.journalNote)")
+                },
+                onTapOffspring: { _ in
+                    indoorHubInitialTab = .nursery
+                    showIndoorHubSheet = true
+                },
+                onFoundHidingPet: { foundID in
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.6)) {
+                        hidingSpotIndex = nil
+                        hidingPetID = nil
+                        bouncingPetID = foundID
+                    }
+                    coordinator.foundHidingPet(petID: foundID)
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(360))
+                        withAnimation(.easeOut(duration: 0.2)) { bouncingPetID = nil }
+                    }
+                },
+                onTriggerSkit: { petA, petB in
+                    let skit = coordinator.triggerSunroomSkit(petA: petA, petB: petB)
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.80)) {
+                        activeSkitOverlay = skit
+                    }
+                },
+                onCompleteFeatherWandChase: {
+                    coordinator.recordFeatherWandPlaySession()
+                    coordinator.showWhisper("室友們開心地追著羽毛逗貓棒跑了一大圈！（幼靈好奇心提升）")
                 }
             )
             .overlay(alignment: .bottom) {
@@ -82,14 +123,17 @@ struct HomeSunroomView: View {
             .gesture(
                 DragGesture(minimumDistance: 12)
                     .onChanged { value in
+                        guard !isDecoratingMode && !isFeatherWandMode else { return }
                         draggedOffset = value.translation.width * 0.55
                     }
                     .onEnded { value in
+                        guard !isDecoratingMode && !isFeatherWandMode else { return }
                         withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
                             panOffset = max(-maxPan, min(maxPan, panOffset + value.translation.width * 0.55))
                             draggedOffset = 0
                         }
-                    }
+                    },
+                including: (isDecoratingMode || isFeatherWandMode) ? .none : .all
             )
 
             if coordinator.isSunroomPhotoMode {
@@ -162,6 +206,7 @@ struct HomeSunroomView: View {
                             CozySoundEngine.shared.playPaperFlip()
                             withAnimation(.easeInOut(duration: 0.25)) {
                                 isDecoratingMode = false
+                                isFeatherWandMode = false
                                 coordinator.isSunroomPhotoMode = true
                             }
                         }
@@ -189,7 +234,7 @@ struct HomeSunroomView: View {
 
                     Spacer()
 
-                    // MARK: Clean 3-Action Sunroom Toolbar right above the Unified Dock!
+                    // MARK: Clean Unified Sunroom Toolbar right above the Unified Dock!
                     if isDecoratingMode {
                         HStack(spacing: 10) {
                             Button {
@@ -220,22 +265,51 @@ struct HomeSunroomView: View {
                             }
                         }
                         .padding(.bottom, 86)
-                    } else {
+                    } else if isFeatherWandMode {
                         HStack(spacing: 10) {
+                            CozyGlassPill(horizontalPadding: 12, verticalPadding: 9) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "wand.and.stars")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundStyle(Color(hex: "#D96B52"))
+                                    Text("在木地板滑動逗玩！")
+                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                                        .foregroundStyle(Color(hex: "#2F2A26"))
+                                }
+                            }
+
+                            CozyHeroActionButton(
+                                title: "收起逗貓棒",
+                                systemImage: "checkmark",
+                                style: .sage
+                            ) {
+                                CozySoundEngine.shared.playPaperFlip()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                                    isFeatherWandMode = false
+                                }
+                            }
+                        }
+                        .padding(.bottom, 86)
+                    } else {
+                        HStack(spacing: 7) {
                             if !invitedPets.isEmpty {
                                 Button {
-                                    HapticsEngine.shared.playDogBallRoll()
-                                    CozySoundEngine.shared.playPawTap()
-                                    _ = roamingEngine.tossClothBall()
+                                    HapticsEngine.shared.playPawRangeCue()
+                                    CozySoundEngine.shared.playBrushSwish()
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                                        isFeatherWandMode = true
+                                    }
+                                    coordinator.showWhisper("在木地板上滑動手指揮舞羽毛逗貓棒，室友會跑過來撲抓！")
                                 } label: {
-                                    CozyGlassPill(horizontalPadding: 13, verticalPadding: 9) {
-                                        HStack(spacing: 5) {
-                                            Image(systemName: "circle.dashed.inset.filled")
-                                                .font(.system(size: 13, weight: .semibold))
+                                    CozyGlassPill(horizontalPadding: 10, verticalPadding: 9) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "wand.and.stars")
+                                                .font(.system(size: 12, weight: .semibold))
                                                 .foregroundStyle(Color(hex: "#D96B52"))
-                                            Text("丟布球")
-                                                .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                            Text("逗貓棒")
+                                                .font(.system(size: 12, weight: .bold, design: .rounded))
                                                 .foregroundStyle(Color(hex: "#2F2A26"))
+                                                .lineLimit(1)
                                         }
                                     }
                                 }
@@ -244,19 +318,48 @@ struct HomeSunroomView: View {
 
                             Button {
                                 CozySoundEngine.shared.playPaperFlip()
+                                indoorHubInitialTab = .wishes
+                                showIndoorHubSheet = true
+                            } label: {
+                                CozyGlassPill(horizontalPadding: 10, verticalPadding: 9) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "sparkles")
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundStyle(Color(hex: "#C98D26"))
+                                        Text("手作育兒")
+                                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                                            .foregroundStyle(Color(hex: "#2F2A26"))
+                                            .lineLimit(1)
+                                    }
+                                }
+                                .overlay(alignment: .topTrailing) {
+                                    if indoorHubBadgeCount > 0 {
+                                        Circle()
+                                            .fill(Color(hex: "#D96B52"))
+                                            .frame(width: 9, height: 9)
+                                            .overlay(Circle().stroke(Color(hex: "#FFFDF8"), lineWidth: 1.4))
+                                            .offset(x: -1, y: -1)
+                                    }
+                                }
+                            }
+                            .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1))
+
+                            Button {
+                                CozySoundEngine.shared.playPaperFlip()
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
                                     isDecoratingMode = true
                                 }
                                 coordinator.showWhisper("拖曳地板上的家具即可自由調整 2.5D 位置！")
                             } label: {
-                                CozyGlassPill(horizontalPadding: 13, verticalPadding: 9) {
-                                    HStack(spacing: 5) {
+                                CozyGlassPill(horizontalPadding: 10, verticalPadding: 9) {
+                                    HStack(spacing: 4) {
                                         Image(systemName: "slider.horizontal.3")
-                                            .font(.system(size: 13, weight: .semibold))
+                                            .font(.system(size: 12, weight: .semibold))
                                             .foregroundStyle(AppTheme.forestTeal)
                                         Text("佈置")
-                                            .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                            .font(.system(size: 12, weight: .bold, design: .rounded))
                                             .foregroundStyle(Color(hex: "#2F2A26"))
+                                            .lineLimit(1)
                                     }
                                 }
                             }
@@ -266,14 +369,15 @@ struct HomeSunroomView: View {
                                 CozySoundEngine.shared.playPaperFlip()
                                 showPetRibbonDrawer = true
                             } label: {
-                                CozyGlassPill(horizontalPadding: 13, verticalPadding: 9) {
-                                    HStack(spacing: 5) {
+                                CozyGlassPill(horizontalPadding: 10, verticalPadding: 9) {
+                                    HStack(spacing: 4) {
                                         Image(systemName: "pawprint.fill")
-                                            .font(.system(size: 12, weight: .semibold))
+                                            .font(.system(size: 11.5, weight: .semibold))
                                             .foregroundStyle(Color(hex: "#C98D26"))
                                         Text("室友 \(invitedPets.count)/\(PetCatalog.allPets.count)")
-                                            .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                            .font(.system(size: 12, weight: .bold, design: .rounded))
                                             .foregroundStyle(Color(hex: "#2F2A26"))
+                                            .lineLimit(1)
                                     }
                                 }
                             }
@@ -282,16 +386,32 @@ struct HomeSunroomView: View {
                             CozyIconCircleButton(
                                 systemImage: "cup.and.saucer.fill",
                                 tint: Color(hex: "#4A7276"),
-                                size: 38,
+                                size: 36,
                                 accessibilityLabelText: "泡暖薑茶與挑選散步夥伴"
                             ) {
                                 CozySoundEngine.shared.playTeapotClink()
                                 showTeapotDrawer = true
                             }
                         }
+                        .padding(.horizontal, 10)
                         .padding(.bottom, 86)
                     }
                 }
+            }
+
+            // Emergent Multi-Pet Sunroom Skit Watercolor Overlay Card
+            if let skit = activeSkitOverlay {
+                Color.black.opacity(0.24)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        withAnimation(.easeOut(duration: 0.2)) { activeSkitOverlay = nil }
+                    }
+                SunroomSkitOverlayCard(skit: skit, coordinator: coordinator) {
+                    withAnimation(.easeOut(duration: 0.2)) { activeSkitOverlay = nil }
+                }
+                .padding(.horizontal, 24)
+                .transition(.scale(scale: 0.92).combined(with: .opacity))
+                .zIndex(30)
             }
         }
         .onAppear {
@@ -302,6 +422,13 @@ struct HomeSunroomView: View {
                 spots: coordinator.homeSpots,
                 verandaUnlocked: coordinator.ledger.verandaUnlocked
             )
+            // Gently seed a playful Hide-and-Seek spot if one isn't active yet
+            if hidingSpotIndex == nil,
+               let pet = invitedPets.randomElement(),
+               let spot = coordinator.homeSpots.randomElement() {
+                hidingSpotIndex = spot.spotIndex
+                hidingPetID = pet.petID
+            }
         }
         .onChange(of: invitedPets.map(\.petID)) { _, newIDs in
             roamingEngine.syncResidents(
@@ -339,6 +466,10 @@ struct HomeSunroomView: View {
         .sheet(isPresented: $showPetRibbonDrawer) {
             PetBookmarkJumpDrawer(coordinator: coordinator)
                 .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showIndoorHubSheet) {
+            IndoorPlayHubSheet(coordinator: coordinator, initialTab: indoorHubInitialTab)
+                .presentationDetents([.large])
         }
     }
 }
@@ -647,10 +778,16 @@ private struct PetBookmarkJumpDrawer: View {
                                         Text(spec.name)
                                             .font(AppTheme.serifTitle(16))
                                             .foregroundStyle(AppTheme.deepPineInk)
+                                        Text(spec.gender.symbol)
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 5.5)
+                                            .padding(.vertical, 1.5)
+                                            .background(Color(hex: spec.gender.badgeHex), in: Capsule())
                                         SpeciesFolkloreBadgeView(kind: spec.kind)
                                     }
                                     Text(res.inviteState == .unmet
-                                         ? "尚未遇見 · 靜候街角奇遇"
+                                         ? "尚未遇見 · 靜候街角奇遇或窗邊揮手"
                                          : "\(res.milestoneTitle) · 相伴 \(res.sharedDaysCount) 天")
                                         .font(AppTheme.serifBody(12.5))
                                         .foregroundStyle(AppTheme.softInk)
@@ -678,12 +815,63 @@ private struct PetBookmarkJumpDrawer: View {
                 .padding(16)
             }
             .background(AppTheme.parchmentTray)
-            .navigationTitle("布書籤 · 8 位奇幻鄰居名冊")
+            .navigationTitle("布書籤 · \(PetCatalog.allPets.count) 位奇幻鄰居名冊")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { dismiss() }
                 }
             }
         }
+    }
+}
+
+/// Warm watercolor storybook card displaying an Emergent Multi-Pet Sunroom Skit (`室友互動小劇場`)!
+private struct SunroomSkitOverlayCard: View {
+    let skit: SunroomPairSkit
+    @Bindable var coordinator: GameCoordinator
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 12) {
+                PetPortraitThumbnail(petID: skit.petA, size: 52)
+                VStack(spacing: 3) {
+                    Text("✦ 陽光室小劇場 ✦")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(hex: "#C98D26"))
+                    Text(skit.title)
+                        .font(AppTheme.serifTitle(18))
+                        .foregroundStyle(AppTheme.deepPineInk)
+                    Text("\(coordinator.displayName(for: skit.petA)) × \(coordinator.displayName(for: skit.petB))")
+                        .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                        .foregroundStyle(AppTheme.forestTeal)
+                }
+                .frame(maxWidth: .infinity)
+                PetPortraitThumbnail(petID: skit.petB, size: 52)
+            }
+
+            Text(skit.dialogue)
+                .font(AppTheme.serifBody(14.5))
+                .foregroundStyle(Color(hex: "#3E342C"))
+                .lineSpacing(4)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+                .background(Color(hex: "#F6EFE1"), in: RoundedRectangle(cornerRadius: 14))
+
+            CozyHeroActionButton(
+                title: "收進暖心回憶",
+                systemImage: "heart.fill",
+                style: .sage,
+                action: onDismiss
+            )
+        }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(hex: "#FFFDF8"))
+                .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(Color(hex: "#D5C5AE"), lineWidth: 1.2))
+                .shadow(color: Color(hex: "#2B211A").opacity(0.22), radius: 18, y: 10)
+        )
     }
 }
