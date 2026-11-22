@@ -2,6 +2,7 @@ import XCTest
 import SwiftData
 import CoreLocation
 import UIKit
+import AVFoundation
 @testable import PawprintDays
 
 @MainActor
@@ -522,5 +523,32 @@ final class Stage2To4VerificationTests: XCTestCase {
         let restored = DiaryExportService.restoreJSONBackup(from: backupURL, coordinator: coordinator)
         XCTAssertGreaterThanOrEqual(restored, 1)
         XCTAssertEqual(coordinator.todayDiaryRecord().personalNote, "今天與餘燼一起在巷口聽雨。")
+    }
+
+    /// Regression test: connecting multiple AVAudioPlayerNodes through an AVAudioMixerNode into single-input
+    /// AVAudioUnitReverb keeps all players connected (preventing NSException on foleyPlayer.play()).
+    func testAudioReverbSubMixerGraphKeepsAllPlayersConnected() throws {
+        let eng = AVAudioEngine()
+        let foley = AVAudioPlayerNode()
+        let music = AVAudioPlayerNode()
+        let rain = AVAudioPlayerNode()
+        let subMixer = AVAudioMixerNode()
+        let reverb = AVAudioUnitReverb()
+        reverb.loadFactoryPreset(.smallRoom)
+        reverb.wetDryMix = 14.0
+
+        for node: AVAudioNode in [foley, music, rain, subMixer, reverb] {
+            eng.attach(node)
+        }
+        let fmt = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2))
+        eng.connect(foley, to: subMixer, format: fmt)
+        eng.connect(music, to: subMixer, format: fmt)
+        eng.connect(subMixer, to: reverb, format: fmt)
+        eng.connect(reverb, to: eng.mainMixerNode, format: fmt)
+        eng.connect(rain, to: eng.mainMixerNode, format: fmt)
+
+        XCTAssertFalse(eng.outputConnectionPoints(for: foley, outputBus: 0).isEmpty, "foley must stay connected")
+        XCTAssertFalse(eng.outputConnectionPoints(for: music, outputBus: 0).isEmpty, "music must stay connected")
+        XCTAssertFalse(eng.outputConnectionPoints(for: rain, outputBus: 0).isEmpty, "rain must stay connected")
     }
 }
