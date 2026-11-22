@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0169EF9AD712A5AF1AE1545D /* SunroomRoamingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0F049D89ACEE9B47D5F487 /* SunroomRoamingEngine.swift */; };
 		0437345AC7B1271F5FDA70B5 /* StorybookPropArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8C1C754DD8A26DFF8DBC7EB /* StorybookPropArt.swift */; };
 		0640173307935006252D0A68 /* PaperGrainAndLUT.metal in Sources */ = {isa = PBXBuildFile; fileRef = BDA681F6E122D4646A6AFCF5 /* PaperGrainAndLUT.metal */; };
 		15CE874DE2B01B22BA78CC3B /* TactileCareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C2DCCD080EBEEA8618B504 /* TactileCareView.swift */; };
@@ -15,6 +16,7 @@
 		1EA24F4C854908AC4C4ACEBE /* StepCoinLedgerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95711078B296384E1C6AD9A3 /* StepCoinLedgerEngine.swift */; };
 		29D2B56A5B1A15CF8920CA22 /* RoomOccupancySolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23804B7F9F2AAAFBDCD72CC /* RoomOccupancySolver.swift */; };
 		32AD8FA0C4478A92BC144378 /* Stage2To4VerificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */; };
+		35A667A6EF0C88B15F3C20D6 /* Sunroom25DStage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7625FA3318755BEFCDDDB260 /* Sunroom25DStage.swift */; };
 		369D3BD8F3426939791248D1 /* SwiftDataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BF59BCC71DE351874829DEE /* SwiftDataModels.swift */; };
 		36F62EF6BB28E06CBAAB9BD1 /* curio_unpack.ahap in Resources */ = {isa = PBXBuildFile; fileRef = 73DFE847C9BBA2DC84E27151 /* curio_unpack.ahap */; };
 		4047114F86E909BFEB2CCFE0 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 240A215BE2D51BF1C17FC3C6 /* LocationService.swift */; };
@@ -78,6 +80,7 @@
 		63B2F90D7A01B759FD220D22 /* PawprintDaysTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PawprintDaysTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		71448162A759227F2D467E47 /* CozySoundEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CozySoundEngine.swift; sourceTree = "<group>"; };
 		73DFE847C9BBA2DC84E27151 /* curio_unpack.ahap */ = {isa = PBXFileReference; path = curio_unpack.ahap; sourceTree = "<group>"; };
+		7625FA3318755BEFCDDDB260 /* Sunroom25DStage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sunroom25DStage.swift; sourceTree = "<group>"; };
 		7E7D5485F75FC57B5EBD6075 /* StreetOverworldView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreetOverworldView.swift; sourceTree = "<group>"; };
 		8607EA677A0697AC9B749D7A /* NarrativeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NarrativeEngine.swift; sourceTree = "<group>"; };
 		8BF59BCC71DE351874829DEE /* SwiftDataModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataModels.swift; sourceTree = "<group>"; };
@@ -99,6 +102,7 @@
 		E1F46AB30C29BDC7D91D29B7 /* Stage1FixtureDrawerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stage1FixtureDrawerView.swift; sourceTree = "<group>"; };
 		F23804B7F9F2AAAFBDCD72CC /* RoomOccupancySolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomOccupancySolver.swift; sourceTree = "<group>"; };
 		F8E7501CACD547594CF9F3CB /* CuteKawaiiIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuteKawaiiIcons.swift; sourceTree = "<group>"; };
+		FC0F049D89ACEE9B47D5F487 /* SunroomRoamingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunroomRoamingEngine.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -112,6 +116,7 @@
 				E1F46AB30C29BDC7D91D29B7 /* Stage1FixtureDrawerView.swift */,
 				7E7D5485F75FC57B5EBD6075 /* StreetOverworldView.swift */,
 				577B6815AA46FB69A029BEF6 /* StrollRitualSheets.swift */,
+				7625FA3318755BEFCDDDB260 /* Sunroom25DStage.swift */,
 				60C2DCCD080EBEEA8618B504 /* TactileCareView.swift */,
 			);
 			path = Views;
@@ -195,6 +200,7 @@
 				006EAF955D692AACB215D604 /* PedometerService.swift */,
 				F23804B7F9F2AAAFBDCD72CC /* RoomOccupancySolver.swift */,
 				95711078B296384E1C6AD9A3 /* StepCoinLedgerEngine.swift */,
+				FC0F049D89ACEE9B47D5F487 /* SunroomRoamingEngine.swift */,
 			);
 			path = Engine;
 			sourceTree = "<group>";
@@ -364,6 +370,8 @@
 				0437345AC7B1271F5FDA70B5 /* StorybookPropArt.swift in Sources */,
 				C965EDB14F54B1C970770E42 /* StreetOverworldView.swift in Sources */,
 				D831966FC956CB4BAE66930C /* StrollRitualSheets.swift in Sources */,
+				35A667A6EF0C88B15F3C20D6 /* Sunroom25DStage.swift in Sources */,
+				0169EF9AD712A5AF1AE1545D /* SunroomRoamingEngine.swift in Sources */,
 				369D3BD8F3426939791248D1 /* SwiftDataModels.swift in Sources */,
 				15CE874DE2B01B22BA78CC3B /* TactileCareView.swift in Sources */,
 			);

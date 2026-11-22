@@ -309,4 +309,28 @@ final class Stage2To4VerificationTests: XCTestCase {
         XCTAssertNil(coordinator.activeStroll, "Day rollover must cleanly auto-archive active stroll")
         XCTAssertEqual(coordinator.ledger.coinBalance, balanceAfterStart + 1 + 2, "Should include 1 step coin + 2 ginger thermos bonus coins")
     }
+
+    /// Verifies 2.5D Sunroom free-roaming engine: resident sync, depth-staggered furniture positions, and tap-floor call-over.
+    func testSunroom25DRoamingAndFloorTapCall() throws {
+        let coordinator = try makeInMemoryCoordinator()
+        let roaming = SunroomRoamingEngine()
+        roaming.syncResidents(
+            invitedPetIDs: ["pet.01", "pet.02", "pet.03"],
+            spots: coordinator.homeSpots,
+            verandaUnlocked: false
+        )
+        XCTAssertEqual(roaming.actors.count, 3)
+
+        // Spot positions must span true 2.5D depth (back window vs foreground rug)
+        let backSpot = SunroomRoamingEngine.spot25DPosition(for: 1, verandaUnlocked: false)
+        let frontSpot = SunroomRoamingEngine.spot25DPosition(for: 5, verandaUnlocked: false)
+        XCTAssertLessThan(backSpot.y, 0.30)
+        XCTAssertGreaterThan(frontSpot.y, 0.70)
+
+        // Calling nearest pet to far-right foreground floor starts walking & spawns tap ripple
+        let tapPoint = CGPoint(x: 0.85, y: 0.80)
+        roaming.callNearestPet(to: tapPoint)
+        XCTAssertEqual(roaming.floorRipples.count, 1)
+        XCTAssertTrue(roaming.actors.values.contains(where: { $0.isWalking }))
+    }
 }
