@@ -192,9 +192,14 @@ struct StreetOverworldView: View {
                                     Circle()
                                         .fill(AppTheme.vineGreen)
                                         .frame(width: 7, height: 7)
-                                    Text("散步同行中 · \(stroll.sessionSteps.formatted()) 步")
+                                    let elapsedMins = max(1, Int(Date().timeIntervalSince(stroll.startedAt) / 60.0))
+                                    let walkedM = Int(coordinator.locationService.totalVerifiedGPSMeters)
+                                    Text(walkedM >= 20
+                                         ? "散步同行 · \(stroll.sessionSteps.formatted()) 步 · \(walkedM)m"
+                                         : "散步同行 · \(stroll.sessionSteps.formatted()) 步 · \(elapsedMins)分")
                                         .font(AppTheme.diegeticLabel(12))
                                         .foregroundStyle(AppTheme.deepPineInk)
+                                        .lineLimit(1)
                                 }
                                 Text(stroll.packedCharm == .none ? "空手輕鬆漫步 · 隨停不扣物" : "帆布袋：\(stroll.packedCharm.title)")
                                     .font(AppTheme.serifBody(11))

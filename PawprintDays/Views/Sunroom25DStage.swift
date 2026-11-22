@@ -60,9 +60,16 @@ struct Sunroom25DStageView: View {
                 .frame(width: stageW, height: viewH)
                 .offset(x: effectivePan * 0.88)
 
-                // MARK: Layer 1C — Volumetric Sunbeams & Dust Motes / Window Rain + Windowsill Collectible Curio Shelf (0.55x Parallax)
+                // MARK: Layer 1C — Volumetric Sunbeams & Dust Motes / Dusk Fireflies / Window Rain + Tappable Curio Shelf (0.55x Parallax)
                 SunroomAtmosphereParticlesView(weather: coordinator.activeWeather)
                     .offset(x: effectivePan * 0.55)
+
+                if coordinator.activeWeather == .dusk {
+                    DuskFireflyMotesOverlay()
+                        .frame(width: stageW, height: viewH)
+                        .offset(x: effectivePan * 0.70)
+                        .allowsHitTesting(false)
+                }
 
                 if !coordinator.ledger.foragedCurios.isEmpty {
                     WindowsillCurioShelfView(
@@ -694,6 +701,35 @@ private struct SpeciesRoomMagicAuraCanvas: View {
                 )
             default:
                 break
+            }
+        }
+    }
+}
+
+/// Gentle glowing amber dusk fireflies / lantern motes drifting slowly through the 2.5D Sunroom at twilight!
+private struct DuskFireflyMotesOverlay: View {
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            Canvas { ctx, size in
+                for idx in 0..<10 {
+                    let seed = Double(idx) * 1.73
+                    let baseX = size.width * (0.12 + 0.76 * CGFloat((idx * 37 % 100)) / 100.0)
+                    let baseY = size.height * (0.28 + 0.44 * CGFloat((idx * 53 % 100)) / 100.0)
+                    let px = baseX + CGFloat(sin(t * 0.35 + seed)) * 24
+                    let py = baseY + CGFloat(cos(t * 0.28 + seed * 1.3)) * 18
+                    let glow = 0.25 + 0.55 * (0.5 + 0.5 * sin(t * 1.1 + seed * 2.0))
+                    let r: CGFloat = 9.0
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)),
+                        with: .radialGradient(
+                            Gradient(colors: [Color(hex: "#FFE79B").opacity(glow), .clear]),
+                            center: CGPoint(x: px, y: py),
+                            startRadius: 0.5,
+                            endRadius: r
+                        )
+                    )
+                }
             }
         }
     }

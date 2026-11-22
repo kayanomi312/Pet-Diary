@@ -11,6 +11,7 @@ struct HomeSunroomView: View {
     @State private var teaSteaming: Bool = false
     @State private var bouncingPetID: String? = nil
     @State private var isDecoratingMode: Bool = false
+    @State private var isPhotoMode: Bool = false
     @State private var roamingEngine = SunroomRoamingEngine()
 
     private var maxPan: CGFloat {
@@ -92,6 +93,27 @@ struct HomeSunroomView: View {
                     }
             )
 
+            if isPhotoMode {
+                VStack {
+                    Spacer()
+                    CutePlushButton(
+                        title: "結束純淨賞景模式",
+                        tone: .milkCream,
+                        fontSize: 12,
+                        horizontalPadding: 14,
+                        verticalPadding: 8,
+                        icon: { Image(systemName: "eye.fill").font(.system(size: 11, weight: .bold)) },
+                        action: {
+                            CozySoundEngine.shared.playPaperFlip()
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                isPhotoMode = false
+                            }
+                        }
+                    )
+                    .padding(.bottom, 22)
+                }
+                .transition(.opacity)
+            } else {
             VStack {
                 ClothBookmarkBar(
                     onOpenSketchbook: { coordinator.currentScreen = .sketchbook },
@@ -174,6 +196,29 @@ struct HomeSunroomView: View {
                             }
                         }
                     )
+
+                    // 純淨賞景／截圖模式按鈕（一鍵隱藏介面細賞 2.5D 陽光室）
+                    Button {
+                        HapticsEngine.shared.playBrushStrokeTick()
+                        CozySoundEngine.shared.playPaperFlip()
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            isDecoratingMode = false
+                            isPhotoMode = true
+                        }
+                    } label: {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundStyle(AppTheme.timberDeep)
+                            .frame(width: 31, height: 31)
+                            .background(
+                                Circle()
+                                    .fill(Color(hex: "#FFFDF7"))
+                                    .overlay(Circle().stroke(AppTheme.timberWarm.opacity(0.5), lineWidth: 1.1))
+                                    .shadow(color: AppTheme.deepPineInk.opacity(0.12), radius: 3, y: 1.5)
+                            )
+                    }
+                    .buttonStyle(TactileGameButtonStyle())
+                    .accessibilityLabel("純淨賞景與拍照模式")
 
                     // 療癒音效與輕音樂開關小鈕
                     Button {
@@ -267,6 +312,7 @@ struct HomeSunroomView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.bottom, 14)
+            }
             }
         }
         .onAppear {

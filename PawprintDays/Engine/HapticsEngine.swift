@@ -1,52 +1,90 @@
 import Foundation
 import CoreHaptics
 import UIKit
+import Observation
 
 @MainActor
+@Observable
 final class HapticsEngine {
     static let shared = HapticsEngine()
 
+    private static let hapticsEnabledKey = "pawprintdays.haptics.enabled.v1"
+
+    var isHapticsEnabled: Bool = true {
+        didSet {
+            UserDefaults.standard.set(isHapticsEnabled, forKey: Self.hapticsEnabledKey)
+            if !isHapticsEnabled {
+                stopHoldToGreetPurr()
+            }
+        }
+    }
+
     private var engine: CHHapticEngine?
+    private var engineNeedsStart: Bool = true
     private var activePurrPlayer: CHHapticPatternPlayer?
     private let supportsHaptics: Bool
 
+    // Reused UIKit feedback generators (zero per-tap allocation overhead)
+    private let softImpact = UIImpactFeedbackGenerator(style: .soft)
+    private let mediumImpact = UIImpactFeedbackGenerator(style: .medium)
+    private let selectionGen = UISelectionFeedbackGenerator()
+    private let notificationGen = UINotificationFeedbackGenerator()
+
     private init() {
         self.supportsHaptics = CHHapticEngine.capabilitiesForHardware().supportsHaptics
+        if UserDefaults.standard.object(forKey: Self.hapticsEnabledKey) != nil {
+            self.isHapticsEnabled = UserDefaults.standard.bool(forKey: Self.hapticsEnabledKey)
+        }
         prepareEngineIfNeeded()
     }
 
     private func prepareEngineIfNeeded() {
-        guard supportsHaptics else { return }
+        guard supportsHaptics && isHapticsEnabled else { return }
         if engine == nil {
             do {
                 let newEngine = try CHHapticEngine()
                 newEngine.playsHapticsOnly = true
+                newEngine.stoppedHandler = { [weak self] _ in
+                    Task { @MainActor in
+                        self?.engineNeedsStart = true
+                    }
+                }
                 newEngine.resetHandler = { [weak self] in
                     Task { @MainActor in
+                        self?.engineNeedsStart = true
                         try? self?.engine?.start()
+                        self?.engineNeedsStart = false
                     }
                 }
                 try newEngine.start()
                 self.engine = newEngine
+                self.engineNeedsStart = false
             } catch {
                 self.engine = nil
+                self.engineNeedsStart = true
             }
-        } else {
-            try? engine?.start()
+        } else if engineNeedsStart {
+            do {
+                try engine?.start()
+                engineNeedsStart = false
+            } catch {
+                engineNeedsStart = true
+            }
         }
     }
 
     /// 1. Entering 75m Paw Range: double 20ms soft tap (0.45 intensity)
     func playPawRangeCue() {
+        guard isHapticsEnabled else { return }
         if playBundledAHAP(named: "paw_range") { return }
-        let gen = UIImpactFeedbackGenerator(style: .soft)
-        gen.impactOccurred(intensity: 0.45)
+        softImpact.prepare()
+        softImpact.impactOccurred(intensity: 0.45)
     }
 
     /// 2. Hold-to-Greet Cat Purr: continuous 26 Hz wave ramping 0.18 -> 0.60 over 2.5s
     func startHoldToGreetPurr() {
         stopHoldToGreetPurr()
-        guard supportsHaptics else { return }
+        guard supportsHaptics && isHapticsEnabled else { return }
         prepareEngineIfNeeded()
         guard let engine else { return }
 
@@ -58,7 +96,6 @@ final class HapticsEngine {
             return
         }
 
-        // Programmatic fallback if .ahap is absent in test bundle
         let continuous = CHHapticEvent(
             eventType: .hapticContinuous,
             parameters: [
@@ -91,27 +128,29 @@ final class HapticsEngine {
 
     /// 3. Dog Ball Roll: 3.2 Hz warm thump
     func playDogBallRoll() {
+        guard isHapticsEnabled else { return }
         if playBundledAHAP(named: "dog_ball_roll") { return }
-        let gen = UIImpactFeedbackGenerator(style: .medium)
-        gen.impactOccurred(intensity: 0.55)
+        mediumImpact.prepare()
+        mediumImpact.impactOccurred(intensity: 0.55)
     }
 
     /// 4. Curio Unpack: crisp paper flip + ink-stamp thud
     func playCurioUnpack() {
+        guard isHapticsEnabled else { return }
         if playBundledAHAP(named: "curio_unpack") { return }
-        let gen = UINotificationFeedbackGenerator()
-        gen.notificationOccurred(.success)
+        notificationGen.prepare()
+        notificationGen.notificationOccurred(.success)
     }
 
     func playBrushStrokeTick() {
-        guard supportsHaptics else { return }
-        let gen = UISelectionFeedbackGenerator()
-        gen.selectionChanged()
+        guard supportsHaptics && isHapticsEnabled else { return }
+        selectionGen.prepare()
+        selectionGen.selectionChanged()
     }
 
     @discardableResult
     private func playBundledAHAP(named resource: String) -> Bool {
-        guard supportsHaptics else { return false }
+        guard supportsHaptics && isHapticsEnabled else { return false }
         prepareEngineIfNeeded()
         guard let engine,
               let url = Bundle.main.url(forResource: resource, withExtension: "ahap") else {
@@ -121,6 +160,7 @@ final class HapticsEngine {
             try engine.playPattern(from: url)
             return true
         } catch {
+            engineNeedsStart = true
             return false
         }
     }

@@ -33,6 +33,7 @@
 		84940EB4D785441D0E90E20E /* MapKitAnchorDiscoveryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B2764B24738456F6E6AFF4 /* MapKitAnchorDiscoveryService.swift */; };
 		928FC998F4E5361185438FB3 /* PedometerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006EAF955D692AACB215D604 /* PedometerService.swift */; };
 		9536B357EA0BC33DABC7932F /* paw_range.ahap in Resources */ = {isa = PBXBuildFile; fileRef = 3658077F88E869B7E55F647E /* paw_range.ahap */; };
+		B9E0D6FF5ADD861C160546AC /* GameCoordinator+Fixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 695FB44687F27EE0E023B4EB /* GameCoordinator+Fixtures.swift */; };
 		C768CB603C207703F6ED3370 /* WeatherSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF3DBFDAF506E7ED900643F2 /* WeatherSyncService.swift */; };
 		C881DC0B473CB523E163DC1F /* HapticsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C568E5706C32C149A0CC402 /* HapticsEngine.swift */; };
 		C93E1B479E8580F215D66CD8 /* DiegeticProps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 071983DCB25BE655FF909410 /* DiegeticProps.swift */; };
@@ -80,6 +81,7 @@
 		5A600ABFFADCDFB70A967183 /* GameTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTypes.swift; sourceTree = "<group>"; };
 		60C2DCCD080EBEEA8618B504 /* TactileCareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TactileCareView.swift; sourceTree = "<group>"; };
 		63B2F90D7A01B759FD220D22 /* PawprintDaysTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PawprintDaysTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		695FB44687F27EE0E023B4EB /* GameCoordinator+Fixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GameCoordinator+Fixtures.swift"; sourceTree = "<group>"; };
 		71448162A759227F2D467E47 /* CozySoundEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CozySoundEngine.swift; sourceTree = "<group>"; };
 		73DFE847C9BBA2DC84E27151 /* curio_unpack.ahap */ = {isa = PBXFileReference; path = curio_unpack.ahap; sourceTree = "<group>"; };
 		7625FA3318755BEFCDDDB260 /* Sunroom25DStage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sunroom25DStage.swift; sourceTree = "<group>"; };
@@ -197,6 +199,7 @@
 				71448162A759227F2D467E47 /* CozySoundEngine.swift */,
 				33F2454D976BB67C83BE9F36 /* DiarySnapshotBaker.swift */,
 				A93CFFA2DFDC1657DFAD6BE0 /* GameCoordinator.swift */,
+				695FB44687F27EE0E023B4EB /* GameCoordinator+Fixtures.swift */,
 				9C568E5706C32C149A0CC402 /* HapticsEngine.swift */,
 				240A215BE2D51BF1C17FC3C6 /* LocationService.swift */,
 				E0B2764B24738456F6E6AFF4 /* MapKitAnchorDiscoveryService.swift */,
@@ -355,6 +358,7 @@
 				E25FC44CEFCC856722142CF6 /* CuteKawaiiIcons.swift in Sources */,
 				4C5A2CDC1017220D0F44DA8B /* DiarySnapshotBaker.swift in Sources */,
 				C93E1B479E8580F215D66CD8 /* DiegeticProps.swift in Sources */,
+				B9E0D6FF5ADD861C160546AC /* GameCoordinator+Fixtures.swift in Sources */,
 				DDED72C953C9AC79544709AF /* GameCoordinator.swift in Sources */,
 				EC6DD98609A3BF8E763BF9EE /* GameTypes.swift in Sources */,
 				C881DC0B473CB523E163DC1F /* HapticsEngine.swift in Sources */,
