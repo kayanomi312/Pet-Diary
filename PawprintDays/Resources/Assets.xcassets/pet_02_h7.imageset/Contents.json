@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "pet_02_h7.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

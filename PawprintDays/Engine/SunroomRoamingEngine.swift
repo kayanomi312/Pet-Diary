@@ -102,18 +102,19 @@ final class SunroomRoamingEngine {
                 )
             }
 
-            // 讓一半的室友一進來就開始自在散步，另一半先休息或張望，畫面立刻充滿生機！
-            let startWalking = (idx % 2 == 0)
+            // 讓三分之一的室友悠閒漫步、三分之一靜靜坐著曬太陽、三分之一窩著小憩，節奏從容溫柔！
             let behavior: RoamBehavior
             var facingRight = false
-            if startWalking {
+            if idx % 3 == 0 {
                 let target = pickNextWalkDestination(from: startPos, spots: spots, verandaUnlocked: verandaUnlocked)
                 let dist = hypot(target.point.x - startPos.x, target.point.y - startPos.y)
-                let dur = max(2.4, min(6.2, Double(dist) * 8.5))
+                let dur = max(4.5, min(12.5, Double(dist) * 18.5))
                 facingRight = target.point.x > startPos.x
                 behavior = .walking(from: startPos, to: target.point, startedAt: now, duration: dur, arrivalSpotIndex: target.spotIndex)
+            } else if idx % 3 == 2 {
+                behavior = .napping(until: now.addingTimeInterval(Double.random(in: 12.0...22.0)), spotIndex: assignedSpot?.spotIndex)
             } else {
-                behavior = .sitting(until: now.addingTimeInterval(Double.random(in: 2.5...5.5)), spotIndex: assignedSpot?.spotIndex)
+                behavior = .sitting(until: now.addingTimeInterval(Double.random(in: 6.5...13.0)), spotIndex: assignedSpot?.spotIndex)
             }
 
             actors[petID] = RoamingPetActor(
@@ -157,35 +158,35 @@ final class SunroomRoamingEngine {
                 }
 
                 if rawP >= 1.0 {
-                    // 抵達目的地！選擇坐下張望或窩下來午睡
-                    let shouldNap = (arrivalSpot != nil && Int.random(in: 0..<10) < 4)
+                    // 抵達目的地！悠閒坐下來曬太陽或窩上軟墊長長午睡
+                    let shouldNap = (arrivalSpot != nil && Int.random(in: 0..<100) < 45)
                     if shouldNap {
-                        actor.behavior = .napping(until: now.addingTimeInterval(Double.random(in: 6.5...11.0)), spotIndex: arrivalSpot)
+                        actor.behavior = .napping(until: now.addingTimeInterval(Double.random(in: 14.0...26.0)), spotIndex: arrivalSpot)
                         if Int.random(in: 0..<3) == 0 {
                             actor.speechBubble = "好暖和…呼呼…"
-                            actor.bubbleExpiresAt = now.addingTimeInterval(3.2)
+                            actor.bubbleExpiresAt = now.addingTimeInterval(3.8)
                         }
                     } else {
-                        actor.behavior = .sitting(until: now.addingTimeInterval(Double.random(in: 3.0...6.5)), spotIndex: arrivalSpot)
+                        actor.behavior = .sitting(until: now.addingTimeInterval(Double.random(in: 7.5...15.0)), spotIndex: arrivalSpot)
                         if Int.random(in: 0..<4) == 0 {
                             actor.speechBubble = Self.cozyWhispers.randomElement()
-                            actor.bubbleExpiresAt = now.addingTimeInterval(3.2)
+                            actor.bubbleExpiresAt = now.addingTimeInterval(3.8)
                         }
                     }
                 } else {
-                    // 走路途中若巧遇另一位靜止的室友，停下來互相打招呼！
+                    // 走路途中若巧遇另一位靜止的室友，停下來從容打招呼！
                     if rawP > 0.25 && rawP < 0.75,
                        let friend = findNearbyGreetingPartner(for: actor, now: now) {
                         actor.facingRight = friend.position.x > actor.position.x
-                        actor.behavior = .greetingFriend(partnerID: friend.petID, until: now.addingTimeInterval(2.6))
+                        actor.behavior = .greetingFriend(partnerID: friend.petID, until: now.addingTimeInterval(4.2))
                         actor.speechBubble = "喵～一起玩嗎♡"
-                        actor.bubbleExpiresAt = now.addingTimeInterval(2.6)
+                        actor.bubbleExpiresAt = now.addingTimeInterval(4.2)
 
                         if var partner = actors[friend.petID] {
                             partner.facingRight = actor.position.x > partner.position.x
-                            partner.behavior = .greetingFriend(partnerID: actor.petID, until: now.addingTimeInterval(2.6))
+                            partner.behavior = .greetingFriend(partnerID: actor.petID, until: now.addingTimeInterval(4.2))
                             partner.speechBubble = "呼嚕嚕♪"
-                            partner.bubbleExpiresAt = now.addingTimeInterval(2.6)
+                            partner.bubbleExpiresAt = now.addingTimeInterval(4.2)
                             actors[friend.petID] = partner
                         }
                     }
@@ -195,7 +196,7 @@ final class SunroomRoamingEngine {
                 if now >= until {
                     let target = pickNextWalkDestination(from: actor.position, spots: spots, verandaUnlocked: verandaUnlocked)
                     let dist = hypot(target.point.x - actor.position.x, target.point.y - actor.position.y)
-                    let dur = max(2.2, min(6.5, Double(dist) * 8.8))
+                    let dur = max(4.5, min(12.5, Double(dist) * 18.5))
                     actor.facingRight = target.point.x > actor.position.x
                     actor.behavior = .walking(from: actor.position, to: target.point, startedAt: now, duration: dur, arrivalSpotIndex: target.spotIndex)
                 }
@@ -205,7 +206,7 @@ final class SunroomRoamingEngine {
         }
     }
 
-    /// 玩家點擊陽光室 2.5D 地板任一處 → 喚來最近的室友開心地小跑過來！
+    /// 玩家點擊陽光室 2.5D 地板任一處 → 喚來最近的室友輕快卻自然地小跑過來！
     func callNearestPet(to roomUV: CGPoint, now: Date = Date()) {
         let clamped = CGPoint(
             x: max(0.09, min(0.91, roomUV.x)),
@@ -220,7 +221,7 @@ final class SunroomRoamingEngine {
 
         var actor = nearest
         let dist = hypot(clamped.x - actor.position.x, clamped.y - actor.position.y)
-        let dur = max(1.2, min(4.2, Double(dist) * 6.4))
+        let dur = max(2.4, min(6.8, Double(dist) * 11.5))
         actor.facingRight = clamped.x > actor.position.x
         actor.behavior = .walking(from: actor.position, to: clamped, startedAt: now, duration: dur, arrivalSpotIndex: nil)
         actor.speechBubble = "來囉～♪"

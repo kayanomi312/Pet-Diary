@@ -7,13 +7,13 @@ enum PetRigPose: String, Sendable {
     case resting
 }
 
-/// 400 格高幀率手繪逐格水彩精靈動畫快取（每隻毛孩 50 格：w1..w12、i1..i8、h1..h6、m1..m6、p1..p6、s1..s6 與原畫 f1..f6）
+/// 608 格高流暢度手繪逐格水彩精靈動畫快取（每隻毛孩 76 格：w1..w16、i1..i16、s1..s12、h1..h10、m1..m8、p1..p8 與原畫 f1..f6）
 private final class CelFrameImageCache: @unchecked Sendable {
     static let shared = CelFrameImageCache()
     private let cache = NSCache<NSString, UIImage>()
 
     private init() {
-        cache.countLimit = 450
+        cache.countLimit = 650
     }
 
     func image(named name: String) -> UIImage? {
@@ -124,7 +124,7 @@ struct ProceduralPetRigView: View {
         "\(assetPrefix)_\(bank)\(frame)"
     }
 
-    /// Selects the exact high-framerate cel frame (50 frames per pet) for every moment.
+    /// Selects the exact high-framerate cel frame (76 calm, natural frames per pet) for every moment.
     private func resolveCelFrameState(time: Double, minDim: CGFloat) -> CelFrameState {
         if isStaticSnapshot {
             let staticIdx: Int
@@ -137,17 +137,16 @@ struct ProceduralPetRigView: View {
         }
 
         let elapsed = max(0, Date().timeIntervalSince(actionTriggerDate))
-        let petPhase = Double(abs(pet.id.hashValue) % 11) * 0.37
+        let petPhase = Double(abs(pet.id.hashValue) % 11) * 0.53
         let tPet = time + petPhase
 
         // 1. Active explicit playful interactions (highest priority)
         switch playfulAction {
         case .walking:
-            // Silky 12-frame gait cycle (`w1`..`w12`) at 14fps!
-            let walkFPS = 14.0
-            let stepIdx = (Int(tPet * walkFPS) % 12) + 1
-            // Gentle grounded vertical cadence (subtle — the 12 articulated paw/wing frames carry the real gait!)
-            let subtleCadence = -CGFloat(abs(sin(tPet * walkFPS * .pi / 6.0))) * minDim * 0.014
+            // Relaxed, natural 16-frame stroll cycle (`w1`..`w16`) at 9.0fps (~1.78s per unhurried stride)
+            let walkFPS = 9.0
+            let stepIdx = (Int(tPet * walkFPS) % 16) + 1
+            let subtleCadence = -CGFloat(abs(sin(tPet * walkFPS * .pi / 8.0))) * minDim * 0.008
             return CelFrameState(
                 assetName: animName("w", frame: stepIdx),
                 hopOffsetY: subtleCadence,
@@ -155,91 +154,102 @@ struct ProceduralPetRigView: View {
             )
 
         case .cozyNap:
-            if elapsed < 0.28 {
+            if elapsed < 0.45 {
                 return CelFrameState(assetName: celName(2), isSleeping: false)
             }
-            let sleepIdx = (Int(tPet * 6.5) % 6) + 1
+            // Tranquil 12-frame deep sleeping breath (~3.75s per full breath)
+            let sleepIdx = (Int(tPet * 3.2) % 12) + 1
             return CelFrameState(assetName: animName("s", frame: sleepIdx), isSleeping: true)
 
         case .bellyBoop:
-            if elapsed < 1.85 {
-                let hopArc = (elapsed < 0.55) ? sin(elapsed / 0.55 * .pi) : 0.0
-                if elapsed < 0.52 {
-                    let f = (Int(elapsed * 12.0) % 6) + 1
-                    return CelFrameState(assetName: animName("h", frame: f), hopOffsetY: -CGFloat(hopArc) * minDim * 0.048, isExcited: true)
-                } else if elapsed < 1.05 {
-                    let f = (Int(elapsed * 12.0) % 6) + 1
-                    return CelFrameState(assetName: animName("m", frame: f), hopOffsetY: -CGFloat(hopArc) * minDim * 0.02, isExcited: true)
-                } else if elapsed < 1.48 {
-                    let f = (Int(elapsed * 14.0) % 6) + 1
+            if elapsed < 2.2 {
+                let hopArc = (elapsed < 0.65) ? sin(elapsed / 0.65 * .pi) : 0.0
+                if elapsed < 0.65 {
+                    let f = (Int(elapsed * 7.0) % 10) + 1
+                    return CelFrameState(assetName: animName("h", frame: f), hopOffsetY: -CGFloat(hopArc) * minDim * 0.036, isExcited: true)
+                } else if elapsed < 1.25 {
+                    let f = (Int(elapsed * 7.5) % 8) + 1
+                    return CelFrameState(assetName: animName("m", frame: f), hopOffsetY: -CGFloat(hopArc) * minDim * 0.015, isExcited: true)
+                } else if elapsed < 1.75 {
+                    let f = (Int(elapsed * 8.5) % 8) + 1
                     return CelFrameState(assetName: animName("p", frame: f), isExcited: true)
                 } else {
-                    let f = (Int(elapsed * 12.0) % 6) + 1
+                    let f = (Int(elapsed * 7.0) % 10) + 1
                     return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
                 }
             }
 
         case .pounceHop:
-            if elapsed < 1.90 {
-                if elapsed < 0.16 {
-                    return CelFrameState(assetName: animName("i", frame: 2), isExcited: true)
-                } else if elapsed < 0.72 {
-                    let p = (elapsed - 0.16) / 0.56
-                    let hopY = -CGFloat(sin(p * .pi)) * minDim * 0.105
-                    let hopX = -CGFloat(sin(p * .pi)) * minDim * 0.042
-                    let f = (Int((elapsed - 0.16) * 14.0) % 6) + 1
+            if elapsed < 2.25 {
+                if elapsed < 0.22 {
+                    return CelFrameState(assetName: animName("i", frame: 3), isExcited: true)
+                } else if elapsed < 0.92 {
+                    let p = (elapsed - 0.22) / 0.70
+                    let hopY = -CGFloat(sin(p * .pi)) * minDim * 0.088
+                    let hopX = -CGFloat(sin(p * .pi)) * minDim * 0.036
+                    let f = (Int((elapsed - 0.22) * 8.5) % 8) + 1
                     return CelFrameState(assetName: animName("p", frame: f), hopOffsetX: hopX, hopOffsetY: hopY, isExcited: true)
-                } else if elapsed < 1.25 {
-                    let p = (elapsed - 0.72) / 0.53
-                    let hopY = -CGFloat(sin(p * .pi)) * minDim * 0.04
-                    let f = (Int((elapsed - 0.72) * 12.0) % 6) + 1
+                } else if elapsed < 1.55 {
+                    let p = (elapsed - 0.92) / 0.63
+                    let hopY = -CGFloat(sin(p * .pi)) * minDim * 0.03
+                    let f = (Int((elapsed - 0.92) * 7.5) % 8) + 1
                     return CelFrameState(assetName: animName("m", frame: f), hopOffsetY: hopY, isExcited: true)
                 } else {
-                    let f = (Int((elapsed - 1.25) * 12.0) % 6) + 1
+                    let f = (Int((elapsed - 1.55) * 7.0) % 10) + 1
                     return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
                 }
             }
 
         case .eatMunch:
-            if elapsed < 2.25 {
-                if elapsed > 1.70 {
-                    let f = (Int(elapsed * 12.0) % 6) + 1
+            if elapsed < 2.65 {
+                if elapsed > 1.95 {
+                    let f = (Int(elapsed * 7.0) % 10) + 1
                     return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
                 }
-                // Alternate smoothly between open-mouth munch (`m1..m6`) and delighted rosy smile (`h1..h6`)
-                let chewBeat = Int(elapsed / 0.42) % 2
-                let f = (Int(elapsed * 13.0) % 6) + 1
-                let bank = (chewBeat == 0) ? "m" : "h"
-                let bob = (chewBeat == 0) ? -minDim * 0.010 : 0
-                return CelFrameState(assetName: animName(bank, frame: f), hopOffsetY: bob, isExcited: true)
+                // Calm, adorable rhythmic munching (`m1..m8`) alternating gently with rosy smile (`h1..h10`)
+                let chewBeat = Int(elapsed / 0.72) % 2
+                if chewBeat == 0 {
+                    let f = (Int(elapsed * 7.5) % 8) + 1
+                    return CelFrameState(assetName: animName("m", frame: f), hopOffsetY: -minDim * 0.008, isExcited: true)
+                } else {
+                    let f = (Int(elapsed * 7.0) % 10) + 1
+                    return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
+                }
             }
 
         case .happyTwirl:
-            if elapsed < 2.15 {
-                let phase = Int(elapsed / 0.48) % 3
-                let f = (Int(elapsed * 13.0) % 6) + 1
-                let bank = phase == 0 ? "p" : (phase == 1 ? "h" : "m")
-                let beat = (elapsed.truncatingRemainder(dividingBy: 0.48)) / 0.48
-                let hop = (phase != 1) ? -CGFloat(sin(beat * .pi)) * minDim * 0.038 : 0
-                return CelFrameState(assetName: animName(bank, frame: f), hopOffsetY: hop, isExcited: true)
+            if elapsed < 2.6 {
+                let phase = Int(elapsed / 0.78) % 3
+                let beat = (elapsed.truncatingRemainder(dividingBy: 0.78)) / 0.78
+                let hop = (phase != 1) ? -CGFloat(sin(beat * .pi)) * minDim * 0.028 : 0
+                if phase == 0 {
+                    let f = (Int(elapsed * 8.5) % 8) + 1
+                    return CelFrameState(assetName: animName("p", frame: f), hopOffsetY: hop, isExcited: true)
+                } else if phase == 1 {
+                    let f = (Int(elapsed * 7.0) % 10) + 1
+                    return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
+                } else {
+                    let f = (Int(elapsed * 7.5) % 8) + 1
+                    return CelFrameState(assetName: animName("m", frame: f), hopOffsetY: hop, isExcited: true)
+                }
             }
 
         case .curiousWaddle:
-            let cycle = tPet.truncatingRemainder(dividingBy: 5.4)
-            let driftX = CGFloat(sin(tPet * 0.95)) * minDim * 0.026
-            if cycle < 1.8 {
-                let f = (Int(tPet * 10.0) % 8) + 1
+            let cycle = tPet.truncatingRemainder(dividingBy: 7.4)
+            let driftX = CGFloat(sin(tPet * 0.45)) * minDim * 0.020
+            if cycle < 2.6 {
+                let f = (Int(tPet * 5.2) % 16) + 1
                 return CelFrameState(assetName: animName("i", frame: f), hopOffsetX: driftX)
-            } else if cycle < 3.0 {
-                let f = (Int(tPet * 13.0) % 6) + 1
+            } else if cycle < 4.2 {
+                let f = (Int(tPet * 8.0) % 8) + 1
                 return CelFrameState(assetName: animName("p", frame: f), hopOffsetX: driftX)
-            } else if cycle < 3.22 {
+            } else if cycle < 4.44 {
                 return CelFrameState(assetName: celName(2), hopOffsetX: driftX)
-            } else if cycle < 4.5 {
-                let f = (Int(tPet * 12.0) % 6) + 1
+            } else if cycle < 6.0 {
+                let f = (Int(tPet * 7.0) % 10) + 1
                 return CelFrameState(assetName: animName("h", frame: f), hopOffsetX: driftX, isExcited: true)
             } else {
-                let f = (Int(tPet * 10.0) % 8) + 1
+                let f = (Int(tPet * 5.2) % 16) + 1
                 return CelFrameState(assetName: animName("i", frame: f), hopOffsetX: driftX)
             }
 
@@ -249,44 +259,47 @@ struct ProceduralPetRigView: View {
 
         // 2. Live petting / brushing / happy-squint reactions
         if brushRuffleAmount > 0.08 {
-            let purrPhase = tPet.truncatingRemainder(dividingBy: 1.8)
-            if purrPhase > 1.52 {
+            let purrPhase = tPet.truncatingRemainder(dividingBy: 2.6)
+            if purrPhase > 2.25 {
                 return CelFrameState(assetName: celName(2), isExcited: true)
             }
-            let f = (Int(tPet * 12.0) % 6) + 1
+            let f = (Int(tPet * 7.0) % 10) + 1
             return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
         }
         if isHappySquint {
-            let cycle = tPet.truncatingRemainder(dividingBy: 3.4)
-            let f = (Int(tPet * 12.0) % 6) + 1
-            let bank = (cycle > 2.35 && cycle < 2.95) ? "m" : "h"
-            return CelFrameState(assetName: animName(bank, frame: f), isExcited: true)
+            let cycle = tPet.truncatingRemainder(dividingBy: 4.4)
+            if cycle > 3.1 && cycle < 3.9 {
+                let f = (Int(tPet * 7.5) % 8) + 1
+                return CelFrameState(assetName: animName("m", frame: f), isExcited: true)
+            }
+            let f = (Int(tPet * 7.0) % 10) + 1
+            return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
         }
         if tapBounceScale > 0.1 {
-            let f = (Int(tPet * 12.0) % 6) + 1
-            return CelFrameState(assetName: animName("h", frame: f), hopOffsetY: -minDim * 0.032, isExcited: true)
+            let f = (Int(tPet * 7.0) % 10) + 1
+            return CelFrameState(assetName: animName("h", frame: f), hopOffsetY: -minDim * 0.025, isExcited: true)
         }
 
-        // 3. Resting pose -> genuine 6-frame organic curled sleeping breath loop (`s1`..`s6`)
+        // 3. Resting pose -> deep tranquil 12-frame sleeping breath loop (~3.75s / breath)
         if pose == .resting {
-            let napCycle = tPet.truncatingRemainder(dividingBy: 12.5)
-            if napCycle > 11.7 {
+            let napCycle = tPet.truncatingRemainder(dividingBy: 16.0)
+            if napCycle > 15.1 {
                 return CelFrameState(assetName: celName(2), isSleeping: false)
             }
-            let sleepIdx = (Int(tPet * 6.5) % 6) + 1
+            let sleepIdx = (Int(tPet * 3.2) % 12) + 1
             return CelFrameState(assetName: animName("s", frame: sleepIdx), isSleeping: true)
         }
 
-        // 4. Silky living idle cel loop (10fps `i1`..`i8` breathing + tail wave + ear twitch + natural blink `f2` + occasional `h1..h6` warm smile!)
-        let t = tPet.truncatingRemainder(dividingBy: 8.6)
-        if (t >= 2.20 && t < 2.38) || (t >= 4.45 && t < 4.59) || (t >= 4.74 && t < 4.88) {
+        // 4. Calm living idle cel loop (5.2fps `i1`..`i16` = 3.08s per gentle breath + lazy tail drift + natural blink `f2`)
+        let t = tPet.truncatingRemainder(dividingBy: 10.8)
+        if (t >= 3.10 && t < 3.30) || (t >= 6.40 && t < 6.56) || (t >= 6.72 && t < 6.88) {
             return CelFrameState(assetName: celName(2))
         }
-        if t >= 6.45 && t < 7.55 {
-            let f = (Int(tPet * 11.0) % 6) + 1
+        if t >= 8.40 && t < 9.85 {
+            let f = (Int(tPet * 6.8) % 10) + 1
             return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
         }
-        let idleIdx = (Int(tPet * 10.0) % 8) + 1
+        let idleIdx = (Int(tPet * 5.2) % 16) + 1
         return CelFrameState(assetName: animName("i", frame: idleIdx))
     }
 
@@ -406,7 +419,7 @@ private struct WardrobeSocketOverlayCanvas: View {
             let ink = Color(hex: "#2C3536").opacity(0.76)
             let swatch = Color(hex: item.swatchHex)
             let secondary = Color(hex: item.secondaryHex)
-            let sway = CGFloat(sin(time * 2.1)) * minDim * 0.006
+            let sway = CGFloat(sin(time * 1.05)) * minDim * 0.005
 
             if item.slotType == "socket_back" {
                 let bx = nx + nw * 0.62
@@ -523,8 +536,8 @@ private struct StorybookParticleMotesCanvas: View {
             if isResting && habit == nil {
                 let letters = ["z", "Z", "z"]
                 for idx in 0..<3 {
-                    let phase = (time * 0.34 + Double(idx) * 0.33).truncatingRemainder(dividingBy: 1.0)
-                    let px = cx + minDim * 0.18 + CGFloat(sin(time * 1.4 + Double(idx))) * minDim * 0.032 + CGFloat(idx) * minDim * 0.024
+                    let phase = (time * 0.18 + Double(idx) * 0.33).truncatingRemainder(dividingBy: 1.0)
+                    let px = cx + minDim * 0.18 + CGFloat(sin(time * 0.8 + Double(idx))) * minDim * 0.026 + CGFloat(idx) * minDim * 0.024
                     let py = cy - CGFloat(phase) * minDim * 0.25
                     let alpha = sin(phase * .pi) * 0.85
                     ctx.draw(
@@ -539,9 +552,9 @@ private struct StorybookParticleMotesCanvas: View {
 
             let count = habit != nil ? 6 : 4
             for idx in 0..<count {
-                let phase = (time * 0.48 + Double(idx) * (1.0 / Double(count))).truncatingRemainder(dividingBy: 1.0)
+                let phase = (time * 0.26 + Double(idx) * (1.0 / Double(count))).truncatingRemainder(dividingBy: 1.0)
                 let spread = CGFloat(idx - count / 2) * minDim * 0.10
-                let px = cx + spread + CGFloat(sin(time * 1.35 + Double(idx) * 1.5)) * minDim * 0.030
+                let px = cx + spread + CGFloat(sin(time * 0.85 + Double(idx) * 1.5)) * minDim * 0.024
                 let py = cy - CGFloat(phase) * minDim * 0.28
                 let s = minDim * 0.020 * (1.0 - CGFloat(phase) * 0.3)
                 let alpha = sin(phase * .pi) * (isHappy ? 0.85 : 0.65)
@@ -593,11 +606,11 @@ private struct WalkingPawDustCanvas: View {
             let h = size.height
             let minDim = min(w, h)
             for idx in 0..<3 {
-                let phase = (time * 1.85 + Double(idx) * 0.33).truncatingRemainder(dividingBy: 1.0)
-                let px = w * 0.66 + CGFloat(phase) * minDim * 0.18
-                let py = h * 0.87 - CGFloat(phase) * minDim * 0.06
-                let r = minDim * (0.018 + CGFloat(phase) * 0.022)
-                let alpha = (1.0 - phase) * 0.45
+                let phase = (time * 0.85 + Double(idx) * 0.33).truncatingRemainder(dividingBy: 1.0)
+                let px = w * 0.66 + CGFloat(phase) * minDim * 0.15
+                let py = h * 0.87 - CGFloat(phase) * minDim * 0.045
+                let r = minDim * (0.015 + CGFloat(phase) * 0.018)
+                let alpha = (1.0 - phase) * 0.38
                 ctx.fill(
                     Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)),
                     with: .color(Color(hex: "#FFF8EC").opacity(alpha))
