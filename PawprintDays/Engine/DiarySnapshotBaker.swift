@@ -95,9 +95,23 @@ private struct BakedPostcardCanvas: View {
                         .padding(.vertical, 3)
                         .background(AppTheme.warmPaper.opacity(0.86), in: Capsule())
                     Spacer()
-                    Text(localDateISO)
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundStyle(AppTheme.softInk)
+                    HStack(spacing: 4) {
+                        Text(localDateISO)
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundStyle(AppTheme.deepPineInk.opacity(0.75))
+                        Text("遇")
+                            .font(.system(size: 9.5, weight: .bold, design: .serif))
+                            .foregroundStyle(Color(hex: "#B83B32"))
+                            .frame(width: 17, height: 17)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 3)
+                                    .stroke(Color(hex: "#B83B32").opacity(0.85), lineWidth: 1.2)
+                            )
+                            .rotationEffect(.degrees(-8))
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(AppTheme.warmPaper.opacity(0.88), in: Capsule())
                 }
                 .padding(10)
                 Spacer()
@@ -112,10 +126,15 @@ private struct BakedPostcardCanvas: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .background(AppTheme.warmPaper.opacity(0.92))
+                .background(AppTheme.warmPaper.opacity(0.93))
             }
         }
         .frame(width: canvasWidth, height: 220)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(AppTheme.timberWarm.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                .padding(6)
+        )
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(AppTheme.warmPaper, lineWidth: 6))
         .clipShape(RoundedRectangle(cornerRadius: 6))
     }
@@ -125,21 +144,8 @@ private struct BakedPostcardCanvas: View {
             return "\(pet.name) 與 \(secondaryPet.name)"
         }
         if let outfitID, let item = ShopCatalog.item(id: outfitID) {
-            return item.name
+            return "\(pet.name) · \(item.name)"
         }
-        return "素頸"
-    }
-
-    private var backdropColors: [Color] {
-        switch weather {
-        case .lightRain, .postRain:
-            return [Color(hex: "#D6E1E5"), Color(hex: "#EDEAE0")]
-        case .dusk:
-            return [Color(hex: "#F2DEC6"), Color(hex: "#E5CEB8")]
-        case .clearMorning:
-            return [Color(hex: "#F5F1E3"), Color(hex: "#E5EDE6")]
-        case .overcast:
-            return [Color(hex: "#EAE7DF"), Color(hex: "#DFDFD7")]
-        }
+        return "\(pet.name) · 素頸"
     }
 }

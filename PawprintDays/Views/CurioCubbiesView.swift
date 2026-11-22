@@ -270,6 +270,21 @@ struct CurioCubbiesView: View {
                                         .tint(AppTheme.forestTeal)
 
                                         Toggle(isOn: Binding(
+                                            get: { HapticsEngine.shared.isHapticsEnabled },
+                                            set: { HapticsEngine.shared.isHapticsEnabled = $0 }
+                                        )) {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("溫柔觸覺震動回饋")
+                                                    .font(AppTheme.serifTitle(13.5))
+                                                    .foregroundStyle(AppTheme.deepPineInk)
+                                                Text("包含長按貓咪呼嚕震動、走近街角雙輕點與開箱觸感。")
+                                                    .font(AppTheme.serifBody(11))
+                                                    .foregroundStyle(AppTheme.softInk)
+                                            }
+                                        }
+                                        .tint(AppTheme.forestTeal)
+
+                                        Toggle(isOn: Binding(
                                             get: { coordinator.ledger.mobilityRollModeEnabled },
                                             set: { coordinator.toggleMobilityRollMode($0) }
                                         )) {
@@ -330,13 +345,49 @@ struct CurioCubbiesView: View {
             PouchShopDrawer(coordinator: coordinator, selectedCategory: $selectedCategory)
                 .presentationDetents([.medium, .large])
         }
-        .alert("替我記住停留較久的街角", isPresented: $showVisitOptInPreview) {
-            Button("開啟長停留日記備註") {
-                coordinator.toggleOptionalBackgroundVisits(true)
+        .sheet(isPresented: $showVisitOptInPreview) {
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 14) {
+                    StorybookPaperCard(cornerRadius: 18, accentColor: AppTheme.forestTeal, showWashiTape: true, paddingAmount: 14) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("本機日記儲存範例")
+                                .font(AppTheme.diegeticLabel(11))
+                                .foregroundStyle(AppTheme.forestTeal)
+                            Text("「11月18日 星期三 · 麵包店，午後。在熟悉的小街角安靜停駐了一會兒。」")
+                                .font(AppTheme.handwritten(15))
+                                .foregroundStyle(AppTheme.deepPineInk)
+                            Text("街角相遇完全不需要背景定位；此功能 100% 只留在你的 iPhone 上，且隨時可單日抹除。")
+                                .font(AppTheme.serifBody(12.5))
+                                .foregroundStyle(AppTheme.softInk)
+                        }
+                    }
+
+                    CutePlushButton(
+                        title: "開啟長停留日記備註",
+                        tone: .matchaMint,
+                        fontSize: 13.5,
+                        horizontalPadding: 16,
+                        verticalPadding: 11,
+                        icon: { Image(systemName: "checkmark.circle.fill").font(.system(size: 12, weight: .bold)) },
+                        action: {
+                            coordinator.toggleOptionalBackgroundVisits(true)
+                            showVisitOptInPreview = false
+                        }
+                    )
+
+                    Spacer()
+                }
+                .padding(18)
+                .background(AppTheme.parchmentTray)
+                .navigationTitle("替我記住停留較久的街角")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("先不用") { showVisitOptInPreview = false }
+                    }
+                }
             }
-            Button("先不用", role: .cancel) {}
-        } message: {
-            Text("只會留存在這支 iPhone 上的儲存範例：\n「11月18日 星期三 · 麵包店，午後。在熟悉的小街角安靜停駐了一會兒。」\n\n街角相遇完全不需要背景定位，且你隨時能單日抹除。")
+            .presentationDetents([.height(310)])
         }
     }
 }

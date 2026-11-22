@@ -274,7 +274,7 @@ final class SunroomRoamingEngine {
             }
 
             switch actor.behavior {
-            case .walking(let from, let to, let startedAt, let duration, let arrivalSpot):
+            case .walking(_, let to, let startedAt, let duration, let arrivalSpot):
                 let rawP = min(1.0, max(0.0, now.timeIntervalSince(startedAt) / max(0.2, duration)))
                 let currentPos = actor.interpolatedPosition(at: now)
 
