@@ -18,8 +18,30 @@ struct PawprintDaysApp: App {
         self._coordinator = State(initialValue: gameCoordinator)
     }
 
+    private static let cleanReleaseResetKey = "pawprintdays.releaseCleanReset.v1_mystical"
+
+    private static func performOneTimeCleanReleaseResetIfNeeded(storeURL: URL) {
+        #if targetEnvironment(simulator)
+        // Never wipe XCTest host unexpectedly; still reset normal interactive runs on device.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return }
+        #endif
+        guard !UserDefaults.standard.bool(forKey: cleanReleaseResetKey) else { return }
+        let fm = FileManager.default
+        for suffix in ["", "-wal", "-shm"] {
+            let target = URL(fileURLWithPath: storeURL.path + suffix)
+            if fm.fileExists(atPath: target.path) {
+                try? fm.removeItem(at: target)
+            }
+        }
+        UserDefaults.standard.removeObject(forKey: "pawprintdays.activeStrollSession.v1")
+        UserDefaults.standard.removeObject(forKey: "pawprintdays.sunroom.customSpots.v1")
+        UserDefaults.standard.removeObject(forKey: "pawprintdays.tutorial.completed.v1")
+        UserDefaults.standard.set(true, forKey: cleanReleaseResetKey)
+    }
+
     private static func makeResilientContainer(schema: Schema) -> (ModelContainer, String?) {
         let persistentConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        performOneTimeCleanReleaseResetIfNeeded(storeURL: persistentConfig.url)
         if let container = try? ModelContainer(for: schema, configurations: [persistentConfig]) {
             return (container, nil)
         }
@@ -44,8 +66,11 @@ struct PawprintDaysApp: App {
 
         // Final fail-safe: in-memory store (zero fatalError).
         let memoryConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        let memoryContainer = try! ModelContainer(for: schema, configurations: [memoryConfig])
-        return (memoryContainer, "目前以暫存模式開啟日記，請確認裝置儲存空間。")
+        if let memoryContainer = try? ModelContainer(for: schema, configurations: [memoryConfig]) {
+            return (memoryContainer, "目前以暫存模式開啟日記，請確認裝置儲存空間。")
+        }
+        let fallback = try! ModelContainer(for: DiaryDayRecord.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        return (fallback, nil)
     }
 
     var body: some Scene {

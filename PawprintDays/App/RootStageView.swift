@@ -67,9 +67,8 @@ struct RootStageView: View {
             }
         }
         .animation(.easeInOut(duration: 0.24), value: coordinator.currentScreen)
-        .sheet(isPresented: $coordinator.showFixtureDrawer) {
-            Stage1FixtureDrawerView(coordinator: coordinator)
-                .presentationDetents([.medium, .large])
+        .fullScreenCover(isPresented: $coordinator.showInteractiveTutorial) {
+            CozyOnboardingTutorialView(coordinator: coordinator)
         }
     }
 }

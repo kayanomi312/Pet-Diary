@@ -11,7 +11,7 @@ struct StartStrollSatchelSheet: View {
     init(coordinator: GameCoordinator) {
         self.coordinator = coordinator
         let invited = coordinator.residents.filter { $0.inviteState == .invitedHome }
-        let defaultID = coordinator.activeWalkCompanionID ?? invited.first?.petID ?? "pet.01"
+        let defaultID = coordinator.activeWalkCompanionID ?? invited.first?.petID ?? "pet.03"
         _selectedPetID = State(initialValue: defaultID)
     }
 

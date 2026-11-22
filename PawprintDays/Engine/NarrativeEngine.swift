@@ -125,26 +125,18 @@ enum NarrativeEngine {
 
     private static func firstMetSlip(for spec: PetSpec, gesture: GreetingGesture, weather: WeatherMode) -> String {
         switch spec.id {
-        case "pet.01": // 芝麻
-            return gesture == .offerHand
-                ? "芝麻從木凳下探出頭，白左掌輕點石面，嗅了嗅你的手背。"
-                : "芝麻把白左掌收在胸前，在木凳陰影下安靜地望著你。"
         case "pet.02": // 杜松
             return "杜松擺了擺彎鉤尾巴，把一張摺整齊的小紙片推到你鞋邊。"
         case "pet.03": // 餘燼
-            return "餘燼在細雨中躲進屋簷，背上的赤陶小鱗透著淡淡暖光。"
+            return "餘燼在微風中躲進屋簷，背上的赤陶小鱗透著淡淡暖光。"
         case "pet.04": // 摺翼
-            return "摺翼從乾爽的招牌下探頭，細褶的莢果翅膀安靜收在背上。"
-        case "pet.05": // 味噌
-            return gesture == .rollBall
-                ? "味噌小跑接住縫布球，乖乖啣回放在你的鞋尖前。"
-                : "味噌歪著那隻折耳，尾巴在微濕的石板上輕輕敲了一下。"
+            return "摺翼從乾爽的招牌下探頭，細褶的暮色小翼安靜收在背上。"
         case "pet.06": // 鈕扣
-            return "鈕扣踩著淺色腳趾走近，還順道確認門口的墊子有沒有歪。"
+            return "鈕扣踩著淺色腳趾走近，肩旁小鬼火安靜閃爍著。"
         case "pet.07": // 梅子
-            return "銀吻的梅子放慢腳步，不疾不徐地在你衣袖旁停了下來。"
+            return "銀吻的梅子放慢腳步，身周柔白雲絮伴著你停了下來。"
         case "pet.08": // 蘆葦
-            return "蘆葦豎起微捲的長耳，往騎樓最乾爽的那塊石階看了看。"
+            return "蘆葦豎起微捲的長耳，搖晃嫩綠鹿角往乾爽石階看了看。"
         default:
             return "\(spec.name)在\(weather.displayName)中停下腳步，願意讓你再靠近一步。"
         }
@@ -172,11 +164,6 @@ enum NarrativeEngine {
     ) -> (slip: String, diary: String) {
         let pairKey = [primary.id, secondary.id].sorted().joined(separator: "+")
         switch pairKey {
-        case "pet.01+pet.03": // 芝麻 & 餘燼
-            return (
-                "芝麻用白左掌輕拍餘燼的背，替緊張到小鱗微紅的牠讓出一塊乾爽石階。",
-                "在\(anchorLabel)看見芝麻從容地陪著餘燼，像老母貓照看一隻以為自己是貓的小龍。"
-            )
         case "pet.02+pet.06": // 杜松 & 鈕扣
             return (
                 "杜松嘴上嫌棄鈕扣的藍紫小鬼火太亮，卻順手幫牠把歪掉的門墊撥正。",
@@ -187,30 +174,25 @@ enum NarrativeEngine {
                 "摺翼在屋簷陰影裡收起暮色小翼，靜靜聽蘆葦搖晃嫩葉鹿角確認風向。",
                 "在\(anchorLabel)的騎樓下，摺翼與蘆葦並肩共享了一段安靜微涼的片刻。"
             )
-        case "pet.05+pet.07": // 味噌 & 梅子
-            return (
-                "味噌興沖沖滾來縫布球，梅子溫柔放慢星霧腳步，陪牠輕輕把球推回你腳邊。",
-                "在\(anchorLabel)看見味噌和梅子一快一慢地並肩散步，氣氛柔和極了。"
-            )
         case "pet.02+pet.03": // 杜松 & 餘燼
             return (
                 "杜松遞出方正摺紙符，餘燼好奇湊近一嗅，差點把紙角烘得暖烘烘捲起來。",
                 "在\(anchorLabel)撞見杜松與餘燼互相比劃小本領，兩個小傢伙都認真得可愛。"
             )
-        case "pet.01+pet.04": // 芝麻 & 摺翼
+        case "pet.03+pet.07": // 餘燼 & 梅子
             return (
-                "芝麻安穩伏在木凳上，摺翼張開細褶蝠翼替牠擋住斜射過來的光線。",
-                "在\(anchorLabel)看見芝麻與摺翼安靜相伴，誰也沒說話卻格外安心。"
+                "餘燼的微溫爐氣遇上梅子的柔白雲絮，轉角飄起一縷像剛沖開熱茶般的暖霧。",
+                "在\(anchorLabel)看見餘燼與梅子靜靜靠在一起，溫暖又療癒。"
             )
-        case "pet.03+pet.05": // 餘燼 & 味噌
+        case "pet.02+pet.04": // 杜松 & 摺翼
             return (
-                "味噌把最心愛的布球滾給餘燼，餘燼小心翼翼收起爪尖，把球烘得暖暖地推回去。",
-                "在\(anchorLabel)看見味噌熱情邀約餘燼玩球，小龍貓臉上露出了藏不住的笑意。"
+                "杜松展開小小的惡魔翅，摺翼則好奇比了比自己的暮色蝠翼，兩位夜行小夥伴相視而笑。",
+                "在\(anchorLabel)遇見杜松與摺翼並肩停在招牌陰影裡。"
             )
-        case "pet.01+pet.02": // 芝麻 & 杜松
+        case "pet.03+pet.08": // 餘燼 & 蘆葦
             return (
-                "杜松高傲地抬著黑曜小角，卻乖乖坐在芝麻身旁讓牠替自己理順耳尖。",
-                "在\(anchorLabel)遇見芝麻與杜松；再講究的惡魔貓在老街守護者面前也變溫順了。"
+                "餘燼悄悄把石階烘暖，蘆葦則晃了晃嫩綠鹿角替牠遮住飄落的斜風細雨。",
+                "在\(anchorLabel)看見火龍貓餘燼與森靈犬蘆葦互相照應，格外溫馨。"
             )
         case "pet.06+pet.08": // 鈕扣 & 蘆葦
             return (
@@ -221,6 +203,11 @@ enum NarrativeEngine {
             return (
                 "摺翼的星塵羽翼映著梅子的柔白雲氣，兩道安靜的身影把轉角襯得像繪本一頁。",
                 "在\(anchorLabel)的\(weather.displayName)裡遇見摺翼與梅子並肩靜坐。"
+            )
+        case "pet.03+pet.06": // 餘燼 & 鈕扣
+            return (
+                "餘燼的暖橘微光與鈕扣肩上的藍紫鬼火並排閃爍，把\(anchorLabel)照得像童話小巷。",
+                "在\(anchorLabel)遇見餘燼與鈕扣一起點亮了巷口微光。"
             )
         default:
             return (

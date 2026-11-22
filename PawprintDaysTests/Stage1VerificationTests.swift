@@ -45,8 +45,8 @@ final class Stage1VerificationTests: XCTestCase {
             residents: coordinator.residents,
             ledger: coordinator.ledger
         )
-        XCTAssertEqual(firstOffer, "pet.03", "Pilot Guarantee must offer Cinder on first Tap-3")
-        XCTAssertEqual(bakery.cachedVisitorOfferID, "pet.03")
+        XCTAssertEqual(firstOffer, "pet.04", "Pilot Guarantee must offer Hem on first Tap-3 when Cinder is the regular")
+        XCTAssertEqual(bakery.cachedVisitorOfferID, "pet.04")
 
         // Closing and reloading must return the exact persisted animal without rerolling
         let secondOffer = AnchorRotationEngine.resolveAndPersistOfferedPetID(
@@ -57,12 +57,12 @@ final class Stage1VerificationTests: XCTestCase {
         XCTAssertEqual(secondOffer, firstOffer)
 
         // 30 calendar days of absence never consumes a turn or decays bond
-        let sesame = try XCTUnwrap(coordinator.resident(for: "pet.01"))
-        sesame.sharedDaysCount = 5
-        sesame.milestoneTier = PetResidentState.milestoneForSharedDays(5)
+        let cinder = try XCTUnwrap(coordinator.resident(for: "pet.03"))
+        cinder.sharedDaysCount = 5
+        cinder.milestoneTier = PetResidentState.milestoneForSharedDays(5)
         coordinator.advanceSimulatedDays(30)
         XCTAssertEqual(bakery.cycleTapCount, 2, "Calendar absence must never consume rotation turns")
-        XCTAssertEqual(sesame.sharedDaysCount, 5, "Absence must never decay bond")
+        XCTAssertEqual(cinder.sharedDaysCount, 5, "Absence must never decay bond")
     }
 
     /// Downward sensor revisions keep raw correction visible and forgive previously issued coins.
@@ -92,7 +92,7 @@ final class Stage1VerificationTests: XCTestCase {
     /// Qualitative Pocket Finds every 1,400 steps with 200-step anticipation glow.
     func testQualitativePocketFindAndAnticipationGlow() throws {
         let coordinator = try makeInMemoryCoordinator()
-        coordinator.setWalkCompanion(petID: "pet.01")
+        coordinator.setWalkCompanion(petID: "pet.03")
         let base = Date(timeIntervalSince1970: 1_795_100_000)
 
         let r1 = coordinator.ingestSteps(steps: 1_250, intervalStartUTC: base, placeLabel: "Riverside Path")
@@ -113,16 +113,16 @@ final class Stage1VerificationTests: XCTestCase {
         XCTAssertNotNil(coordinator.pinFamiliarCornerAhead(label: "Corner 3"))
         XCTAssertNil(coordinator.pinFamiliarCornerAhead(label: "Corner 4"), "Max 3 Personal Familiar Corners")
 
-        let sesame = try XCTUnwrap(coordinator.resident(for: "pet.01"))
+        let juniper = try XCTUnwrap(coordinator.resident(for: "pet.02"))
         let cinder = try XCTUnwrap(coordinator.resident(for: "pet.03"))
-        sesame.inviteState = .invitedHome
+        juniper.inviteState = .invitedHome
         cinder.inviteState = .invitedHome
 
         coordinator.activeWeather = .postRain
         coordinator.solveHomeRoomNow()
 
         let allOccupants = coordinator.homeSpots.flatMap(\.currentOccupantPetIDs)
-        XCTAssertTrue(allOccupants.contains("pet.01"))
+        XCTAssertTrue(allOccupants.contains("pet.02"))
         XCTAssertTrue(allOccupants.contains("pet.03"))
     }
 

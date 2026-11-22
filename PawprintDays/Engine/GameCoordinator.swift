@@ -22,6 +22,7 @@ final class GameCoordinator {
     let pedometerService: PedometerService
 
     private static let persistedStrollDefaultsKey = "pawprintdays.activeStrollSession.v1"
+    private static let tutorialCompletedDefaultsKey = "pawprintdays.tutorial.completed.v1"
 
     var currentScreen: AppScreen = .street
     var currentSimulatedDate: Date = Date()
@@ -30,6 +31,7 @@ final class GameCoordinator {
     var hasManualWeatherOverride: Bool = false
     private var lastWeatherSyncUTC: Date? = nil
     var showOnboardingPaperSlip: Bool = false
+    var showInteractiveTutorial: Bool = false
     var showAccessibleNearbyList: Bool = false
     var showFixtureDrawer: Bool = false
     var isSunroomPhotoMode: Bool = false
@@ -74,6 +76,51 @@ final class GameCoordinator {
         reloadAll()
         wireLocationCallbacks()
         restorePersistedStrollIfNeeded()
+        if !UserDefaults.standard.bool(forKey: Self.tutorialCompletedDefaultsKey) {
+            self.showInteractiveTutorial = true
+            self.showOnboardingPaperSlip = false
+        }
+    }
+
+    func completeInteractiveTutorial() {
+        UserDefaults.standard.set(true, forKey: Self.tutorialCompletedDefaultsKey)
+        showInteractiveTutorial = false
+        showOnboardingPaperSlip = false
+    }
+
+    func reopenInteractiveTutorial() {
+        showInteractiveTutorial = true
+    }
+
+    /// Resets all diary history, encounters, coins, curios, and residents to a spotless fresh start.
+    func resetAllGameData() {
+        if activeStroll != nil {
+            pedometerService.stopLiveStrollUpdates()
+            StrollLiveActivityManager.shared.endStrollLiveActivity()
+            activeStroll = nil
+            persistActiveStroll()
+        }
+        for item in (try? modelContext.fetch(FetchDescriptor<EncounterLog>())) ?? [] { modelContext.delete(item) }
+        for item in (try? modelContext.fetch(FetchDescriptor<DiaryDayRecord>())) ?? [] { modelContext.delete(item) }
+        for item in (try? modelContext.fetch(FetchDescriptor<AnchorSiteRecord>())) ?? [] { modelContext.delete(item) }
+        for item in (try? modelContext.fetch(FetchDescriptor<PetResidentState>())) ?? [] { modelContext.delete(item) }
+        for item in (try? modelContext.fetch(FetchDescriptor<HomeSpotPlacement>())) ?? [] { modelContext.delete(item) }
+        for item in (try? modelContext.fetch(FetchDescriptor<TeachingIntention>())) ?? [] { modelContext.delete(item) }
+        for item in (try? modelContext.fetch(FetchDescriptor<WalletAndCurioLedger>())) ?? [] { modelContext.delete(item) }
+        try? modelContext.save()
+
+        let freshLedger = WalletAndCurioLedger()
+        modelContext.insert(freshLedger)
+        self.ledger = freshLedger
+
+        UserDefaults.standard.removeObject(forKey: "pawprintdays.sunroom.customSpots.v1")
+        UserDefaults.standard.removeObject(forKey: Self.tutorialCompletedDefaultsKey)
+        locationService.clearTrailForDay()
+        seedInitialWorldIfNeeded()
+        reloadAll()
+        currentScreen = .street
+        showInteractiveTutorial = true
+        showWhisper("已重新開啟一本全新的空白足印日記！")
     }
 
     // MARK: - App Lifecycle, Midnight Rollover & Live Weather Sync
@@ -297,11 +344,12 @@ final class GameCoordinator {
         }
     }
 
-    // MARK: - Seeding (自動升級舊有英文種子名稱為繁體中文)
+    // MARK: - Seeding（純奇幻 6 位靈獸陣容）
     private func seedInitialWorldIfNeeded() {
+        let validIDs = Set(PetCatalog.allPets.map(\.id))
         let existingPets = (try? modelContext.fetch(FetchDescriptor<PetResidentState>())) ?? []
-        if existingPets.isEmpty {
-            showOnboardingPaperSlip = true
+        for pet in existingPets where !validIDs.contains(pet.petID) {
+            modelContext.delete(pet)
         }
         for spec in PetCatalog.allPets {
             if let existing = existingPets.first(where: { $0.petID == spec.id }) {
@@ -326,7 +374,7 @@ final class GameCoordinator {
                 lon: bakeryCoord.longitude,
                 radiusM: 75,
                 customLabel: "麵包店巷口",
-                regularPetID: "pet.01",
+                regularPetID: "pet.03",
                 cycleTapCount: 0,
                 isFamiliarCorner: false
             ))
@@ -336,7 +384,7 @@ final class GameCoordinator {
                 lon: riverCoord.longitude,
                 radiusM: 75,
                 customLabel: "溪畔木椅",
-                regularPetID: "pet.05",
+                regularPetID: "pet.06",
                 cycleTapCount: 0,
                 isFamiliarCorner: false
             ))
@@ -351,11 +399,16 @@ final class GameCoordinator {
                 isFamiliarCorner: false
             ))
         } else {
-            // 升級既有英文預設街角名稱為繁體中文
             for a in existingAnchors {
                 if a.customLabel == "Bakery Corner" { a.customLabel = "麵包店巷口" }
                 if a.customLabel == "Riverside Bench" { a.customLabel = "溪畔木椅" }
                 if a.customLabel == "Library Arcade" { a.customLabel = "圖書館騎樓" }
+                if !validIDs.contains(a.regularPetID) {
+                    a.regularPetID = "pet.03"
+                }
+                if let cached = a.cachedVisitorOfferID, !validIDs.contains(cached) {
+                    a.cachedVisitorOfferID = nil
+                }
             }
         }
 
@@ -1292,11 +1345,9 @@ final class GameCoordinator {
         try? modelContext.save()
         reloadAll()
         let gifts: [String: String] = [
-            "pet.01": "\(name)輕輕把一枚曬暖的小銅釦推到你鞋尖旁（+1 步數幣）。",
             "pet.02": "\(name)矜持地留下了一張摺痕筆直的黑金小紙符（+1 步數幣）。",
             "pet.03": "\(name)害羞地送你一顆被烘得暖呼呼的小赤陶碎石（+1 步數幣）。",
             "pet.04": "\(name)從星塵翅膀間滑落一顆旋轉的暮色翅果種子（+1 步數幣）。",
-            "pet.05": "\(name)開心地把在麵包店門口撿到的幸運小硬幣叼給你（+1 步數幣）。",
             "pet.06": "\(name)用鼻尖把一顆亮晶晶的紫玻璃珠推到你手心（+1 步數幣）。",
             "pet.07": "\(name)輕輕留下了一縷帶著香氣的蒲公英白絨（+1 步數幣）。",
             "pet.08": "\(name)垂下鹿角送你一片帶著晨露的嫩綠蕨芽（+1 步數幣）。"

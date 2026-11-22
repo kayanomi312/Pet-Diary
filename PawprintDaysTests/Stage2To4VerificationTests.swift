@@ -26,7 +26,7 @@ final class Stage2To4VerificationTests: XCTestCase {
     /// Verifies the full 8-pet launch cast, Tap-22 familiar-cast progression, and interrupted encounter recovery (no double-claim).
     func testFull8PetCastTap22AndInterruptedRecovery() throws {
         let coordinator = try makeInMemoryCoordinator()
-        XCTAssertEqual(coordinator.residents.count, 8, "Full launch cast must include all 8 pets")
+        XCTAssertEqual(coordinator.residents.count, 6, "Mystical launch cast must include all 6 mythical pets")
         XCTAssertEqual(coordinator.homeSpots.count, 5, "Starter sunroom must have 5 interactive spots")
 
         let bakery = try XCTUnwrap(coordinator.anchors.first(where: { $0.siteID == "sys.luodong.bakery_corner" }))
@@ -59,8 +59,8 @@ final class Stage2To4VerificationTests: XCTestCase {
             seenPetIDs.insert(offered)
         }
 
-        XCTAssertGreaterThanOrEqual(seenPetIDs.count, 6, "Tap-22 should organically introduce the neighborhood cast")
-        XCTAssertTrue(seenPetIDs.contains("pet.01"))
+        XCTAssertGreaterThanOrEqual(seenPetIDs.count, 5, "Tap-22 should organically introduce the neighborhood cast")
+        XCTAssertTrue(seenPetIDs.contains("pet.03"))
         XCTAssertTrue(seenPetIDs.contains("pet.03"), "Pilot Tap-3 guarantee must deliver Cinder")
     }
 
@@ -73,7 +73,7 @@ final class Stage2To4VerificationTests: XCTestCase {
         let firstLog = try XCTUnwrap(
             coordinator.commitStreetEncounter(
                 siteID: bakery.siteID,
-                petID: "pet.01",
+                petID: "pet.03",
                 gesture: .offerHand,
                 forceOfferStrollChain: true
             )
@@ -95,11 +95,11 @@ final class Stage2To4VerificationTests: XCTestCase {
             coordinator.commitStreetEncounter(
                 siteID: targetAnchor.siteID,
                 petID: targetAnchor.regularPetID,
-                companionStreetPetID: "pet.01",
+                companionStreetPetID: "pet.03",
                 gesture: .rollBall
             )
         )
-        XCTAssertEqual(dualLog.secondaryPetID, "pet.01")
+        XCTAssertEqual(dualLog.secondaryPetID, "pet.03")
         XCTAssertNotNil(dualLog.bakedSnapshotPNGData)
         XCTAssertNil(coordinator.activeStrollChainTargetID, "Chain halo clears once followed")
         _ = riverside
@@ -108,14 +108,14 @@ final class Stage2To4VerificationTests: XCTestCase {
     /// Verifies Shared-Prop Cross-Species Mentorship: queued -> 2,500 Walk Nourishment steps -> demonstrated -> mastered.
     func testSharedPropCrossSpeciesMentorshipLifecycle() throws {
         let coordinator = try makeInMemoryCoordinator()
-        let sesame = try XCTUnwrap(coordinator.resident(for: "pet.01"))
+        let juniper = try XCTUnwrap(coordinator.resident(for: "pet.02"))
         let cinder = try XCTUnwrap(coordinator.resident(for: "pet.03"))
-        sesame.inviteState = .invitedHome
+        juniper.inviteState = .invitedHome
         cinder.inviteState = .invitedHome
-        sesame.sharedDaysCount = 15
+        juniper.sharedDaysCount = 15
         cinder.sharedDaysCount = 3
 
-        let intention = try XCTUnwrap(coordinator.planMentorship(mentorID: "pet.01", learnerID: "pet.03"))
+        let intention = try XCTUnwrap(coordinator.planMentorship(mentorID: "pet.02", learnerID: "pet.03"))
         XCTAssertEqual(intention.state, .queued)
 
         // Walk 2,500 steps to advance via Walk Nourishment without forcing a 24h wait
@@ -124,8 +124,8 @@ final class Stage2To4VerificationTests: XCTestCase {
 
         coordinator.completeMentorshipLesson(intentionUUID: intention.intentionUUID)
         XCTAssertEqual(intention.state, .mastered)
-        XCTAssertTrue(cinder.learnedHabitIDs.contains(HabitFamily.wait.rawValue))
-        XCTAssertTrue(cinder.learnedHabitCredits.contains(where: { $0.contains("芝麻") }))
+        XCTAssertTrue(cinder.learnedHabitIDs.contains(HabitFamily.offer.rawValue))
+        XCTAssertTrue(cinder.learnedHabitCredits.contains(where: { $0.contains("杜松") }))
     }
 
     /// Verifies 2-State Loved Patina (25 uses) + 10c Patch Mending + Rain-Porch Veranda (5 -> 8 spots).
@@ -154,10 +154,10 @@ final class Stage2To4VerificationTests: XCTestCase {
     /// Verifies 'Carry Regulars Forward' relocation guarantee when moving to a brand-new city.
     func testCarryRegularsForwardRelocationGuarantee() throws {
         let coordinator = try makeInMemoryCoordinator()
-        let sesame = try XCTUnwrap(coordinator.resident(for: "pet.01"))
+        let cinder = try XCTUnwrap(coordinator.resident(for: "pet.03"))
         let reed = try XCTUnwrap(coordinator.resident(for: "pet.08"))
-        sesame.inviteState = .invitedHome
-        sesame.sharedDaysCount = 12
+        cinder.inviteState = .invitedHome
+        cinder.sharedDaysCount = 12
         reed.inviteState = .invitedHome
         reed.sharedDaysCount = 8
 
@@ -170,7 +170,7 @@ final class Stage2To4VerificationTests: XCTestCase {
 
         let newBakery = try XCTUnwrap(coordinator.anchors.first(where: { $0.siteID == "sys.poi.tokyo_bakery" }))
         let newPark = try XCTUnwrap(coordinator.anchors.first(where: { $0.siteID == "sys.poi.tokyo_park" }))
-        XCTAssertEqual(newBakery.regularPetID, "pet.01", "Most-bonded regular Sesame carries forward first")
+        XCTAssertEqual(newBakery.regularPetID, "pet.03", "Most-bonded regular Sesame carries forward first")
         XCTAssertEqual(newPark.regularPetID, "pet.08", "Second bonded regular Reed carries forward")
     }
 
@@ -210,8 +210,8 @@ final class Stage2To4VerificationTests: XCTestCase {
     func testPicnicSnapshotAndWideCharcoalSpread() throws {
         let coordinator = try makeInMemoryCoordinator()
         coordinator.ledger.coinBalance = 100
-        coordinator.resident(for: "pet.01")?.inviteState = .invitedHome
-        coordinator.resident(for: "pet.05")?.inviteState = .invitedHome
+        coordinator.resident(for: "pet.03")?.inviteState = .invitedHome
+        coordinator.resident(for: "pet.06")?.inviteState = .invitedHome
 
         let picnic = try XCTUnwrap(ShopCatalog.item(id: "treat.picnic_portion"))
         XCTAssertTrue(coordinator.purchaseItem(picnic, txID: "test.picnic"))
@@ -224,7 +224,7 @@ final class Stage2To4VerificationTests: XCTestCase {
         XCTAssertEqual(coordinator.ledger.activeOutingPack, .sketchbookCharcoal)
 
         let bakery = try XCTUnwrap(coordinator.anchors.first(where: { $0.siteID == "sys.luodong.bakery_corner" }))
-        let wideLog = try XCTUnwrap(coordinator.commitStreetEncounter(siteID: bakery.siteID, petID: "pet.01", gesture: .offerHand))
+        let wideLog = try XCTUnwrap(coordinator.commitStreetEncounter(siteID: bakery.siteID, petID: "pet.03", gesture: .offerHand))
         XCTAssertTrue(wideLog.isWideWatercolorSpread)
         if let data = wideLog.bakedSnapshotPNGData, let img = UIImage(data: data) {
             XCTAssertGreaterThan(img.size.width, 320, "Wide charcoal spread must render wider than standard 300pt postcard")
@@ -241,8 +241,8 @@ final class Stage2To4VerificationTests: XCTestCase {
         let library = try XCTUnwrap(coordinator.anchors.first(where: { $0.siteID == "sys.luodong.library_arcade" }))
 
         // Visit all 3 distinct neighborhood corners in one day -> awards Neighborhood Loop Stamp
-        _ = coordinator.commitStreetEncounter(siteID: bakery.siteID, petID: "pet.01", gesture: .offerHand)
-        _ = coordinator.commitStreetEncounter(siteID: river.siteID, petID: "pet.05", gesture: .rollBall)
+        _ = coordinator.commitStreetEncounter(siteID: bakery.siteID, petID: "pet.03", gesture: .offerHand)
+        _ = coordinator.commitStreetEncounter(siteID: river.siteID, petID: "pet.06", gesture: .rollBall)
         _ = coordinator.commitStreetEncounter(siteID: library.siteID, petID: "pet.02", gesture: .crouchQuietly)
 
         let today = coordinator.todayDiaryRecord()
@@ -250,25 +250,25 @@ final class Stage2To4VerificationTests: XCTestCase {
         XCTAssertEqual(bakery.totalVisitsCount, 1)
 
         // Quiet Revisit on same day must NOT double-claim Shared Days, while recording a calm revisit note
-        let sharedBefore = coordinator.resident(for: "pet.01")?.sharedDaysCount ?? 0
+        let sharedBefore = coordinator.resident(for: "pet.03")?.sharedDaysCount ?? 0
         bakery.totalVisitsCount = 3 // 常去轉角
         XCTAssertEqual(bakery.familiarityTitle, "常去轉角")
         let moment = coordinator.performQuietRevisit(anchor: bakery)
         XCTAssertFalse(moment.vignetteLine.isEmpty)
-        XCTAssertEqual(coordinator.resident(for: "pet.01")?.sharedDaysCount, sharedBefore, "Quiet revisit must never double-claim Shared Days")
+        XCTAssertEqual(coordinator.resident(for: "pet.03")?.sharedDaysCount, sharedBefore, "Quiet revisit must never double-claim Shared Days")
         XCTAssertFalse(coordinator.todayDiaryRecord().revisitNotes.isEmpty)
     }
 
     /// Verifies Milestone 4 (Day 10) Kindred 2-Choice Habit Practice & Merging Adjacent Stop Detections.
     func testKindredTwoChoicePracticeAndMergeAdjacentAnchors() throws {
         let coordinator = try makeInMemoryCoordinator()
-        let sesame = try XCTUnwrap(coordinator.resident(for: "pet.01"))
-        sesame.sharedDaysCount = 10
-        sesame.milestoneTier = PetResidentState.milestoneForSharedDays(10)
+        let cinder = try XCTUnwrap(coordinator.resident(for: "pet.03"))
+        cinder.sharedDaysCount = 10
+        cinder.milestoneTier = PetResidentState.milestoneForSharedDays(10)
 
-        coordinator.completeKindredHabitPractice(petID: "pet.01", choiceTitle: "放慢節奏靜靜示範")
-        XCTAssertTrue(sesame.kindredPracticeCompleted)
-        XCTAssertTrue(sesame.kindredChoiceNote?.contains("沉靜守候") == true)
+        coordinator.completeKindredHabitPractice(petID: "pet.03", choiceTitle: "放慢節奏靜靜示範")
+        XCTAssertTrue(cinder.kindredPracticeCompleted)
+        XCTAssertTrue(cinder.kindredChoiceNote?.contains("爐爪烘暖") == true)
 
         let bakery = try XCTUnwrap(coordinator.anchors.first(where: { $0.siteID == "sys.luodong.bakery_corner" }))
         let pinned = try XCTUnwrap(coordinator.pinFamiliarCornerAhead(label: "相鄰轉角"))
@@ -316,7 +316,7 @@ final class Stage2To4VerificationTests: XCTestCase {
         let coordinator = try makeInMemoryCoordinator()
         let roaming = SunroomRoamingEngine()
         roaming.syncResidents(
-            invitedPetIDs: ["pet.01", "pet.02", "pet.03"],
+            invitedPetIDs: ["pet.02", "pet.03", "pet.04"],
             spots: coordinator.homeSpots,
             verandaUnlocked: false
         )
@@ -409,7 +409,7 @@ final class Stage2To4VerificationTests: XCTestCase {
         let coordinator = try makeInMemoryCoordinator()
         let roaming = SunroomRoamingEngine()
         let now = Date()
-        roaming.syncResidents(invitedPetIDs: ["pet.01", "pet.05"], spots: coordinator.homeSpots, verandaUnlocked: false, now: now)
+        roaming.syncResidents(invitedPetIDs: ["pet.03", "pet.06"], spots: coordinator.homeSpots, verandaUnlocked: false, now: now)
 
         let chaserID = roaming.tossClothBall(now: now)
         XCTAssertNotNil(chaserID)
@@ -418,7 +418,7 @@ final class Stage2To4VerificationTests: XCTestCase {
         XCTAssertEqual(roaming.actors[chaserID!]?.isWalking, true)
 
         // Verify HEIC-alpha frames are bundled cleanly inside PetFrames/ folder reference
-        let frameURL = Bundle.main.url(forResource: "pet_01_w1", withExtension: "heic", subdirectory: "PetFrames")
+        let frameURL = Bundle.main.url(forResource: "pet_03_w1", withExtension: "heic", subdirectory: "PetFrames")
         XCTAssertNotNil(frameURL)
     }
 
@@ -442,12 +442,12 @@ final class Stage2To4VerificationTests: XCTestCase {
         XCTAssertTrue(sunnyScene.streetSlipLine.contains("餘燼"))
 
         let pair = NarrativeEngine.pairDialogue(
-            primary: PetCatalog.pet(id: "pet.01"),
+            primary: PetCatalog.pet(id: "pet.02"),
             secondary: PetCatalog.pet(id: "pet.03"),
             anchorLabel: "麵包店巷口",
             weather: .lightRain
         )
-        XCTAssertTrue(pair.slip.contains("芝麻") && pair.slip.contains("餘燼"))
+        XCTAssertTrue(pair.slip.contains("杜松") && pair.slip.contains("餘燼"))
 
         let revisit = NarrativeEngine.revisitVignette(
             pet: PetCatalog.pet(id: "pet.08"),
@@ -474,14 +474,14 @@ final class Stage2To4VerificationTests: XCTestCase {
         XCTAssertTrue(coordinator.isGingerTeaActive)
 
         // Pet custom nickname editing persists cleanly
-        coordinator.updatePetNickname(petID: "pet.01", nickname: "小芝芝")
-        XCTAssertEqual(coordinator.displayName(for: "pet.01"), "小芝芝")
+        coordinator.updatePetNickname(petID: "pet.03", nickname: "小芝芝")
+        XCTAssertEqual(coordinator.displayName(for: "pet.03"), "小芝芝")
 
         // Day 6+ companion street encounter bonus gift awards +1 coin
-        let pet = try XCTUnwrap(coordinator.resident(for: "pet.01"))
+        let pet = try XCTUnwrap(coordinator.resident(for: "pet.03"))
         pet.sharedDaysCount = 7
         let coinsBefore = coordinator.ledger.coinBalance
-        let giftMsg = coordinator.awardStreetEncounterBonusGiftIfEligible(petID: "pet.01")
+        let giftMsg = coordinator.awardStreetEncounterBonusGiftIfEligible(petID: "pet.03")
         XCTAssertNotNil(giftMsg)
         XCTAssertEqual(coordinator.ledger.coinBalance, coinsBefore + 1)
 
@@ -550,5 +550,69 @@ final class Stage2To4VerificationTests: XCTestCase {
         XCTAssertFalse(eng.outputConnectionPoints(for: foley, outputBus: 0).isEmpty, "foley must stay connected")
         XCTAssertFalse(eng.outputConnectionPoints(for: music, outputBus: 0).isEmpty, "music must stay connected")
         XCTAssertFalse(eng.outputConnectionPoints(for: rain, outputBus: 0).isEmpty, "rain must stay connected")
+    }
+
+    /// Comprehensive end-to-end crash-safety sweep across every player action, pure mystical cast,
+    /// clean fresh-start reset, and interactive onboarding tutorial lifecycle.
+    func testComprehensiveCrashSafetyMysticalCastResetAndTutorial() throws {
+        let coordinator = try makeInMemoryCoordinator()
+
+        // 1. Verify strictly mystical 6-companion cast (zero normal cats or dogs)
+        XCTAssertEqual(PetCatalog.allPets.count, 6)
+        XCTAssertTrue(PetCatalog.allPets.allSatisfy { $0.kind.isMagical })
+        XCTAssertFalse(PetCatalog.allPets.contains(where: { $0.id == "pet.01" || $0.id == "pet.05" }))
+        XCTAssertEqual(coordinator.residents.count, 6)
+
+        // 2. Verify graceful handling of unknown/legacy pet IDs (never crashes)
+        let fallbackSpec = PetCatalog.pet(id: "pet.nonexistent")
+        XCTAssertTrue(fallbackSpec.kind.isMagical)
+        XCTAssertFalse(coordinator.displayName(for: "pet.nonexistent").isEmpty)
+
+        // 3. Exercise every audio & haptic cue safely
+        CozySoundEngine.shared.playPaperFlip()
+        CozySoundEngine.shared.playCompassChime()
+        CozySoundEngine.shared.playPawTap()
+        CozySoundEngine.shared.playBrushSwish()
+        CozySoundEngine.shared.playPetPurr()
+        CozySoundEngine.shared.playPetChirp()
+        CozySoundEngine.shared.playTeapotClink()
+        CozySoundEngine.shared.playWardrobeSnap(withBell: true)
+        CozySoundEngine.shared.setCozyMusic(active: true, weather: .lightRain)
+        CozySoundEngine.shared.setRainAmbience(active: true)
+        CozySoundEngine.shared.stopRainAmbience()
+        CozySoundEngine.shared.stopCozyMusic()
+        HapticsEngine.shared.playBrushStrokeTick()
+        HapticsEngine.shared.playPawRangeCue()
+        HapticsEngine.shared.playDogBallRoll()
+        HapticsEngine.shared.playCurioUnpack()
+
+        // 4. Exercise every major user action & empty/populated states without crashing
+        XCTAssertTrue(coordinator.discoveredFriendships.isEmpty)
+        coordinator.ledger.coinBalance = 5_000
+        for item in ShopCatalog.items where item.priceCoins > 0 {
+            _ = coordinator.purchaseItem(item)
+        }
+        coordinator.sipGingerTea()
+        for spec in PetCatalog.allPets {
+            coordinator.resident(for: spec.id)?.inviteState = .invitedHome
+            coordinator.updatePetNickname(petID: spec.id, nickname: spec.name)
+            coordinator.equipOutfit(petID: spec.id, outfitID: "outfit.sage_ribbon")
+            coordinator.completeTactileCare(petID: spec.id, texture: .warm)
+            coordinator.togglePinFavorite(petID: spec.id)
+        }
+        coordinator.solveHomeRoomNow()
+        _ = coordinator.discoveredFriendships
+        _ = DiaryExportService.exportMonthlyPDF(year: 2026, month: 1, days: [], encounters: [], curios: [])
+        _ = DiaryExportService.exportJSONBackup(coordinator: coordinator)
+
+        // 5. Full fresh-start reset wipes all old history and opens interactive tutorial
+        coordinator.completeInteractiveTutorial()
+        XCTAssertFalse(coordinator.showInteractiveTutorial)
+        coordinator.resetAllGameData()
+        XCTAssertTrue(coordinator.showInteractiveTutorial)
+        XCTAssertEqual(coordinator.ledger.coinBalance, 0)
+        XCTAssertTrue(coordinator.encounters.isEmpty)
+        XCTAssertTrue(coordinator.ledger.foragedCurios.isEmpty)
+        XCTAssertEqual(coordinator.residents.filter { $0.inviteState == .invitedHome }.count, 0)
     }
 }

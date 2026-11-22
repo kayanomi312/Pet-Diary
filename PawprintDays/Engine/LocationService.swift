@@ -3,7 +3,7 @@ import CoreLocation
 import Observation
 
 enum GPSSignalQuality: String, Sendable {
-    case simulated = "模擬定位"
+    case simulated = "等待定位"
     case acquiring = "搜尋精準定位…"
     case high = "GPS 極精準"
     case good = "GPS 良好"
@@ -35,7 +35,11 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     private var currentlyInsideGeofenceIDs: Set<String> = []
 
     var authorizationStatus: CLAuthorizationStatus = .notDetermined
+    #if targetEnvironment(simulator)
     var useSimulatedPosition: Bool = true
+    #else
+    var useSimulatedPosition: Bool = false
+    #endif
     var currentLocation: CLLocation
     var liveTrail: [CoordinatePoint] = []
     var lastRangeCueSiteID: String?
@@ -45,7 +49,7 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     // Accurate Real-World GPS Diagnostics & Compass Heading
     var hasReceivedRealGPSFix: Bool = false
     var gpsAccuracyMeters: Double? = nil
-    var gpsSignalQuality: GPSSignalQuality = .simulated
+    var gpsSignalQuality: GPSSignalQuality = .acquiring
     var isReducedAccuracy: Bool = false
     var headingDegrees: Double? = nil
     var lastRealFixDate: Date? = nil

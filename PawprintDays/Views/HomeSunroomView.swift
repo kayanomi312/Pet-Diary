@@ -110,38 +110,21 @@ struct HomeSunroomView: View {
                 .transition(.opacity)
             } else {
                 VStack(spacing: 8) {
-                    // MARK: Single Ultra-Clean Top Bar (No squished 2nd row!)
+                    // MARK: Single Ultra-Clean Top Bar (Real Weather & Sunroom Status)
                     HStack(spacing: 8) {
-                        Button {
-                            let cycle: [WeatherMode] = [.clearMorning, .lightRain, .dusk, .overcast]
-                            let currentIdx = cycle.firstIndex(of: coordinator.activeWeather) ?? 0
-                            let nextWeather = cycle[(currentIdx + 1) % cycle.count]
-                            withAnimation(.easeInOut(duration: 0.45)) {
-                                coordinator.setManualWeatherPreview(nextWeather)
-                            }
-                            CozySoundEngine.shared.playPaperFlip()
-                        } label: {
-                            CozyGlassPill(horizontalPadding: 11, verticalPadding: 6) {
-                                HStack(spacing: 6) {
-                                    CuteWeatherFaceIcon(weather: coordinator.activeWeather, size: 20)
-                                    Text("陽光室")
-                                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                                        .foregroundStyle(Color(hex: "#2F2A26"))
-                                    Text("·")
-                                        .foregroundStyle(Color(hex: "#B5A590"))
-                                    Text(coordinator.activeWeather.displayName)
-                                        .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                                        .foregroundStyle(AppTheme.forestTeal)
-                                }
+                        CozyGlassPill(horizontalPadding: 11, verticalPadding: 6) {
+                            HStack(spacing: 6) {
+                                CuteWeatherFaceIcon(weather: coordinator.activeWeather, size: 20)
+                                Text("陽光室")
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    .foregroundStyle(Color(hex: "#2F2A26"))
+                                Text("·")
+                                    .foregroundStyle(Color(hex: "#B5A590"))
+                                Text(coordinator.activeWeather.displayName)
+                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                                    .foregroundStyle(AppTheme.forestTeal)
                             }
                         }
-                        .buttonStyle(TactileGameButtonStyle(pressScale: 0.95, pressOffsetY: 1))
-                        .simultaneousGesture(
-                            LongPressGesture(minimumDuration: 1.2).onEnded { _ in
-                                HapticsEngine.shared.playBrushStrokeTick()
-                                coordinator.showFixtureDrawer = true
-                            }
-                        )
 
                         Spacer(minLength: 4)
 
@@ -288,7 +271,7 @@ struct HomeSunroomView: View {
                                         Image(systemName: "pawprint.fill")
                                             .font(.system(size: 12, weight: .semibold))
                                             .foregroundStyle(Color(hex: "#C98D26"))
-                                        Text("室友 \(invitedPets.count)/8")
+                                        Text("室友 \(invitedPets.count)/\(PetCatalog.allPets.count)")
                                             .font(.system(size: 12.5, weight: .bold, design: .rounded))
                                             .foregroundStyle(Color(hex: "#2F2A26"))
                                     }
