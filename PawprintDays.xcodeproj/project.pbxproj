@@ -11,10 +11,12 @@
 		0437345AC7B1271F5FDA70B5 /* StorybookPropArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8C1C754DD8A26DFF8DBC7EB /* StorybookPropArt.swift */; };
 		0640173307935006252D0A68 /* PaperGrainAndLUT.metal in Sources */ = {isa = PBXBuildFile; fileRef = BDA681F6E122D4646A6AFCF5 /* PaperGrainAndLUT.metal */; };
 		0B4D4E3AF991E4D6E9B5113D /* CozyUnifiedUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A13283725832011B999E96 /* CozyUnifiedUI.swift */; };
+		1083CA72A196AFEF2B6EA016 /* DiaryExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F175005BD67145CD1D5A8672 /* DiaryExportService.swift */; };
 		15CE874DE2B01B22BA78CC3B /* TactileCareView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C2DCCD080EBEEA8618B504 /* TactileCareView.swift */; };
 		16C9C08A49526F6F6575C241 /* Stage1FixtureDrawerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F46AB30C29BDC7D91D29B7 /* Stage1FixtureDrawerView.swift */; };
 		18EDD519764D4B0D48A499A8 /* CurioCubbiesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5396DC8F62A51EA4DBF5FA0 /* CurioCubbiesView.swift */; };
 		1EA24F4C854908AC4C4ACEBE /* StepCoinLedgerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95711078B296384E1C6AD9A3 /* StepCoinLedgerEngine.swift */; };
+		2964DFA28D5E109109BEEE50 /* PawprintDaysWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AE753BFE83AECF2523A7649 /* PawprintDaysWidgets.swift */; };
 		29D2B56A5B1A15CF8920CA22 /* RoomOccupancySolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23804B7F9F2AAAFBDCD72CC /* RoomOccupancySolver.swift */; };
 		32AD8FA0C4478A92BC144378 /* Stage2To4VerificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */; };
 		35A667A6EF0C88B15F3C20D6 /* Sunroom25DStage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7625FA3318755BEFCDDDB260 /* Sunroom25DStage.swift */; };
@@ -23,6 +25,7 @@
 		4047114F86E909BFEB2CCFE0 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 240A215BE2D51BF1C17FC3C6 /* LocationService.swift */; };
 		49A593D4C4BFAFEE8EBB985D /* dog_ball_roll.ahap in Resources */ = {isa = PBXBuildFile; fileRef = 4EF9FFDCCCDA69DD0153196B /* dog_ball_roll.ahap */; };
 		4A13CA1880869BBAF16A4BB3 /* PlaceholderAssetGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFF60970FD6466DF84DA9D35 /* PlaceholderAssetGenerator.swift */; };
+		4ADCB51C815697E0AAB599C2 /* PawprintSharedActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44819E4445781D509B8BAC53 /* PawprintSharedActivity.swift */; };
 		4C5A2CDC1017220D0F44DA8B /* DiarySnapshotBaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F2454D976BB67C83BE9F36 /* DiarySnapshotBaker.swift */; };
 		541DE44C842987CE7AC096F4 /* Stage1VerificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BB82F737C708433848BA4E4 /* Stage1VerificationTests.swift */; };
 		5615223262C0BE9353F20324 /* cat_purr.ahap in Resources */ = {isa = PBXBuildFile; fileRef = 8FA68C348F168F5266C8FF2B /* cat_purr.ahap */; };
@@ -33,8 +36,11 @@
 		7E6291C98864D10EDFEA9065 /* PetCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B209268D8883F60AFD479A29 /* PetCatalog.swift */; };
 		84940EB4D785441D0E90E20E /* MapKitAnchorDiscoveryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0B2764B24738456F6E6AFF4 /* MapKitAnchorDiscoveryService.swift */; };
 		928FC998F4E5361185438FB3 /* PedometerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006EAF955D692AACB215D604 /* PedometerService.swift */; };
+		934FE6CD834B229109168153 /* PawprintDaysWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D9C06CF7A23756CD0CFB07BF /* PawprintDaysWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9536B357EA0BC33DABC7932F /* paw_range.ahap in Resources */ = {isa = PBXBuildFile; fileRef = 3658077F88E869B7E55F647E /* paw_range.ahap */; };
+		B2FFA362B31165E5FEF5E441 /* StrollLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67E854C8AC9CCB40C6F312CC /* StrollLiveActivityManager.swift */; };
 		B9E0D6FF5ADD861C160546AC /* GameCoordinator+Fixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 695FB44687F27EE0E023B4EB /* GameCoordinator+Fixtures.swift */; };
+		C129648729AE2C786C4E8CD7 /* PawprintAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A37DA5888EB9B52CFF84855E /* PawprintAppIntents.swift */; };
 		C768CB603C207703F6ED3370 /* WeatherSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF3DBFDAF506E7ED900643F2 /* WeatherSyncService.swift */; };
 		C881DC0B473CB523E163DC1F /* HapticsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C568E5706C32C149A0CC402 /* HapticsEngine.swift */; };
 		C93E1B479E8580F215D66CD8 /* DiegeticProps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 071983DCB25BE655FF909410 /* DiegeticProps.swift */; };
@@ -44,6 +50,7 @@
 		D61598D9F86F05DED885F12B /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514894921375578990F18305 /* AppTheme.swift */; };
 		D64A6D405769C13E1DA11AB4 /* PetFrames in Resources */ = {isa = PBXBuildFile; fileRef = AEB687F1A5B3765C222D233C /* PetFrames */; };
 		D831966FC956CB4BAE66930C /* StrollRitualSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 577B6815AA46FB69A029BEF6 /* StrollRitualSheets.swift */; };
+		DB3DEA62CDF9D1CFC6329002 /* PawprintSharedActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44819E4445781D509B8BAC53 /* PawprintSharedActivity.swift */; };
 		DDED72C953C9AC79544709AF /* GameCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93CFFA2DFDC1657DFAD6BE0 /* GameCoordinator.swift */; };
 		E20E7734E37C49E6BF10D31D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 294ECBE64107C69E3AE79B88 /* Assets.xcassets */; };
 		E25FC44CEFCC856722142CF6 /* CuteKawaiiIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E7501CACD547594CF9F3CB /* CuteKawaiiIcons.swift */; };
@@ -61,7 +68,28 @@
 			remoteGlobalIDString = 48C703C6DA33B8B99085D943;
 			remoteInfo = PawprintDays;
 		};
+		894693A6A59F4D2B517E276D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E1C2600B537F091791B7A5BC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F8083A1FD98B30AFBC3A4C54;
+			remoteInfo = PawprintDaysWidgets;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		63BAC0A6FDA1094C9AF6241D /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				934FE6CD834B229109168153 /* PawprintDaysWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		006EAF955D692AACB215D604 /* PedometerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PedometerService.swift; sourceTree = "<group>"; };
@@ -73,6 +101,7 @@
 		2FAA300ED020BC39BC83F973 /* AnchorRotationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorRotationEngine.swift; sourceTree = "<group>"; };
 		33F2454D976BB67C83BE9F36 /* DiarySnapshotBaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiarySnapshotBaker.swift; sourceTree = "<group>"; };
 		3658077F88E869B7E55F647E /* paw_range.ahap */ = {isa = PBXFileReference; path = paw_range.ahap; sourceTree = "<group>"; };
+		44819E4445781D509B8BAC53 /* PawprintSharedActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PawprintSharedActivity.swift; sourceTree = "<group>"; };
 		4A74C81C1FC7B537AAD7B171 /* HardcoverSketchbookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardcoverSketchbookView.swift; sourceTree = "<group>"; };
 		4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stage2To4VerificationTests.swift; sourceTree = "<group>"; };
 		4EF9FFDCCCDA69DD0153196B /* dog_ball_roll.ahap */ = {isa = PBXFileReference; path = dog_ball_roll.ahap; sourceTree = "<group>"; };
@@ -82,7 +111,9 @@
 		5A600ABFFADCDFB70A967183 /* GameTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTypes.swift; sourceTree = "<group>"; };
 		60C2DCCD080EBEEA8618B504 /* TactileCareView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TactileCareView.swift; sourceTree = "<group>"; };
 		63B2F90D7A01B759FD220D22 /* PawprintDaysTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PawprintDaysTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		67E854C8AC9CCB40C6F312CC /* StrollLiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrollLiveActivityManager.swift; sourceTree = "<group>"; };
 		695FB44687F27EE0E023B4EB /* GameCoordinator+Fixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GameCoordinator+Fixtures.swift"; sourceTree = "<group>"; };
+		6AE753BFE83AECF2523A7649 /* PawprintDaysWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PawprintDaysWidgets.swift; sourceTree = "<group>"; };
 		71448162A759227F2D467E47 /* CozySoundEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CozySoundEngine.swift; sourceTree = "<group>"; };
 		73DFE847C9BBA2DC84E27151 /* curio_unpack.ahap */ = {isa = PBXFileReference; path = curio_unpack.ahap; sourceTree = "<group>"; };
 		7625FA3318755BEFCDDDB260 /* Sunroom25DStage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sunroom25DStage.swift; sourceTree = "<group>"; };
@@ -94,6 +125,7 @@
 		9131649D46AD6C948295A1D7 /* StorybookGameUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorybookGameUI.swift; sourceTree = "<group>"; };
 		95711078B296384E1C6AD9A3 /* StepCoinLedgerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCoinLedgerEngine.swift; sourceTree = "<group>"; };
 		9C568E5706C32C149A0CC402 /* HapticsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticsEngine.swift; sourceTree = "<group>"; };
+		A37DA5888EB9B52CFF84855E /* PawprintAppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PawprintAppIntents.swift; sourceTree = "<group>"; };
 		A5396DC8F62A51EA4DBF5FA0 /* CurioCubbiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurioCubbiesView.swift; sourceTree = "<group>"; };
 		A93CFFA2DFDC1657DFAD6BE0 /* GameCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCoordinator.swift; sourceTree = "<group>"; };
 		A9DB7DE565299A0C7F63100F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -105,9 +137,12 @@
 		C1BB69ACCDDB09346B6CD70E /* HomeSunroomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeSunroomView.swift; sourceTree = "<group>"; };
 		C8C1C754DD8A26DFF8DBC7EB /* StorybookPropArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorybookPropArt.swift; sourceTree = "<group>"; };
 		CA4F7120974E6DAA6C348D1B /* RootStageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootStageView.swift; sourceTree = "<group>"; };
+		D9C06CF7A23756CD0CFB07BF /* PawprintDaysWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PawprintDaysWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		DD04CC74F8F43258F4D9E69A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E0B2764B24738456F6E6AFF4 /* MapKitAnchorDiscoveryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitAnchorDiscoveryService.swift; sourceTree = "<group>"; };
 		E1F46AB30C29BDC7D91D29B7 /* Stage1FixtureDrawerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stage1FixtureDrawerView.swift; sourceTree = "<group>"; };
 		EF3DBFDAF506E7ED900643F2 /* WeatherSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherSyncService.swift; sourceTree = "<group>"; };
+		F175005BD67145CD1D5A8672 /* DiaryExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryExportService.swift; sourceTree = "<group>"; };
 		F23804B7F9F2AAAFBDCD72CC /* RoomOccupancySolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomOccupancySolver.swift; sourceTree = "<group>"; };
 		F8E7501CACD547594CF9F3CB /* CuteKawaiiIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuteKawaiiIcons.swift; sourceTree = "<group>"; };
 		FC0F049D89ACEE9B47D5F487 /* SunroomRoamingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunroomRoamingEngine.swift; sourceTree = "<group>"; };
@@ -135,6 +170,7 @@
 			children = (
 				5992DDFD7AC5C1C8E2CD7170 /* PawprintDays.app */,
 				63B2F90D7A01B759FD220D22 /* PawprintDaysTests.xctest */,
+				D9C06CF7A23756CD0CFB07BF /* PawprintDaysWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -146,6 +182,14 @@
 				4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */,
 			);
 			path = PawprintDaysTests;
+			sourceTree = "<group>";
+		};
+		75E0FC301361B0C4F63B13C3 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				44819E4445781D509B8BAC53 /* PawprintSharedActivity.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		8283470F5ABB1CB6CC27637F /* Models */ = {
@@ -180,6 +224,7 @@
 				BC023671477C43852059BC83 /* Engine */,
 				8283470F5ABB1CB6CC27637F /* Models */,
 				EACCD89A5A4F92E8B5EEFC51 /* Resources */,
+				75E0FC301361B0C4F63B13C3 /* Shared */,
 				09A443B36B6706A6631BAB4D /* Views */,
 			);
 			path = PawprintDays;
@@ -189,10 +234,20 @@
 			isa = PBXGroup;
 			children = (
 				514894921375578990F18305 /* AppTheme.swift */,
+				A37DA5888EB9B52CFF84855E /* PawprintAppIntents.swift */,
 				0740C979C9E98A4DEB2763B7 /* PawprintDaysApp.swift */,
 				CA4F7120974E6DAA6C348D1B /* RootStageView.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		8E933780B024534715EECBE6 /* PawprintDaysWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				DD04CC74F8F43258F4D9E69A /* Info.plist */,
+				6AE753BFE83AECF2523A7649 /* PawprintDaysWidgets.swift */,
+			);
+			path = PawprintDaysWidgets;
 			sourceTree = "<group>";
 		};
 		BC023671477C43852059BC83 /* Engine */ = {
@@ -200,6 +255,7 @@
 			children = (
 				2FAA300ED020BC39BC83F973 /* AnchorRotationEngine.swift */,
 				71448162A759227F2D467E47 /* CozySoundEngine.swift */,
+				F175005BD67145CD1D5A8672 /* DiaryExportService.swift */,
 				33F2454D976BB67C83BE9F36 /* DiarySnapshotBaker.swift */,
 				A93CFFA2DFDC1657DFAD6BE0 /* GameCoordinator.swift */,
 				695FB44687F27EE0E023B4EB /* GameCoordinator+Fixtures.swift */,
@@ -210,6 +266,7 @@
 				006EAF955D692AACB215D604 /* PedometerService.swift */,
 				F23804B7F9F2AAAFBDCD72CC /* RoomOccupancySolver.swift */,
 				95711078B296384E1C6AD9A3 /* StepCoinLedgerEngine.swift */,
+				67E854C8AC9CCB40C6F312CC /* StrollLiveActivityManager.swift */,
 				FC0F049D89ACEE9B47D5F487 /* SunroomRoamingEngine.swift */,
 				EF3DBFDAF506E7ED900643F2 /* WeatherSyncService.swift */,
 			);
@@ -221,6 +278,7 @@
 			children = (
 				8A384A4899EE7AC275B5BDDD /* PawprintDays */,
 				527344F3CAEAF57120A6CF38 /* PawprintDaysTests */,
+				8E933780B024534715EECBE6 /* PawprintDaysWidgets */,
 				39B1FB1FBBE22B2CAA64956E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -264,10 +322,12 @@
 			buildPhases = (
 				2EC2FDC01F73608B18F3FE6F /* Sources */,
 				7AB400CFD3E4563C405BEE3C /* Resources */,
+				63BAC0A6FDA1094C9AF6241D /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				99C8F5ECFFE179F2CEC15780 /* PBXTargetDependency */,
 			);
 			name = PawprintDays;
 			packageProductDependencies = (
@@ -294,6 +354,23 @@
 			productReference = 63B2F90D7A01B759FD220D22 /* PawprintDaysTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		F8083A1FD98B30AFBC3A4C54 /* PawprintDaysWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6E1EB197A4CC9C730D556345 /* Build configuration list for PBXNativeTarget "PawprintDaysWidgets" */;
+			buildPhases = (
+				9B6FDE9126DDCFEA014CC64A /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PawprintDaysWidgets;
+			packageProductDependencies = (
+			);
+			productName = PawprintDaysWidgets;
+			productReference = D9C06CF7A23756CD0CFB07BF /* PawprintDaysWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -308,6 +385,10 @@
 						ProvisioningStyle = Automatic;
 					};
 					B402432A67545CEC8F00E346 = {
+						DevelopmentTeam = G9CBH6VR3R;
+						ProvisioningStyle = Automatic;
+					};
+					F8083A1FD98B30AFBC3A4C54 = {
 						DevelopmentTeam = G9CBH6VR3R;
 						ProvisioningStyle = Automatic;
 					};
@@ -328,6 +409,7 @@
 			projectRoot = "";
 			targets = (
 				48C703C6DA33B8B99085D943 /* PawprintDays */,
+				F8083A1FD98B30AFBC3A4C54 /* PawprintDaysWidgets */,
 				B402432A67545CEC8F00E346 /* PawprintDaysTests */,
 			);
 		};
@@ -360,6 +442,7 @@
 				0B4D4E3AF991E4D6E9B5113D /* CozyUnifiedUI.swift in Sources */,
 				18EDD519764D4B0D48A499A8 /* CurioCubbiesView.swift in Sources */,
 				E25FC44CEFCC856722142CF6 /* CuteKawaiiIcons.swift in Sources */,
+				1083CA72A196AFEF2B6EA016 /* DiaryExportService.swift in Sources */,
 				4C5A2CDC1017220D0F44DA8B /* DiarySnapshotBaker.swift in Sources */,
 				C93E1B479E8580F215D66CD8 /* DiegeticProps.swift in Sources */,
 				B9E0D6FF5ADD861C160546AC /* GameCoordinator+Fixtures.swift in Sources */,
@@ -372,7 +455,9 @@
 				84940EB4D785441D0E90E20E /* MapKitAnchorDiscoveryService.swift in Sources */,
 				6BAD6FE020F29A88D2B224C3 /* NarrativeEngine.swift in Sources */,
 				0640173307935006252D0A68 /* PaperGrainAndLUT.metal in Sources */,
+				C129648729AE2C786C4E8CD7 /* PawprintAppIntents.swift in Sources */,
 				E52A5349635D7FE3F78072AB /* PawprintDaysApp.swift in Sources */,
+				DB3DEA62CDF9D1CFC6329002 /* PawprintSharedActivity.swift in Sources */,
 				928FC998F4E5361185438FB3 /* PedometerService.swift in Sources */,
 				7E6291C98864D10EDFEA9065 /* PetCatalog.swift in Sources */,
 				4A13CA1880869BBAF16A4BB3 /* PlaceholderAssetGenerator.swift in Sources */,
@@ -384,6 +469,7 @@
 				D03F5B5256D397DB58C261A1 /* StorybookGameUI.swift in Sources */,
 				0437345AC7B1271F5FDA70B5 /* StorybookPropArt.swift in Sources */,
 				C965EDB14F54B1C970770E42 /* StreetOverworldView.swift in Sources */,
+				B2FFA362B31165E5FEF5E441 /* StrollLiveActivityManager.swift in Sources */,
 				D831966FC956CB4BAE66930C /* StrollRitualSheets.swift in Sources */,
 				35A667A6EF0C88B15F3C20D6 /* Sunroom25DStage.swift in Sources */,
 				0169EF9AD712A5AF1AE1545D /* SunroomRoamingEngine.swift in Sources */,
@@ -402,6 +488,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		9B6FDE9126DDCFEA014CC64A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2964DFA28D5E109109BEEE50 /* PawprintDaysWidgets.swift in Sources */,
+				4ADCB51C815697E0AAB599C2 /* PawprintSharedActivity.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -409,6 +504,11 @@
 			isa = PBXTargetDependency;
 			target = 48C703C6DA33B8B99085D943 /* PawprintDays */;
 			targetProxy = 06DF9E47F7FB2C51A58C60A2 /* PBXContainerItemProxy */;
+		};
+		99C8F5ECFFE179F2CEC15780 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F8083A1FD98B30AFBC3A4C54 /* PawprintDaysWidgets */;
+			targetProxy = 894693A6A59F4D2B517E276D /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -471,6 +571,42 @@
 				PRODUCT_NAME = PawprintDays;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8D59920B97BA6CEEFFCEC28B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = PawprintDaysWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.pawprintdays.app.widgets;
+				PRODUCT_NAME = PawprintDaysWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		B956F1901A6ED28575EB38B6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = PawprintDaysWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.pawprintdays.app.widgets;
+				PRODUCT_NAME = PawprintDaysWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -636,6 +772,15 @@
 			buildConfigurations = (
 				42DC559D172664976A1C80C8 /* Debug */,
 				D31F5422FF2F148C1D39E0C0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6E1EB197A4CC9C730D556345 /* Build configuration list for PBXNativeTarget "PawprintDaysWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B956F1901A6ED28575EB38B6 /* Debug */,
+				8D59920B97BA6CEEFFCEC28B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

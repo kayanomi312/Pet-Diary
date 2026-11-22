@@ -66,7 +66,7 @@ enum PetCatalog {
             signatureHabitDetail: "如森林老母貓般安穩守在麵包店騎樓，照顧著街角藏匿的奇幻貓群。",
             habitFamily: .wait,
             resonantWeathers: [.overcast, .lightRain],
-            favoriteGoodieIDs: ["goodie.folded_towel", "goodie.wool_blanket", "goodie.window_cushion"],
+            favoriteGoodieIDs: ["goodie.folded_towel", "goodie.wool_blanket", "goodie.window_cushion", "goodie.cedar_perch"],
             favoriteTexture: .warm,
             matureKindness: "替緊張的小龍貓與新夥伴讓出一半窗邊軟墊。",
             socketNeckU: 0.41,
@@ -86,7 +86,7 @@ enum PetCatalog {
             signatureHabitDetail: "頭頂彎曲黑曜小角的貓型惡魔，總把摺得方正的小紙符安靜放在朋友身旁。",
             habitFamily: .offer,
             resonantWeathers: [.overcast, .dusk],
-            favoriteGoodieIDs: ["goodie.bakery_box", "goodie.folded_towel"],
+            favoriteGoodieIDs: ["goodie.bakery_box", "goodie.folded_towel", "goodie.hearth_brazier"],
             favoriteTexture: .crispy,
             matureKindness: "嘴上說著惡魔才不撒嬌，卻悄悄把緞帶排整齊放在老夥伴墊邊。",
             socketNeckU: 0.43,
@@ -106,7 +106,7 @@ enum PetCatalog {
             signatureHabitDetail: "把自己當成普通小貓的赤炎幼龍，背上陶瓦龍鱗會吐出微溫把毛毯烘得暖烘烘。",
             habitFamily: .nest,
             resonantWeathers: [.postRain, .lightRain],
-            favoriteGoodieIDs: ["goodie.wool_blanket", "goodie.folded_towel"],
+            favoriteGoodieIDs: ["goodie.wool_blanket", "goodie.folded_towel", "goodie.hearth_brazier"],
             favoriteTexture: .warm,
             matureKindness: "在涼亭用龍息的餘溫替淋濕的室友烘乾一條軟毯。",
             socketNeckU: 0.40,
@@ -126,7 +126,7 @@ enum PetCatalog {
             signatureHabitDetail: "身披星塵暮色蝠翼的貓型夜魔，張開細摺翅膀替打盹的夥伴擋住刺眼光線。",
             habitFamily: .shield,
             resonantWeathers: [.dusk, .clearMorning],
-            favoriteGoodieIDs: ["goodie.bakery_box", "goodie.window_cushion"],
+            favoriteGoodieIDs: ["goodie.bakery_box", "goodie.window_cushion", "goodie.cedar_perch"],
             favoriteTexture: .soft,
             matureKindness: "在刺眼的午後陽光下展開夜色小翼，替熟睡的朋友遮住眼睛。",
             socketNeckU: 0.42,
@@ -146,7 +146,7 @@ enum PetCatalog {
             signatureHabitDetail: "不論對方是龍貓還是惡魔貓，都會把縫布球剛剛好滾到伸手可及的位置。",
             habitFamily: .offer,
             resonantWeathers: [.clearMorning, .overcast],
-            favoriteGoodieIDs: ["goodie.cloth_ball", "goodie.wool_blanket"],
+            favoriteGoodieIDs: ["goodie.cloth_ball", "goodie.wool_blanket", "goodie.woven_hammock"],
             favoriteTexture: .crispy,
             matureKindness: "總能把球穩穩停在夥伴腳邊，不讓牠多跑一步。",
             socketNeckU: 0.38,
@@ -166,7 +166,7 @@ enum PetCatalog {
             signatureHabitDetail: "長著一對圓潤小魔角、肩畔飄著藍紫微火的小魔犬，最愛把玄關拖鞋排得整整齊齊。",
             habitFamily: .nest,
             resonantWeathers: [.overcast, .lightRain],
-            favoriteGoodieIDs: ["goodie.folded_towel", "goodie.wool_blanket"],
+            favoriteGoodieIDs: ["goodie.folded_towel", "goodie.wool_blanket", "goodie.hearth_brazier"],
             favoriteTexture: .warm,
             matureKindness: "雨夜點起微弱的小鬼火替剛進門的室友照亮乾地墊。",
             socketNeckU: 0.36,
@@ -186,7 +186,7 @@ enum PetCatalog {
             signatureHabitDetail: "身周縈繞柔白雲絮與星光的銀月星靈犬，只要同伴停下腳步，牠也會一起放慢呼吸。",
             habitFamily: .wait,
             resonantWeathers: [.dusk, .overcast],
-            favoriteGoodieIDs: ["goodie.wool_blanket", "goodie.window_cushion"],
+            favoriteGoodieIDs: ["goodie.wool_blanket", "goodie.window_cushion", "goodie.woven_hammock", "goodie.moss_planter"],
             favoriteTexture: .soft,
             matureKindness: "化出輕柔的星霧光暈，並肩陪著害羞的新朋友慢慢走過街口。",
             socketNeckU: 0.39,
@@ -206,7 +206,7 @@ enum PetCatalog {
             signatureHabitDetail: "頭頂抽著嫩綠新葉小鹿角的森靈犬，總能在積水的巷弄裡一眼找到乾燥的石階。",
             habitFamily: .shield,
             resonantWeathers: [.lightRain, .postRain],
-            favoriteGoodieIDs: ["goodie.folded_towel", "goodie.cloth_ball"],
+            favoriteGoodieIDs: ["goodie.folded_towel", "goodie.cloth_ball", "goodie.moss_planter"],
             favoriteTexture: .soft,
             matureKindness: "在驟雨落下前搖晃帶著螢火微光的鹿角，領著室友躲進乾爽騎樓。",
             socketNeckU: 0.37,
@@ -433,6 +433,50 @@ enum ShopCatalog {
             summary: "將窗台容量由 1 位擴展至 2 位，並肩看雨更愜意。",
             capacitySlots: 2
         ),
+        ShopItemSpec(
+            id: "goodie.hearth_brazier",
+            name: "陶土小暖爐",
+            category: .goodies,
+            priceCoins: 135,
+            slotType: "one_slot",
+            swatchHex: "#B55233",
+            secondaryHex: "#F4C98B",
+            summary: "散發微紅炭火暖光的素燒暖爐，餘燼、杜松與鈕扣最愛在旁烘爪。",
+            capacitySlots: 1
+        ),
+        ShopItemSpec(
+            id: "goodie.cedar_perch",
+            name: "紅檜觀雨木架",
+            category: .goodies,
+            priceCoins: 150,
+            slotType: "window_or_alcove",
+            swatchHex: "#8C603B",
+            secondaryHex: "#DCC5A1",
+            summary: "雙層紅檜棲木架，摺翼與芝麻喜歡登高俯瞰整個陽光室與雨景。",
+            capacitySlots: 1
+        ),
+        ShopItemSpec(
+            id: "goodie.woven_hammock",
+            name: "竹編晴日吊床",
+            category: .goodies,
+            priceCoins: 165,
+            slotType: "two_slot",
+            swatchHex: "#C7A672",
+            secondaryHex: "#F5EAD4",
+            summary: "隨微風輕輕搖曳的竹編吊床，讓味噌與梅子舒舒服服打個長盹。",
+            capacitySlots: 2
+        ),
+        ShopItemSpec(
+            id: "goodie.moss_planter",
+            name: "森林苔蘚小盆景",
+            category: .goodies,
+            priceCoins: 125,
+            slotType: "one_slot",
+            swatchHex: "#557C5B",
+            secondaryHex: "#D2BFA2",
+            summary: "盛著林間綠苔與蕨芽的淺陶盆，蘆葦靠近時嫩葉會飄起微光。",
+            capacitySlots: 1
+        ),
 
         // 屋景（四季光影主題與雨廊擴建）
         ShopItemSpec(
@@ -552,6 +596,70 @@ enum CurioCatalog {
             weatherTag: .clearMorning,
             stampHex: "#4E7858",
             journalNote: "在日記頁緣留下清淡微甜的木質葉香。"
+        ),
+        CurioSpec(
+            id: "curio.amber_ember_stone",
+            name: "微溫赤陶小碎石",
+            placeCategory: "老街磚牆下",
+            weatherTag: .postRain,
+            stampHex: "#C4633B",
+            journalNote: "餘燼路過時尾巴掃到的小碎瓦，握在掌心竟帶著淡淡暖意。"
+        ),
+        CurioSpec(
+            id: "curio.origami_star",
+            name: "黑金摺紙小星符",
+            placeCategory: "書店騎樓",
+            weatherTag: .dusk,
+            stampHex: "#3C4652",
+            journalNote: "摺痕筆直方正的小紙星，一看就知道出自講究的杜松之手。"
+        ),
+        CurioSpec(
+            id: "curio.wisp_marble",
+            name: "暮紫玻璃彈珠",
+            placeCategory: "轉角雜貨店",
+            weatherTag: .dusk,
+            stampHex: "#7A68B0",
+            journalNote: "在昏黃街燈下閃著柔和藍紫微光，像鈕扣肩上的小小鬼火。"
+        ),
+        CurioSpec(
+            id: "curio.cloud_feather",
+            name: "星霧白蒲公英絨",
+            placeCategory: "河堤草坡",
+            weatherTag: .overcast,
+            stampHex: "#9EAAB5",
+            journalNote: "輕得幾乎沒有重量，夾進日記時還散發著梅子身邊的微甜雲氣。"
+        ),
+        CurioSpec(
+            id: "curio.fern_bookmark",
+            name: "雨露捲芽蕨葉",
+            placeCategory: "林蔭小徑",
+            weatherTag: .lightRain,
+            stampHex: "#4D805D",
+            journalNote: "蘆葦輕輕點頭示意的嫩蕨芽，壓乾後剛好當成月曆書籤。"
+        ),
+        CurioSpec(
+            id: "curio.brass_button",
+            name: "舊大衣黃銅圓釦",
+            placeCategory: "烘豆咖啡館",
+            weatherTag: .clearMorning,
+            stampHex: "#B88C3E",
+            journalNote: "被晨光曬得暖融融的舊銅釦，味噌用鼻尖把它推到了鞋尖旁。"
+        ),
+        CurioSpec(
+            id: "curio.bat_pod_seed",
+            name: "暮色翅果小種子",
+            placeCategory: "老樹屋簷",
+            weatherTag: .postRain,
+            stampHex: "#6D5E7E",
+            journalNote: "形狀宛如摺翼的細摺小翅膀，在微風裡會旋轉著緩緩落下。"
+        ),
+        CurioSpec(
+            id: "curio.porcelain_shard",
+            name: "青花茶杯邊小瓷片",
+            placeCategory: "茶行石階",
+            weatherTag: .lightRain,
+            stampHex: "#4A7276",
+            journalNote: "邊緣已被歲月磨得圓潤光滑，映著雨後天青色的釉面光澤。"
         )
     ]
 

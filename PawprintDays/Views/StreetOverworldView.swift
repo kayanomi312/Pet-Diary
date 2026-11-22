@@ -583,6 +583,22 @@ struct StreetOverworldView: View {
             )
             .presentationDetents([.large])
         }
+        .onChange(of: coordinator.pendingOpenStartStrollSheet) { _, shouldOpen in
+            if shouldOpen {
+                coordinator.pendingOpenStartStrollSheet = false
+                if coordinator.activeStroll == nil {
+                    showStartStrollSheet = true
+                }
+            }
+        }
+        .onAppear {
+            if coordinator.pendingOpenStartStrollSheet {
+                coordinator.pendingOpenStartStrollSheet = false
+                if coordinator.activeStroll == nil {
+                    showStartStrollSheet = true
+                }
+            }
+        }
         .onChange(of: coordinator.locationService.currentLocation) { _, newLoc in
             if !coordinator.locationService.useSimulatedPosition && !hasCenteredOnRealGPS {
                 hasCenteredOnRealGPS = true

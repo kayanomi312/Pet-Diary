@@ -115,7 +115,7 @@ struct TactileCareView: View {
                 // Clean Refined Nameplate & 3-Heart Care Progress
                 VStack(spacing: 4) {
                     HStack(spacing: 8) {
-                        Text(petSpec.name)
+                        Text(coordinator.displayName(for: petID))
                             .font(.system(size: 24, weight: .bold, design: .rounded))
                             .foregroundStyle(Color(hex: "#2F2A26"))
 
@@ -486,7 +486,7 @@ struct TactileCareView: View {
                 .presentationDetents([.medium])
         }
         .sheet(isPresented: $showFieldGuideSheet) {
-            CompanionFieldGuideSheet(petSpec: petSpec, resident: resident, weather: coordinator.activeWeather)
+            CompanionFieldGuideSheet(coordinator: coordinator, petSpec: petSpec, resident: resident, weather: coordinator.activeWeather)
                 .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showKindredLessonSheet) {
@@ -957,118 +957,227 @@ private struct KawaiiKindredPracticeSheet: View {
     }
 }
 
-/// 手繪毛孩圖鑑小檔案（呈現《貓與龍》世界觀傳聞、最愛口感、共振天氣、溫柔特質與相伴里程碑）
+/// 手繪毛孩圖鑑小檔案 ＋ 室友關係手札（含自訂暱稱編輯與跨物種友誼軟木板！）
 private struct CompanionFieldGuideSheet: View {
+    @Bindable var coordinator: GameCoordinator
     let petSpec: PetSpec
     let resident: PetResidentState?
     let weather: WeatherMode
     @Environment(\.dismiss) private var dismiss
 
+    @State private var selectedTab: Int = 0 // 0: 小檔案, 1: 室友關係手札
+    @State private var isEditingNickname: Bool = false
+    @State private var draftNickname: String = ""
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    StorybookPaperCard(cornerRadius: 20, accentColor: AppTheme.timberWarm, showWashiTape: true, paddingAmount: 14) {
-                        HStack(spacing: 14) {
-                            ProceduralPetRigView(
-                                pet: petSpec,
-                                outfitID: resident?.activeOutfitID,
-                                pose: .respond,
-                                weatherMode: weather,
-                                isHappySquint: true,
-                                applyMetalPaperShader: false,
-                                isStaticSnapshot: true
-                            )
-                            .frame(width: 96, height: 96)
-
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text(petSpec.name)
-                                    .font(AppTheme.serifTitle(22))
-                                    .foregroundStyle(AppTheme.deepPineInk)
-                                SpeciesFolkloreBadgeView(kind: petSpec.kind)
-                                Text("個性：\(petSpec.personalityWord) · \(resident?.milestoneTitle ?? "初次相遇")")
-                                    .font(AppTheme.diegeticLabel(11.5))
-                                    .foregroundStyle(AppTheme.forestTeal)
-                                if let firstISO = resident?.firstMetDateISO {
-                                    Text("初遇於 \(CivilCalendarHelper.displayDate(from: firstISO))（已相伴 \(resident?.sharedDaysCount ?? 1) 天）")
-                                        .font(AppTheme.serifBody(12))
-                                        .foregroundStyle(AppTheme.softInk)
-                                }
-                            }
-                            Spacer(minLength: 0)
-                        }
+                    Picker("圖鑑頁籤", selection: $selectedTab) {
+                        Text("毛孩小檔案").tag(0)
+                        Text("室友關係手札 (\(coordinator.discoveredFriendships.count))").tag(1)
                     }
+                    .pickerStyle(.segmented)
 
-                    StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.forestTeal, paddingAmount: 14) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("招牌習慣 · \(petSpec.signatureHabitTitle)")
-                                .font(AppTheme.serifTitle(16))
-                                .foregroundStyle(AppTheme.deepPineInk)
-                            Text(petSpec.signatureHabitDetail)
-                                .font(AppTheme.serifBody(13.5))
-                                .foregroundStyle(AppTheme.softInk)
-                            Divider()
-                            Text("熟稔後的溫柔模樣")
-                                .font(AppTheme.diegeticLabel(11.5))
-                                .foregroundStyle(AppTheme.forestTeal)
-                            Text("「\(petSpec.matureKindness)」")
-                                .font(AppTheme.handwritten(14))
-                                .foregroundStyle(AppTheme.deepPineInk)
-                        }
-                    }
-
-                    StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.pawStrollChain, paddingAmount: 14) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("生活小偏好")
-                                .font(AppTheme.serifTitle(15.5))
-                                .foregroundStyle(AppTheme.deepPineInk)
-                            HStack(spacing: 8) {
-                                Label("最愛口感：\(petSpec.favoriteTexture.rawValue)", systemImage: "fork.knife")
-                                    .font(AppTheme.diegeticLabel(11.5))
-                                    .foregroundStyle(AppTheme.deepPineInk)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(AppTheme.parchmentTray, in: Capsule())
-                            }
-                            HStack(spacing: 6) {
-                                Text("喜歡的天氣：")
-                                    .font(AppTheme.diegeticLabel(11.5))
-                                    .foregroundStyle(AppTheme.softInk)
-                                ForEach(petSpec.resonantWeathers, id: \.self) { w in
-                                    Text(w.displayName)
-                                        .font(AppTheme.diegeticLabel(11))
-                                        .foregroundStyle(AppTheme.forestTeal)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 3)
-                                        .background(AppTheme.parchmentTray, in: Capsule())
-                                }
-                            }
-                        }
-                    }
-
-                    if let credits = resident?.learnedHabitCredits, !credits.isEmpty {
-                        StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.vineGreen, paddingAmount: 14) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("向室友學到的溫柔習慣")
-                                    .font(AppTheme.serifTitle(15))
-                                    .foregroundStyle(AppTheme.forestTeal)
-                                ForEach(credits, id: \.self) { credit in
-                                    Text("✦ \(credit)")
-                                        .font(AppTheme.handwritten(13.5))
-                                        .foregroundStyle(AppTheme.deepPineInk)
-                                }
-                            }
-                        }
+                    if selectedTab == 0 {
+                        profileSection
+                    } else {
+                        friendshipWebSection
                     }
                 }
                 .padding(18)
             }
             .background(AppTheme.parchmentTray)
-            .navigationTitle("毛孩繪本小檔案")
+            .navigationTitle("毛孩繪本手札")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("闔上") { dismiss() }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var profileSection: some View {
+        StorybookPaperCard(cornerRadius: 20, accentColor: AppTheme.timberWarm, showWashiTape: true, paddingAmount: 14) {
+            HStack(spacing: 14) {
+                ProceduralPetRigView(
+                    pet: petSpec,
+                    outfitID: resident?.activeOutfitID,
+                    pose: .respond,
+                    weatherMode: weather,
+                    isHappySquint: true,
+                    applyMetalPaperShader: false,
+                    isStaticSnapshot: true
+                )
+                .frame(width: 96, height: 96)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    if isEditingNickname {
+                        HStack(spacing: 6) {
+                            TextField("替牠取個可愛暱稱", text: $draftNickname)
+                                .textFieldStyle(.roundedBorder)
+                                .font(AppTheme.serifBody(14))
+                            Button("儲存") {
+                                coordinator.updatePetNickname(petID: petSpec.id, nickname: draftNickname)
+                                isEditingNickname = false
+                            }
+                            .font(AppTheme.diegeticLabel(12))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(AppTheme.forestTeal, in: Capsule())
+                        }
+                    } else {
+                        HStack(spacing: 6) {
+                            Text(coordinator.displayName(for: petSpec.id))
+                                .font(AppTheme.serifTitle(22))
+                                .foregroundStyle(AppTheme.deepPineInk)
+                            if coordinator.displayName(for: petSpec.id) != petSpec.name {
+                                Text("(\(petSpec.name))")
+                                    .font(AppTheme.serifBody(12))
+                                    .foregroundStyle(AppTheme.softInk)
+                            }
+                            Button {
+                                draftNickname = coordinator.displayName(for: petSpec.id)
+                                isEditingNickname = true
+                            } label: {
+                                Image(systemName: "pencil.circle.fill")
+                                    .font(.system(size: 17))
+                                    .foregroundStyle(AppTheme.forestTeal)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("編輯寵物暱稱")
+                        }
+                    }
+                    SpeciesFolkloreBadgeView(kind: petSpec.kind)
+                    Text("個性：\(petSpec.personalityWord) · \(resident?.milestoneTitle ?? "初次相遇")")
+                        .font(AppTheme.diegeticLabel(11.5))
+                        .foregroundStyle(AppTheme.forestTeal)
+                    if let firstISO = resident?.firstMetDateISO {
+                        Text("初遇於 \(CivilCalendarHelper.displayDate(from: firstISO))（已相伴 \(resident?.sharedDaysCount ?? 1) 天）")
+                            .font(AppTheme.serifBody(12))
+                            .foregroundStyle(AppTheme.softInk)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+        }
+
+        StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.forestTeal, paddingAmount: 14) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("招牌習慣 · \(petSpec.signatureHabitTitle)")
+                    .font(AppTheme.serifTitle(16))
+                    .foregroundStyle(AppTheme.deepPineInk)
+                Text(petSpec.signatureHabitDetail)
+                    .font(AppTheme.serifBody(13.5))
+                    .foregroundStyle(AppTheme.softInk)
+                Divider()
+                Text("熟稔後的溫柔模樣")
+                    .font(AppTheme.diegeticLabel(11.5))
+                    .foregroundStyle(AppTheme.forestTeal)
+                Text("「\(petSpec.matureKindness)」")
+                    .font(AppTheme.handwritten(14))
+                    .foregroundStyle(AppTheme.deepPineInk)
+            }
+        }
+
+        StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.pawStrollChain, paddingAmount: 14) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("生活小偏好")
+                    .font(AppTheme.serifTitle(15.5))
+                    .foregroundStyle(AppTheme.deepPineInk)
+                HStack(spacing: 8) {
+                    Label("最愛口感：\(petSpec.favoriteTexture.rawValue)", systemImage: "fork.knife")
+                        .font(AppTheme.diegeticLabel(11.5))
+                        .foregroundStyle(AppTheme.deepPineInk)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(AppTheme.parchmentTray, in: Capsule())
+                }
+                HStack(spacing: 6) {
+                    Text("喜歡的天氣：")
+                        .font(AppTheme.diegeticLabel(11.5))
+                        .foregroundStyle(AppTheme.softInk)
+                    ForEach(petSpec.resonantWeathers, id: \.self) { w in
+                        Text(w.displayName)
+                            .font(AppTheme.diegeticLabel(11))
+                            .foregroundStyle(AppTheme.forestTeal)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(AppTheme.parchmentTray, in: Capsule())
+                    }
+                }
+            }
+        }
+
+        if let credits = resident?.learnedHabitCredits, !credits.isEmpty {
+            StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.vineGreen, paddingAmount: 14) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("向室友學到的溫柔習慣")
+                        .font(AppTheme.serifTitle(15))
+                        .foregroundStyle(AppTheme.forestTeal)
+                    ForEach(credits, id: \.self) { credit in
+                        Text("✦ \(credit)")
+                            .font(AppTheme.handwritten(13.5))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var friendshipWebSection: some View {
+        let bonds = coordinator.discoveredFriendships
+        if bonds.isEmpty {
+            StorybookPaperCard(cornerRadius: 18, accentColor: AppTheme.timberWarm, paddingAmount: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("室友關係軟木板")
+                        .font(AppTheme.serifTitle(17))
+                        .foregroundStyle(AppTheme.deepPineInk)
+                    Text("當兩位奇幻室友一起在陽光室共睡暖毯、完成跨物種傳承練習，或在街角漫步連鎖重逢時，牠們之間的暖心故事就會自動別在這張軟木板上。")
+                        .font(AppTheme.serifBody(13.5))
+                        .foregroundStyle(AppTheme.softInk)
+                }
+            }
+        } else {
+            ForEach(bonds) { bond in
+                let specA = PetCatalog.pet(id: bond.petA)
+                let specB = PetCatalog.pet(id: bond.petB)
+                StorybookPaperCard(cornerRadius: 18, accentColor: AppTheme.pawStrollChain, showWashiTape: true, paddingAmount: 14) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 10) {
+                            ProceduralPetRigView(pet: specA, outfitID: coordinator.resident(for: specA.id)?.activeOutfitID, pose: .notice, weatherMode: weather, applyMetalPaperShader: false, isStaticSnapshot: true)
+                                .frame(width: 56, height: 56)
+
+                            VStack(spacing: 4) {
+                                Text(bond.bondKind)
+                                    .font(AppTheme.diegeticLabel(10.5))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(AppTheme.forestTeal, in: Capsule())
+                                HStack(spacing: 4) {
+                                    Text(coordinator.displayName(for: specA.id))
+                                    Image(systemName: "heart.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(AppTheme.pawInRange)
+                                    Text(coordinator.displayName(for: specB.id))
+                                }
+                                .font(AppTheme.serifTitle(14))
+                                .foregroundStyle(AppTheme.deepPineInk)
+                            }
+                            .frame(maxWidth: .infinity)
+
+                            ProceduralPetRigView(pet: specB, outfitID: coordinator.resident(for: specB.id)?.activeOutfitID, pose: .notice, weatherMode: weather, applyMetalPaperShader: false, isStaticSnapshot: true)
+                                .frame(width: 56, height: 56)
+                        }
+                        Text(bond.memoryNote)
+                            .font(AppTheme.handwritten(13.5))
+                            .foregroundStyle(AppTheme.softInk)
+                    }
                 }
             }
         }

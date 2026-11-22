@@ -420,4 +420,107 @@ final class Stage2To4VerificationTests: XCTestCase {
         let frameURL = Bundle.main.url(forResource: "pet_01_w1", withExtension: "heic", subdirectory: "PetFrames")
         XCTAssertNotNil(frameURL)
     }
+
+    func testRound2PerSpeciesWeatherNarrativeAndPairDialogues() throws {
+        let coordinator = try makeInMemoryCoordinator()
+        // Advance pet.03 (餘燼) past early milestones so ambient selection runs
+        let ember = try XCTUnwrap(coordinator.resident(for: "pet.03"))
+        ember.sharedDaysCount = 12
+        ember.lastSharedDateISO = "2026-11-01"
+
+        let sunnyScene = NarrativeEngine.selectStreetScene(
+            pet: ember,
+            anchorLabel: "麵包店巷口",
+            weather: .clearMorning,
+            chosenGesture: .offerHand,
+            localDateISO: "2026-11-22",
+            pastEncounters: [],
+            activeIntentions: []
+        )
+        XCTAssertFalse(sunnyScene.streetSlipLine.contains("滴水"), "Sunny morning ambient line must never mention dripping rain")
+        XCTAssertTrue(sunnyScene.streetSlipLine.contains("餘燼"))
+
+        let pair = NarrativeEngine.pairDialogue(
+            primary: PetCatalog.pet(id: "pet.01"),
+            secondary: PetCatalog.pet(id: "pet.03"),
+            anchorLabel: "麵包店巷口",
+            weather: .lightRain
+        )
+        XCTAssertTrue(pair.slip.contains("芝麻") && pair.slip.contains("餘燼"))
+
+        let revisit = NarrativeEngine.revisitVignette(
+            pet: PetCatalog.pet(id: "pet.08"),
+            secondary: nil,
+            anchorLabel: "溪畔木椅",
+            timeBandKey: "evening",
+            weather: .dusk
+        )
+        XCTAssertTrue(revisit.contains("蘆葦") && revisit.contains("鹿角"))
+    }
+
+    func testRound2ShopGoodiesGingerTeaNicknamesAndDeepLinks() throws {
+        let coordinator = try makeInMemoryCoordinator()
+        // Verify 9 goodies exist (5 original + 4 new mythical furniture pieces) and 16 curios in Compendium
+        let goodies = ShopCatalog.items.filter { $0.category == .goodies }
+        XCTAssertEqual(goodies.count, 9)
+        XCTAssertEqual(CurioCatalog.all.count, 16)
+
+        // Buying Ginger Tea activates 24h foreground Sunroom tray
+        coordinator.ledger.coinBalance = 500
+        let tea = try XCTUnwrap(ShopCatalog.item(id: "treat.ginger_tea"))
+        XCTAssertFalse(coordinator.isGingerTeaActive)
+        XCTAssertTrue(coordinator.purchaseItem(tea))
+        XCTAssertTrue(coordinator.isGingerTeaActive)
+
+        // Pet custom nickname editing persists cleanly
+        coordinator.updatePetNickname(petID: "pet.01", nickname: "小芝芝")
+        XCTAssertEqual(coordinator.displayName(for: "pet.01"), "小芝芝")
+
+        // Day 6+ companion street encounter bonus gift awards +1 coin
+        let pet = try XCTUnwrap(coordinator.resident(for: "pet.01"))
+        pet.sharedDaysCount = 7
+        let coinsBefore = coordinator.ledger.coinBalance
+        let giftMsg = coordinator.awardStreetEncounterBonusGiftIfEligible(petID: "pet.01")
+        XCTAssertNotNil(giftMsg)
+        XCTAssertEqual(coordinator.ledger.coinBalance, coinsBefore + 1)
+
+        // URL Deep Link routing for Widgets & Siri
+        coordinator.handleDeepLink(URL(string: "pawprintdays://start-stroll")!)
+        XCTAssertEqual(coordinator.currentScreen, .street)
+        XCTAssertTrue(coordinator.pendingOpenStartStrollSheet)
+        coordinator.handleDeepLink(URL(string: "pawprintdays://diary")!)
+        XCTAssertEqual(coordinator.currentScreen, .sketchbook)
+    }
+
+    func testRound2DiaryPhotoMountPDFExportAndJSONBackupRestore() throws {
+        let coordinator = try makeInMemoryCoordinator()
+        let iso = coordinator.currentLocalDateISO
+        coordinator.savePersonalNote(for: iso, note: "今天與餘燼一起在巷口聽雨。")
+        coordinator.toggleStarredTradition(for: iso)
+        coordinator.saveWalkPhoto(for: iso, jpegData: Data([0xFF, 0xD8, 0xFF, 0xD9]))
+
+        let day = coordinator.todayDiaryRecord()
+        XCTAssertNotNil(day.photoJPEGData)
+        XCTAssertTrue(day.isStarredTradition)
+
+        // Monthly Watercolor PDF export produces a non-empty PDF file
+        let comps = Calendar.current.dateComponents([.year, .month], from: coordinator.currentSimulatedDate)
+        let pdfURL = DiaryExportService.exportMonthlyPDF(
+            year: comps.year ?? 2026,
+            month: comps.month ?? 11,
+            days: coordinator.diaryDays,
+            encounters: coordinator.encounters,
+            curios: coordinator.ledger.foragedCurios
+        )
+        let unwrappedPDF = try XCTUnwrap(pdfURL)
+        let pdfBytes = try Data(contentsOf: unwrappedPDF)
+        XCTAssertGreaterThan(pdfBytes.count, 500)
+
+        // Portable JSON backup & restore safely recovers notes without clobbering
+        let backupURL = try XCTUnwrap(DiaryExportService.exportJSONBackup(coordinator: coordinator))
+        day.personalNote = ""
+        let restored = DiaryExportService.restoreJSONBackup(from: backupURL, coordinator: coordinator)
+        XCTAssertGreaterThanOrEqual(restored, 1)
+        XCTAssertEqual(coordinator.todayDiaryRecord().personalNote, "今天與餘燼一起在巷口聽雨。")
+    }
 }

@@ -7,55 +7,75 @@ struct PaintedGoodiePropView: View {
     let hasStitchedPatch: Bool
     let isWide: Bool
 
+    private var customAssetName: String? {
+        goodieID?.replacingOccurrences(of: ".", with: "_")
+    }
+
     var body: some View {
-        Canvas { ctx, size in
-            let w = size.width
-            let h = size.height
-            let ink = Color(hex: "#2C3536").opacity(0.76)
+        ZStack {
+            if let assetName = customAssetName, let img = UIImage(named: assetName) {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: isWide ? 156 : 122, height: 64)
+            } else {
+                Canvas { ctx, size in
+                    let w = size.width
+                    let h = size.height
+                    let ink = Color(hex: "#2C3536").opacity(0.76)
 
-            // Ground shadow
-            ctx.fill(
-                Path(ellipseIn: CGRect(x: w * 0.06, y: h * 0.72, width: w * 0.88, height: h * 0.24)),
-                with: .color(AppTheme.deepPineInk.opacity(0.16))
-            )
+                    // Ground shadow
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: w * 0.06, y: h * 0.72, width: w * 0.88, height: h * 0.24)),
+                        with: .color(AppTheme.deepPineInk.opacity(0.16))
+                    )
 
-            switch goodieID {
-            case "goodie.wool_blanket":
-                drawWoolBlanket(in: &ctx, size: size, ink: ink)
-            case "goodie.bakery_box":
-                drawBakeryBox(in: &ctx, size: size, ink: ink)
-            case "goodie.cloth_ball":
-                drawClothBall(in: &ctx, size: size, ink: ink)
-            case "goodie.window_cushion":
-                drawWindowCushion(in: &ctx, size: size, ink: ink)
-            case "goodie.folded_towel":
-                drawFoldedTowel(in: &ctx, size: size, ink: ink)
-            default:
-                drawEmptyCedarMat(in: &ctx, size: size, ink: ink)
-            }
+                    switch goodieID {
+                    case "goodie.wool_blanket":
+                        drawWoolBlanket(in: &ctx, size: size, ink: ink)
+                    case "goodie.bakery_box":
+                        drawBakeryBox(in: &ctx, size: size, ink: ink)
+                    case "goodie.cloth_ball":
+                        drawClothBall(in: &ctx, size: size, ink: ink)
+                    case "goodie.window_cushion":
+                        drawWindowCushion(in: &ctx, size: size, ink: ink)
+                    case "goodie.folded_towel":
+                        drawFoldedTowel(in: &ctx, size: size, ink: ink)
+                    case "goodie.hearth_brazier":
+                        drawHearthBrazier(in: &ctx, size: size, ink: ink)
+                    case "goodie.cedar_perch":
+                        drawCedarPerch(in: &ctx, size: size, ink: ink)
+                    case "goodie.woven_hammock":
+                        drawWovenHammock(in: &ctx, size: size, ink: ink)
+                    case "goodie.moss_planter":
+                        drawMossPlanter(in: &ctx, size: size, ink: ink)
+                    default:
+                        drawEmptyCedarMat(in: &ctx, size: size, ink: ink)
+                    }
 
-            // 2-State Loved Patina (25+ uses): cozy recessed paw dent or colorful stitched quilt patch
-            if hasLovedPatina && goodieID != nil {
-                if hasStitchedPatch {
-                    let patchRect = CGRect(x: w * 0.62, y: h * 0.28, width: w * 0.20, height: h * 0.34)
-                    let patchPath = Path(roundedRect: patchRect, cornerRadius: 4)
-                    ctx.fill(patchPath, with: .color(AppTheme.pawInRange))
-                    ctx.stroke(patchPath, with: .color(AppTheme.warmPaper), style: StrokeStyle(lineWidth: 1.3, dash: [3, 2.5]))
-                    ctx.stroke(patchPath, with: .color(ink), lineWidth: 1.0)
-                } else {
-                    // Cozy worn paw-dent indentation + frayed thread hint
-                    let dent = CGRect(x: w * 0.36, y: h * 0.34, width: w * 0.28, height: h * 0.26)
-                    ctx.fill(Path(ellipseIn: dent), with: .color(AppTheme.timberDeep.opacity(0.16)))
-                    var fray = Path()
-                    fray.move(to: CGPoint(x: w * 0.78, y: h * 0.66))
-                    fray.addLine(to: CGPoint(x: w * 0.86, y: h * 0.72))
-                    fray.move(to: CGPoint(x: w * 0.74, y: h * 0.69))
-                    fray.addLine(to: CGPoint(x: w * 0.82, y: h * 0.76))
-                    ctx.stroke(fray, with: .color(AppTheme.timberDeep.opacity(0.55)), lineWidth: 1.2)
+                    // 2-State Loved Patina (25+ uses): cozy recessed paw dent or colorful stitched quilt patch
+                    if hasLovedPatina && goodieID != nil {
+                        if hasStitchedPatch {
+                            let patchRect = CGRect(x: w * 0.62, y: h * 0.28, width: w * 0.20, height: h * 0.34)
+                            let patchPath = Path(roundedRect: patchRect, cornerRadius: 4)
+                            ctx.fill(patchPath, with: .color(AppTheme.pawInRange))
+                            ctx.stroke(patchPath, with: .color(AppTheme.warmPaper), style: StrokeStyle(lineWidth: 1.3, dash: [3, 2.5]))
+                            ctx.stroke(patchPath, with: .color(ink), lineWidth: 1.0)
+                        } else {
+                            let dent = CGRect(x: w * 0.36, y: h * 0.34, width: w * 0.28, height: h * 0.26)
+                            ctx.fill(Path(ellipseIn: dent), with: .color(AppTheme.timberDeep.opacity(0.16)))
+                            var fray = Path()
+                            fray.move(to: CGPoint(x: w * 0.78, y: h * 0.66))
+                            fray.addLine(to: CGPoint(x: w * 0.86, y: h * 0.72))
+                            fray.move(to: CGPoint(x: w * 0.74, y: h * 0.69))
+                            fray.addLine(to: CGPoint(x: w * 0.82, y: h * 0.76))
+                            ctx.stroke(fray, with: .color(AppTheme.timberDeep.opacity(0.55)), lineWidth: 1.2)
+                        }
+                    }
                 }
+                .frame(width: isWide ? 156 : 122, height: 52)
             }
         }
-        .frame(width: isWide ? 156 : 122, height: 52)
     }
 
     private func drawWoolBlanket(in ctx: inout GraphicsContext, size: CGSize, ink: Color) {
@@ -180,6 +200,107 @@ struct PaintedGoodiePropView: View {
         for frac in [0.30, 0.50, 0.70] {
             let bx = pad.minX + pad.width * frac
             ctx.fill(Path(ellipseIn: CGRect(x: bx - 3, y: pad.midY - 3, width: 6, height: 6)), with: .color(Color(hex: "#B57B48")))
+        }
+    }
+
+    private func drawHearthBrazier(in ctx: inout GraphicsContext, size: CGSize, ink: Color) {
+        let w = size.width, h = size.height
+        // Warm glowing hearth halo on floor
+        ctx.fill(
+            Path(ellipseIn: CGRect(x: w * 0.14, y: h * 0.42, width: w * 0.72, height: h * 0.46)),
+            with: .radialGradient(
+                Gradient(colors: [Color(hex: "#F5A65B").opacity(0.38), .clear]),
+                center: CGPoint(x: w * 0.50, y: h * 0.60),
+                startRadius: 4,
+                endRadius: w * 0.38
+            )
+        )
+        // Terracotta ceramic charcoal hibachi pot
+        let pot = Path(roundedRect: CGRect(x: w * 0.26, y: h * 0.24, width: w * 0.48, height: h * 0.56), cornerRadius: 12)
+        ctx.fill(
+            pot,
+            with: .linearGradient(
+                Gradient(colors: [Color(hex: "#C96A46"), Color(hex: "#8F4125")]),
+                startPoint: CGPoint(x: w * 0.26, y: h * 0.24),
+                endPoint: CGPoint(x: w * 0.74, y: h * 0.80)
+            )
+        )
+        ctx.stroke(pot, with: .color(ink), lineWidth: 1.3)
+        // Glowing ember bed at rim
+        let rim = Path(ellipseIn: CGRect(x: w * 0.30, y: h * 0.17, width: w * 0.40, height: h * 0.20))
+        ctx.fill(rim, with: .color(Color(hex: "#4A2C22")))
+        ctx.fill(Path(ellipseIn: CGRect(x: w * 0.36, y: h * 0.20, width: w * 0.28, height: h * 0.13)), with: .color(Color(hex: "#F49A42")))
+        ctx.fill(Path(ellipseIn: CGRect(x: w * 0.43, y: h * 0.22, width: w * 0.14, height: h * 0.08)), with: .color(Color(hex: "#FFE39C")))
+        ctx.stroke(rim, with: .color(ink), lineWidth: 1.1)
+    }
+
+    private func drawCedarPerch(in ctx: inout GraphicsContext, size: CGSize, ink: Color) {
+        let w = size.width, h = size.height
+        // Wooden vertical side pillars
+        for px in [w * 0.22, w * 0.70] {
+            let pillar = Path(roundedRect: CGRect(x: px, y: h * 0.16, width: w * 0.08, height: h * 0.62), cornerRadius: 2)
+            ctx.fill(pillar, with: .color(Color(hex: "#8C603B")))
+            ctx.stroke(pillar, with: .color(ink), lineWidth: 1.1)
+        }
+        // Lower & upper cedar plank tiers
+        let lowerPlank = Path(roundedRect: CGRect(x: w * 0.14, y: h * 0.56, width: w * 0.72, height: h * 0.15), cornerRadius: 4)
+        let upperPlank = Path(roundedRect: CGRect(x: w * 0.10, y: h * 0.16, width: w * 0.80, height: h * 0.18), cornerRadius: 5)
+        ctx.fill(lowerPlank, with: .color(Color(hex: "#B58454")))
+        ctx.stroke(lowerPlank, with: .color(ink), lineWidth: 1.2)
+        ctx.fill(upperPlank, with: .color(Color(hex: "#C79664")))
+        ctx.stroke(upperPlank, with: .color(ink), lineWidth: 1.3)
+        // Soft linen runner on top perch
+        let runner = Path(roundedRect: CGRect(x: w * 0.22, y: h * 0.13, width: w * 0.56, height: h * 0.10), cornerRadius: 4)
+        ctx.fill(runner, with: .color(Color(hex: "#F2E7D3")))
+        ctx.stroke(runner, with: .color(ink.opacity(0.6)), lineWidth: 0.9)
+    }
+
+    private func drawWovenHammock(in ctx: inout GraphicsContext, size: CGSize, ink: Color) {
+        let w = size.width, h = size.height
+        // Curved bamboo cradle supports
+        var leftLeg = Path()
+        leftLeg.move(to: CGPoint(x: w * 0.16, y: h * 0.76))
+        leftLeg.addLine(to: CGPoint(x: w * 0.10, y: h * 0.24))
+        var rightLeg = Path()
+        rightLeg.move(to: CGPoint(x: w * 0.84, y: h * 0.76))
+        rightLeg.addLine(to: CGPoint(x: w * 0.90, y: h * 0.24))
+        ctx.stroke(leftLeg, with: .color(Color(hex: "#8A6238")), style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
+        ctx.stroke(rightLeg, with: .color(Color(hex: "#8A6238")), style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
+
+        // Draped woven canvas sling
+        var sling = Path()
+        sling.move(to: CGPoint(x: w * 0.11, y: h * 0.26))
+        sling.addQuadCurve(to: CGPoint(x: w * 0.89, y: h * 0.26), control: CGPoint(x: w * 0.50, y: h * 0.52))
+        sling.addQuadCurve(to: CGPoint(x: w * 0.50, y: h * 0.70), control: CGPoint(x: w * 0.74, y: h * 0.68))
+        sling.addQuadCurve(to: CGPoint(x: w * 0.11, y: h * 0.26), control: CGPoint(x: w * 0.26, y: h * 0.68))
+        sling.closeSubpath()
+        ctx.fill(
+            sling,
+            with: .linearGradient(
+                Gradient(colors: [Color(hex: "#F5EAD4"), Color(hex: "#D9BD8E")]),
+                startPoint: CGPoint(x: 0, y: h * 0.24),
+                endPoint: CGPoint(x: 0, y: h * 0.70)
+            )
+        )
+        ctx.stroke(sling, with: .color(ink), lineWidth: 1.3)
+    }
+
+    private func drawMossPlanter(in ctx: inout GraphicsContext, size: CGSize, ink: Color) {
+        let w = size.width, h = size.height
+        // Shallow stoneware dish
+        let dish = Path(roundedRect: CGRect(x: w * 0.18, y: h * 0.44, width: w * 0.64, height: h * 0.34), cornerRadius: 9)
+        ctx.fill(dish, with: .color(Color(hex: "#D2BFA2")))
+        ctx.stroke(dish, with: .color(ink), lineWidth: 1.2)
+        // Lush moss mounds
+        ctx.fill(Path(ellipseIn: CGRect(x: w * 0.22, y: h * 0.26, width: w * 0.36, height: h * 0.28)), with: .color(Color(hex: "#58855E")))
+        ctx.fill(Path(ellipseIn: CGRect(x: w * 0.44, y: h * 0.22, width: w * 0.34, height: h * 0.30)), with: .color(Color(hex: "#6E9E72")))
+        // Delicate fern sprouts
+        for fx in [w * 0.34, w * 0.52, w * 0.66] {
+            var stem = Path()
+            stem.move(to: CGPoint(x: fx, y: h * 0.32))
+            stem.addQuadCurve(to: CGPoint(x: fx + 5, y: h * 0.10), control: CGPoint(x: fx - 3, y: h * 0.18))
+            ctx.stroke(stem, with: .color(Color(hex: "#3E6B47")), style: StrokeStyle(lineWidth: 1.8, lineCap: .round))
+            ctx.fill(Path(ellipseIn: CGRect(x: fx + 2, y: h * 0.07, width: 6, height: 6)), with: .color(Color(hex: "#8FC488")))
         }
     }
 
@@ -360,6 +481,76 @@ struct PaintedCurioStampView: View {
                 ctx.stroke(Path(ellipseIn: CGRect(x: w * 0.62, y: h * 0.42, width: w * 0.16, height: h * 0.16)), with: .color(ink), lineWidth: 0.9)
                 ctx.stroke(ribbon, with: .color(ink), lineWidth: 1.1)
 
+            case "curio.amber_ember_stone":
+                let stone = Path(ellipseIn: CGRect(x: w * 0.20, y: h * 0.26, width: w * 0.60, height: h * 0.48))
+                ctx.fill(stone, with: .radialGradient(Gradient(colors: [Color(hex: "#F6B46E"), Color(hex: "#C45B32")]), center: CGPoint(x: w * 0.42, y: h * 0.40), startRadius: 1, endRadius: w * 0.36))
+                ctx.stroke(stone, with: .color(ink), lineWidth: 1.1)
+
+            case "curio.origami_star":
+                var star = Path()
+                for i in 0..<10 {
+                    let angle = Double(i) * .pi / 5.0 - .pi / 2.0
+                    let r = (i % 2 == 0) ? w * 0.32 : w * 0.14
+                    let pt = CGPoint(x: w * 0.5 + CGFloat(cos(angle)) * r, y: h * 0.5 + CGFloat(sin(angle)) * r)
+                    if i == 0 { star.move(to: pt) } else { star.addLine(to: pt) }
+                }
+                star.closeSubpath()
+                ctx.fill(star, with: .color(Color(hex: "#323B46")))
+                ctx.stroke(star, with: .color(Color(hex: "#E6C167")), lineWidth: 1.4)
+
+            case "curio.wisp_marble":
+                let orb = Path(ellipseIn: CGRect(x: w * 0.22, y: h * 0.22, width: w * 0.56, height: h * 0.56))
+                ctx.fill(orb, with: .radialGradient(Gradient(colors: [Color(hex: "#C5B4F5"), Color(hex: "#6E5BA6"), Color(hex: "#3D3166")]), center: CGPoint(x: w * 0.40, y: h * 0.38), startRadius: 1, endRadius: w * 0.34))
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.33, y: h * 0.32, width: w * 0.14, height: h * 0.09)), with: .color(.white.opacity(0.75)))
+                ctx.stroke(orb, with: .color(ink), lineWidth: 1.1)
+
+            case "curio.cloud_feather":
+                for dx in [-6.0, 0.0, 6.0] {
+                    ctx.fill(Path(ellipseIn: CGRect(x: w * 0.5 + dx - 7, y: h * 0.32, width: 14, height: 14)), with: .color(.white.opacity(0.85)))
+                }
+                var stalk = Path()
+                stalk.move(to: CGPoint(x: w * 0.50, y: h * 0.44))
+                stalk.addLine(to: CGPoint(x: w * 0.50, y: h * 0.78))
+                ctx.stroke(stalk, with: .color(Color(hex: "#8A959E")), lineWidth: 1.3)
+
+            case "curio.fern_bookmark":
+                var curl = Path()
+                curl.move(to: CGPoint(x: w * 0.36, y: h * 0.78))
+                curl.addCurve(to: CGPoint(x: w * 0.58, y: h * 0.26), control1: CGPoint(x: w * 0.34, y: h * 0.44), control2: CGPoint(x: w * 0.46, y: h * 0.24))
+                curl.addArc(center: CGPoint(x: w * 0.58, y: h * 0.36), radius: w * 0.10, startAngle: .degrees(-90), endAngle: .degrees(160), clockwise: false)
+                ctx.stroke(curl, with: .color(Color(hex: "#497C57")), style: StrokeStyle(lineWidth: 2.6, lineCap: .round))
+
+            case "curio.brass_button":
+                let btn = Path(ellipseIn: CGRect(x: w * 0.22, y: h * 0.22, width: w * 0.56, height: h * 0.56))
+                ctx.fill(btn, with: .radialGradient(Gradient(colors: [Color(hex: "#F2D485"), Color(hex: "#B58534")]), center: CGPoint(x: w * 0.40, y: h * 0.36), startRadius: 1, endRadius: w * 0.35))
+                ctx.stroke(btn, with: .color(ink), lineWidth: 1.1)
+                for (hx, hy) in [(0.42, 0.44), (0.58, 0.44), (0.42, 0.58), (0.58, 0.58)] {
+                    ctx.fill(Path(ellipseIn: CGRect(x: w * hx - 1.5, y: h * hy - 1.5, width: 3, height: 3)), with: .color(Color(hex: "#5E4215")))
+                }
+
+            case "curio.bat_pod_seed":
+                var wing = Path()
+                wing.move(to: CGPoint(x: w * 0.50, y: h * 0.68))
+                wing.addQuadCurve(to: CGPoint(x: w * 0.18, y: h * 0.30), control: CGPoint(x: w * 0.24, y: h * 0.56))
+                wing.addQuadCurve(to: CGPoint(x: w * 0.50, y: h * 0.46), control: CGPoint(x: w * 0.36, y: h * 0.24))
+                wing.addQuadCurve(to: CGPoint(x: w * 0.82, y: h * 0.30), control: CGPoint(x: w * 0.64, y: h * 0.24))
+                wing.addQuadCurve(to: CGPoint(x: w * 0.50, y: h * 0.68), control: CGPoint(x: w * 0.76, y: h * 0.56))
+                ctx.fill(wing, with: .color(Color(hex: "#726186")))
+                ctx.stroke(wing, with: .color(ink), lineWidth: 1.0)
+
+            case "curio.porcelain_shard":
+                var shard = Path()
+                shard.move(to: CGPoint(x: w * 0.24, y: h * 0.36))
+                shard.addQuadCurve(to: CGPoint(x: w * 0.74, y: h * 0.28), control: CGPoint(x: w * 0.52, y: h * 0.20))
+                shard.addLine(to: CGPoint(x: w * 0.66, y: h * 0.72))
+                shard.addQuadCurve(to: CGPoint(x: w * 0.24, y: h * 0.36), control: CGPoint(x: w * 0.36, y: h * 0.74))
+                ctx.fill(shard, with: .color(Color(hex: "#EEF5F5")))
+                var glaze = Path()
+                glaze.move(to: CGPoint(x: w * 0.34, y: h * 0.44))
+                glaze.addQuadCurve(to: CGPoint(x: w * 0.62, y: h * 0.42), control: CGPoint(x: w * 0.48, y: h * 0.58))
+                ctx.stroke(glaze, with: .color(Color(hex: "#3E6F82")), lineWidth: 2.0)
+                ctx.stroke(shard, with: .color(ink), lineWidth: 1.0)
+
             default:
                 // Fragrant Taiwan cypress sprig with layered needles
                 var twig = Path()
@@ -375,6 +566,79 @@ struct PaintedCurioStampView: View {
             }
         }
         .frame(width: size, height: size)
+    }
+}
+
+/// Interactive 24h Steaming Ginger Tea Foreground Tray (`treat.ginger_tea`) for the 2.5D Sunroom!
+struct SteamingGingerTeaTrayView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            TimelineView(.animation(minimumInterval: reduceMotion ? 1.0 : 1.0 / 24.0)) { timeline in
+                let t = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
+                Canvas { ctx, size in
+                    let w = size.width, h = size.height
+                    let ink = Color(hex: "#2C3536").opacity(0.78)
+
+                    // Soft wooden serving tray
+                    let tray = Path(roundedRect: CGRect(x: w * 0.08, y: h * 0.64, width: w * 0.84, height: h * 0.26), cornerRadius: 9)
+                    ctx.fill(
+                        tray,
+                        with: .linearGradient(
+                            Gradient(colors: [Color(hex: "#BA8A58"), Color(hex: "#8E6036")]),
+                            startPoint: CGPoint(x: 0, y: h * 0.64),
+                            endPoint: CGPoint(x: 0, y: h * 0.90)
+                        )
+                    )
+                    ctx.stroke(tray, with: .color(ink), lineWidth: 1.2)
+
+                    // Celadon ceramic teapot body
+                    let pot = Path(ellipseIn: CGRect(x: w * 0.20, y: h * 0.34, width: w * 0.36, height: h * 0.38))
+                    ctx.fill(
+                        pot,
+                        with: .radialGradient(
+                            Gradient(colors: [Color(hex: "#8BB0B4"), Color(hex: "#4B7478")]),
+                            center: CGPoint(x: w * 0.34, y: h * 0.44),
+                            startRadius: 2,
+                            endRadius: w * 0.24
+                        )
+                    )
+                    ctx.stroke(pot, with: .color(ink), lineWidth: 1.2)
+                    // Lid knob
+                    ctx.fill(Path(ellipseIn: CGRect(x: w * 0.34, y: h * 0.29, width: w * 0.08, height: h * 0.08)), with: .color(Color(hex: "#DFC394")))
+                    ctx.stroke(Path(ellipseIn: CGRect(x: w * 0.34, y: h * 0.29, width: w * 0.08, height: h * 0.08)), with: .color(ink), lineWidth: 1.0)
+                    // Spout
+                    var spout = Path()
+                    spout.move(to: CGPoint(x: w * 0.54, y: h * 0.50))
+                    spout.addQuadCurve(to: CGPoint(x: w * 0.64, y: h * 0.38), control: CGPoint(x: w * 0.61, y: h * 0.48))
+                    ctx.stroke(spout, with: .color(Color(hex: "#4B7478")), style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
+
+                    // Warm ginger teacup on right side of tray
+                    let cup = Path(roundedRect: CGRect(x: w * 0.64, y: h * 0.48, width: w * 0.18, height: h * 0.22), cornerRadius: 5)
+                    ctx.fill(cup, with: .color(Color(hex: "#F5EAD4")))
+                    ctx.fill(Path(ellipseIn: CGRect(x: w * 0.66, y: h * 0.47, width: w * 0.14, height: h * 0.06)), with: .color(Color(hex: "#D69445")))
+                    ctx.stroke(cup, with: .color(ink), lineWidth: 1.1)
+
+                    // Rising watercolor steam wisps
+                    for idx in 0..<3 {
+                        let phase = (t * 0.42 + Double(idx) * 0.33).truncatingRemainder(dividingBy: 1.0)
+                        let baseX = idx == 2 ? w * 0.73 : w * (0.36 + Double(idx) * 0.08)
+                        let riseY = h * 0.32 - CGFloat(phase) * h * 0.28
+                        let drift = CGFloat(sin(t * 1.4 + Double(idx) * 2.1)) * 4.0
+                        let alpha = sin(phase * .pi) * 0.62
+                        var wisp = Path()
+                        wisp.move(to: CGPoint(x: baseX, y: riseY + 8))
+                        wisp.addQuadCurve(to: CGPoint(x: baseX + drift, y: riseY - 6), control: CGPoint(x: baseX - drift, y: riseY))
+                        ctx.stroke(wisp, with: .color(Color.white.opacity(alpha)), style: StrokeStyle(lineWidth: 2.0, lineCap: .round))
+                    }
+                }
+                .frame(width: 108, height: 74)
+            }
+        }
+        .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1))
+        .accessibilityLabel("雨天暖薑茶盤，點擊品茶")
     }
 }
 

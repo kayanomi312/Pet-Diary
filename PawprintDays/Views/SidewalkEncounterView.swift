@@ -2,6 +2,7 @@ import SwiftUI
 
 /// 街角相遇全螢幕水彩劇場（台灣老街騎樓、暖黃紙燈籠、森林綠暖簾、長按 2.5 秒呼嚕共振）
 struct SidewalkEncounterView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var coordinator: GameCoordinator
     let siteID: String
     let petID: String
@@ -14,14 +15,40 @@ struct SidewalkEncounterView: View {
     @State private var fingerFocus: CGPoint? = nil
     @State private var committedLog: EncounterLog? = nil
     @State private var slipText: String = ""
+    @State private var bonusGiftWhisper: String? = nil
     @State private var petTapBounce: CGFloat = 0.0
     @State private var holdRipplePulse: Bool = false
 
+    // Interactive Mini-Ritual States: Ball-Flick & Rain Umbrella Shelter!
+    @State private var ballDragOffset: CGSize = .zero
+    @State private var ballRollingProgress: CGFloat = 0.0
+    @State private var isBallInFlight: Bool = false
+    @State private var isHoldingUmbrella: Bool = false
+    @State private var umbrellaProgress: CGFloat = 0.0
+    @State private var umbrellaTask: Task<Void, Never>? = nil
+    @State private var lastPlayfulOverride: PetPlayfulAction? = nil
+
     private var petSpec: PetSpec { PetCatalog.pet(id: petID) }
+    private var petDisplayName: String { coordinator.displayName(for: petID) }
     private var guideSpec: PetSpec? { companionStreetPetID.map(PetCatalog.pet(id:)) }
     private var resident: PetResidentState? { coordinator.resident(for: petID) }
     private var guideResident: PetResidentState? { companionStreetPetID.flatMap { coordinator.resident(for: $0) } }
     private var anchor: AnchorSiteRecord? { coordinator.anchors.first(where: { $0.siteID == siteID }) }
+
+    /// Dynamic approach scale: as player holds out their hand, pet shyly walks closer (0.88x -> 1.06x)!
+    private var approachScale: CGFloat {
+        if reduceMotion { return 1.0 }
+        if committedLog != nil { return 1.05 }
+        return 0.88 + holdProgress * 0.18
+    }
+
+    private var activePetAction: PetPlayfulAction {
+        if let override = lastPlayfulOverride { return override }
+        if committedLog != nil { return .happyTwirl }
+        if isBallInFlight { return .pounceHop }
+        if isHoldingCobblestone { return .walking }
+        return .idle
+    }
 
     var body: some View {
         ZStack {
@@ -82,12 +109,15 @@ struct SidewalkEncounterView: View {
                                 pose: committedLog != nil ? .respond : .notice,
                                 weatherMode: coordinator.activeWeather,
                                 fingerFocusNormalized: fingerFocus ?? (isHoldingCobblestone ? CGPoint(x: -0.5, y: 0.35) : nil),
-                                isHappySquint: committedLog != nil || holdProgress > 0.65,
+                                isHappySquint: committedLog != nil || holdProgress > 0.65 || isHoldingUmbrella,
                                 tapBounceScale: petTapBounce,
-                                playfulAction: committedLog != nil ? .happyTwirl : (isHoldingCobblestone ? .curiousWaddle : .idle),
+                                playfulAction: activePetAction,
                                 actionTriggerDate: committedLog?.createdAtUTC ?? Date()
                             )
                             .frame(width: 230, height: 230)
+                            .scaleEffect(approachScale)
+                            .offset(y: reduceMotion ? 0 : (1.0 - holdProgress) * -10)
+                            .animation(.easeOut(duration: 0.16), value: holdProgress)
                         }
                     } else {
                         ProceduralPetRigView(
@@ -96,12 +126,15 @@ struct SidewalkEncounterView: View {
                             pose: committedLog != nil ? .respond : .notice,
                             weatherMode: coordinator.activeWeather,
                             fingerFocusNormalized: fingerFocus ?? (isHoldingCobblestone ? CGPoint(x: -0.5, y: 0.35) : nil),
-                            isHappySquint: committedLog != nil || holdProgress > 0.65,
+                            isHappySquint: committedLog != nil || holdProgress > 0.65 || isHoldingUmbrella,
                             tapBounceScale: petTapBounce,
-                            playfulAction: committedLog != nil ? .happyTwirl : (isHoldingCobblestone ? .curiousWaddle : .idle),
+                            playfulAction: activePetAction,
                             actionTriggerDate: committedLog?.createdAtUTC ?? Date()
                         )
                         .frame(width: 280, height: 280)
+                        .scaleEffect(approachScale)
+                        .offset(y: reduceMotion ? 0 : (1.0 - holdProgress) * -14)
+                        .animation(.easeOut(duration: 0.16), value: holdProgress)
                         .gesture(
                             DragGesture(minimumDistance: 0)
                                 .onChanged { value in
@@ -113,6 +146,39 @@ struct SidewalkEncounterView: View {
                                     withAnimation(.easeOut(duration: 0.4)) { fingerFocus = nil }
                                 }
                         )
+                    }
+
+                    // Hand-Painted Forest-Green Watercolor Umbrella Canopy lowering gently during rainy umbrella shelter!
+                    if isHoldingUmbrella || (committedLog?.gestureChosen == .holdUmbrella) {
+                        WatercolorUmbrellaCanopyOverlay(progress: committedLog != nil ? 1.0 : umbrellaProgress)
+                            .frame(width: 260, height: 140)
+                            .offset(y: -48 + (1.0 - (committedLog != nil ? 1.0 : umbrellaProgress)) * -52)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                            .allowsHitTesting(false)
+                    }
+
+                    // Rolling stitched cloth ball flying smoothly across cobblestones toward the dog!
+                    if isBallInFlight {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [Color(hex: "#F6A88A"), Color(hex: "#C85A32")],
+                                        center: .topLeading,
+                                        startRadius: 2,
+                                        endRadius: 18
+                                    )
+                                )
+                                .frame(width: 34 * (1.0 - ballRollingProgress * 0.35), height: 34 * (1.0 - ballRollingProgress * 0.35))
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color(hex: "#FFF8EC").opacity(0.8), style: StrokeStyle(lineWidth: 1.8, dash: [4, 3]))
+                                        .padding(4)
+                                )
+                                .rotationEffect(.degrees(Double(ballRollingProgress) * 520))
+                        }
+                        .offset(x: -90, y: 210 - ballRollingProgress * 120)
+                        .allowsHitTesting(false)
                     }
 
                     // 問候完成時蓋下傳統朱紅印章「今日相遇 ✦」
@@ -135,6 +201,23 @@ struct SidewalkEncounterView: View {
                 )
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
+
+                if let gift = bonusGiftWhisper {
+                    HStack(spacing: 8) {
+                        Image(systemName: "gift.fill")
+                            .foregroundStyle(AppTheme.pawStrollChain)
+                        Text(gift)
+                            .font(AppTheme.handwritten(13))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(AppTheme.warmPaper.opacity(0.95), in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.pawStrollChain.opacity(0.65), lineWidth: 1.3))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 6)
+                    .transition(.scale.combined(with: .opacity))
+                }
 
                 if let chainTargetID = committedLog?.strollChainTargetSiteID,
                    let targetAnchor = coordinator.anchors.first(where: { $0.siteID == chainTargetID }) {
@@ -294,29 +377,78 @@ struct SidewalkEncounterView: View {
         }
 
         if !petSpec.kind.isCatFamily {
-            WoodPlaqueButton(
-                title: "滾出縫布球",
-                systemImage: "circle.dashed.inset.filled",
-                tone: .forestTeal,
-                fontSize: 12,
-                horizontalPadding: 14,
-                verticalPadding: 9
-            ) {
-                HapticsEngine.shared.playDogBallRoll()
-                completeGreeting(with: .rollBall)
+            // Interactive Ball-Flick Gesture (swipe upward OR tap for accessibility!)
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [Color(hex: "#F6A88A"), Color(hex: "#C85A32")],
+                            center: .topLeading,
+                            startRadius: 1,
+                            endRadius: 12
+                        )
+                    )
+                    .frame(width: 20, height: 20)
+                    .overlay(Circle().stroke(Color(hex: "#FFF8EC"), style: StrokeStyle(lineWidth: 1.2, dash: [3, 2])).padding(2))
+                Text("上滑或點擊滾布球")
+                    .font(AppTheme.diegeticLabel(12))
+                    .foregroundStyle(.white)
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .background(AppTheme.forestTeal, in: Capsule())
+            .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 5, y: 2)
+            .offset(y: min(0, max(-42, ballDragOffset.height * 0.55)))
+            .onTapGesture {
+                launchBallFlickRitual()
+            }
+            .gesture(
+                DragGesture(minimumDistance: 12)
+                    .onChanged { value in
+                        ballDragOffset = value.translation
+                    }
+                    .onEnded { value in
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            ballDragOffset = .zero
+                        }
+                        if value.translation.height < -24 {
+                            launchBallFlickRitual()
+                        }
+                    }
+            )
+            .accessibilityLabel("向上滑動或輕點滾出縫布球給\(petDisplayName)")
         } else if coordinator.activeWeather.isRainy {
-            WoodPlaqueButton(
-                title: "撐傘一起躲雨",
-                systemImage: "umbrella.fill",
-                tone: .forestTeal,
-                fontSize: 12,
-                horizontalPadding: 14,
-                verticalPadding: 9
-            ) {
-                HapticsEngine.shared.playPawRangeCue()
-                completeGreeting(with: .holdUmbrella)
+            // Interactive Rain Umbrella Shelter Hold (hold 1.2s to shelter pet under watercolor umbrella!)
+            HStack(spacing: 6) {
+                Image(systemName: "umbrella.fill")
+                    .font(.system(size: 13, weight: .bold))
+                Text(isHoldingUmbrella ? "正在替牠撐傘遮雨…" : "按住撐傘一起躲雨")
+                    .font(AppTheme.diegeticLabel(12))
             }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 9)
+            .background(
+                ZStack(alignment: .leading) {
+                    Capsule().fill(AppTheme.forestTeal)
+                    Capsule()
+                        .fill(AppTheme.pawStrollChain.opacity(0.45))
+                        .scaleEffect(x: max(0.01, umbrellaProgress), anchor: .leading)
+                }
+            )
+            .clipShape(Capsule())
+            .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 5, y: 2)
+            .onLongPressGesture(
+                minimumDuration: 1.15,
+                maximumDistance: 44,
+                pressing: { pressing in
+                    if pressing { startUmbrellaHold() } else { cancelUmbrellaHold() }
+                },
+                perform: {
+                    completeGreeting(with: .holdUmbrella)
+                }
+            )
+            .accessibilityLabel("按住撐傘陪\(petDisplayName)一起躲雨")
         }
     }
 
@@ -384,6 +516,60 @@ struct SidewalkEncounterView: View {
                 try? await Task.sleep(for: .milliseconds(50))
                 if Task.isCancelled || !isHoldingCobblestone { return }
                 holdProgress = CGFloat(step) / 50.0
+                if step == 24 {
+                    if petSpec.kind.isCatFamily {
+                        CozySoundEngine.shared.playPetPurr()
+                    } else {
+                        CozySoundEngine.shared.playPetChirp()
+                    }
+                }
+            }
+        }
+    }
+
+    private func launchBallFlickRitual() {
+        guard committedLog == nil, !isBallInFlight else { return }
+        HapticsEngine.shared.playDogBallRoll()
+        CozySoundEngine.shared.playPawTap()
+        isBallInFlight = true
+        ballRollingProgress = 0.0
+        withAnimation(.easeOut(duration: 0.52)) {
+            ballRollingProgress = 1.0
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(460))
+            lastPlayfulOverride = .pounceHop
+            CozySoundEngine.shared.playPetChirp()
+            try? await Task.sleep(for: .milliseconds(260))
+            isBallInFlight = false
+            completeGreeting(with: .rollBall)
+        }
+    }
+
+    private func startUmbrellaHold() {
+        guard committedLog == nil else { return }
+        isHoldingUmbrella = true
+        umbrellaProgress = 0
+        HapticsEngine.shared.playPawRangeCue()
+        umbrellaTask?.cancel()
+        umbrellaTask = Task { @MainActor in
+            for step in 1...23 {
+                try? await Task.sleep(for: .milliseconds(50))
+                if Task.isCancelled || !isHoldingUmbrella { return }
+                withAnimation(.linear(duration: 0.05)) {
+                    umbrellaProgress = CGFloat(step) / 23.0
+                }
+            }
+        }
+    }
+
+    private func cancelUmbrellaHold() {
+        umbrellaTask?.cancel()
+        umbrellaTask = nil
+        if committedLog == nil {
+            withAnimation(.easeOut(duration: 0.2)) {
+                isHoldingUmbrella = false
+                umbrellaProgress = 0
             }
         }
     }
@@ -430,12 +616,72 @@ struct SidewalkEncounterView: View {
                 committedLog = log
                 petTapBounce = 1.0
             }
+            if let gift = coordinator.awardStreetEncounterBonusGiftIfEligible(petID: petID) {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.72)) {
+                    bonusGiftWhisper = gift
+                }
+            }
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(260))
                 withAnimation(.easeOut(duration: 0.25)) { petTapBounce = 0.0 }
             }
             HapticsEngine.shared.playCurioUnpack()
             CozySoundEngine.shared.playPaperFlip()
+        }
+    }
+}
+
+/// Hand-painted forest-green watercolor umbrella dome with bouncing raindrop splashes!
+private struct WatercolorUmbrellaCanopyOverlay: View {
+    let progress: CGFloat
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            Canvas { ctx, size in
+                let w = size.width, h = size.height
+                let ink = Color(hex: "#1E3A38").opacity(0.75)
+
+                // Canopy dome
+                var dome = Path()
+                dome.move(to: CGPoint(x: w * 0.12, y: h * 0.70))
+                dome.addQuadCurve(to: CGPoint(x: w * 0.88, y: h * 0.70), control: CGPoint(x: w * 0.50, y: h * 0.06))
+                // Scalloped lower umbrella hem
+                dome.addQuadCurve(to: CGPoint(x: w * 0.69, y: h * 0.70), control: CGPoint(x: w * 0.78, y: h * 0.62))
+                dome.addQuadCurve(to: CGPoint(x: w * 0.50, y: h * 0.70), control: CGPoint(x: w * 0.59, y: h * 0.62))
+                dome.addQuadCurve(to: CGPoint(x: w * 0.31, y: h * 0.70), control: CGPoint(x: w * 0.40, y: h * 0.62))
+                dome.addQuadCurve(to: CGPoint(x: w * 0.12, y: h * 0.70), control: CGPoint(x: w * 0.21, y: h * 0.62))
+                dome.closeSubpath()
+
+                ctx.fill(
+                    dome,
+                    with: .linearGradient(
+                        Gradient(colors: [Color(hex: "#467568"), Color(hex: "#274D46")]),
+                        startPoint: CGPoint(x: w * 0.5, y: h * 0.12),
+                        endPoint: CGPoint(x: w * 0.5, y: h * 0.72)
+                    )
+                )
+                ctx.stroke(dome, with: .color(ink), lineWidth: 1.6)
+
+                // Wooden finial tip & ribs
+                var tip = Path()
+                tip.move(to: CGPoint(x: w * 0.50, y: h * 0.18))
+                tip.addLine(to: CGPoint(x: w * 0.50, y: h * 0.34))
+                ctx.stroke(tip, with: .color(Color(hex: "#8A5E36")), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+
+                // Bouncing silver raindrops splashing softly off the dome!
+                for idx in 0..<5 {
+                    let phase = (t * 2.2 + Double(idx) * 0.21).truncatingRemainder(dividingBy: 1.0)
+                    let rx = w * (0.24 + Double(idx) * 0.13)
+                    let baseY = h * (0.48 - sin(Double(idx) / 4.0 * .pi) * 0.14)
+                    let bounceY = baseY - CGFloat(sin(phase * .pi)) * 14
+                    let alpha = sin(phase * .pi) * 0.75 * Double(progress)
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: rx - 2.2, y: bounceY - 2.2, width: 4.4, height: 4.4)),
+                        with: .color(Color.white.opacity(alpha))
+                    )
+                }
+            }
         }
     }
 }
