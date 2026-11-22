@@ -12,9 +12,9 @@ struct CurioCubbiesView: View {
 
     var body: some View {
         ZStack {
-            // 溫潤台灣紅檜木紋展示櫃背景
+            // 溫潤柔和暖棉紙與淺檜木色展示空間（告別過重深褐壓迫背景）
             LinearGradient(
-                colors: [Color(hex: "#D2B28B"), Color(hex: "#B58D62"), Color(hex: "#9B7349")],
+                colors: [Color(hex: "#F5EEE0"), Color(hex: "#EAE0CD")],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -22,46 +22,20 @@ struct CurioCubbiesView: View {
 
             VStack(spacing: 0) {
                 HStack {
-                    WoodPlaqueButton(
-                        title: "陽光室",
-                        systemImage: "chevron.left",
-                        tone: .warmCream,
-                        fontSize: 12.5,
-                        horizontalPadding: 11,
-                        verticalPadding: 7
-                    ) {
-                        CozySoundEngine.shared.playPaperFlip()
-                        coordinator.currentScreen = .home
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("拾遺櫃與紀念小舖")
+                            .font(AppTheme.serifTitle(22))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                        Text("已收藏 \(coordinator.ledger.foragedCurios.count) 件街區拾遺 · 袋中 \(coordinator.ledger.coinBalance) 步數幣")
+                            .font(AppTheme.diegeticLabel(11))
+                            .foregroundStyle(AppTheme.softInk)
                     }
 
                     Spacer()
-
-                    VStack(spacing: 1) {
-                        Text("拾遺木格櫃")
-                            .font(AppTheme.serifTitle(20))
-                            .foregroundStyle(Color(hex: "#FFFDF7"))
-                            .shadow(color: AppTheme.timberDeep.opacity(0.45), radius: 2, y: 1)
-                        Text("已收藏 \(coordinator.ledger.foragedCurios.count) 件街區拾遺")
-                            .font(AppTheme.diegeticLabel(10.5))
-                            .foregroundStyle(Color(hex: "#F6E7CA"))
-                    }
-
-                    Spacer()
-
-                    WoodPlaqueButton(
-                        title: "日記",
-                        systemImage: "book.closed.fill",
-                        tone: .forestTeal,
-                        fontSize: 12,
-                        horizontalPadding: 11,
-                        verticalPadding: 7
-                    ) {
-                        CozySoundEngine.shared.playPaperFlip()
-                        coordinator.currentScreen = .sketchbook
-                    }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 18)
+                .padding(.top, 10)
+                .padding(.bottom, 8)
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -338,6 +312,7 @@ struct CurioCubbiesView: View {
                         }
                     }
                     .padding(16)
+                    .padding(.bottom, 92)
                 }
             }
         }

@@ -394,44 +394,25 @@ struct CutePlushButton<Icon: View>: View {
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
             .background(
-                ZStack {
-                    Capsule()
-                        .fill(tone.lip)
-                        .offset(y: 3.5)
-
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [tone.fillTop, tone.fillBottom],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
+                Capsule(style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [tone.fillTop, tone.fillBottom],
+                            startPoint: .top,
+                            endPoint: .bottom
                         )
-
-                    // Soft candy gloss highlight along top curve
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.42), Color.clear],
-                                startPoint: .top,
-                                endPoint: .center
+                    )
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .stroke(
+                                tone == .milkCream ? Color(hex: "#CBBAA0").opacity(0.65) : Color.white.opacity(0.32),
+                                lineWidth: 0.9
                             )
-                        )
-                        .padding(2)
-
-                    // Cute stitched inner line
-                    Capsule()
-                        .stroke(Color.white.opacity(tone == .milkCream ? 0.8 : 0.45), style: StrokeStyle(lineWidth: 1.0, dash: [3.5, 2.5]))
-                        .padding(3)
-
-                    Capsule()
-                        .stroke(Color(hex: "#4A382E").opacity(0.24), lineWidth: 1.1)
-                }
+                    )
+                    .shadow(color: Color(hex: "#3A2C22").opacity(0.14), radius: 7, x: 0, y: 3)
             )
-            .padding(.bottom, 3.5)
-            .shadow(color: Color(hex: "#4A382E").opacity(0.18), radius: 5, y: 3)
         }
-        .buttonStyle(TactileGameButtonStyle(pressScale: 0.92, pressOffsetY: 2.5))
+        .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1.5))
     }
 }
 
