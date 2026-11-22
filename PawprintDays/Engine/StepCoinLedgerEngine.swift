@@ -76,6 +76,48 @@ enum StepCoinLedgerEngine {
         )
     }
 
+    /// Real-time live step delta ingestion (e.g. from `CMPedometer.startUpdates` during an active stroll):
+    /// Increments the current 15-minute bucket's high-water mark cleanly so subsequent rolling historical syncs
+    /// never double-count steps already credited live.
+    static func ingestLiveDeltaSteps(
+        ledger: WalletAndCurioLedger,
+        atUTC timestamp: Date,
+        deltaSteps: Int,
+        companionPetID: String?,
+        weather: WeatherMode,
+        placeLabel: String,
+        localDateISO: String
+    ) -> StepIngestionResult {
+        let clampedDelta = max(0, deltaSteps)
+        let bucket = Int64(floor(timestamp.timeIntervalSince1970 / 900.0))
+        var intervals = ledger.stepIntervals
+        if let idx = intervals.firstIndex(where: { $0.intervalBucketUTC == bucket }) {
+            intervals[idx].rawSteps += clampedDelta
+            intervals[idx].highWaterAcceptedSteps += clampedDelta
+        } else {
+            intervals.append(
+                StepIntervalRecord(
+                    intervalBucketUTC: bucket,
+                    rawSteps: clampedDelta,
+                    highWaterAcceptedSteps: clampedDelta
+                )
+            )
+            if intervals.count > 672 {
+                intervals.sort { $0.intervalBucketUTC < $1.intervalBucketUTC }
+                intervals.removeFirst(intervals.count - 672)
+            }
+        }
+        ledger.stepIntervals = intervals
+        return applyAcceptedStepEquivalent(
+            ledger: ledger,
+            deltaSteps: clampedDelta,
+            companionPetID: companionPetID,
+            weather: weather,
+            placeLabel: placeLabel,
+            localDateISO: localDateISO
+        )
+    }
+
     /// Mobility-Aid Distance & Time Roll Mode (Blueprint Chapter 8 & Stage 4):
     /// Converts 130m low-speed travel (<= 10 km/h) or 120s outdoor dwell into 200-step Coin & Foraging credit.
     static func ingestMobilityRollCredit(

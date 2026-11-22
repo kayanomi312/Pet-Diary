@@ -277,9 +277,14 @@ struct TactileCareView: View {
                                     }
                                 }
                             } else if abs(value.translation.width) < 12 && abs(value.translation.height) < 12 {
-                                // 輕點毛孩肚皮 → 軟糯麻糬彈跳 ＋ 愛心噴發！
+                                // 分區撫摸回饋：摸頭／抓下巴／輕戳肚皮各有不同可愛反應與呼嚕聲！
+                                let tapNormY = (value.location.y / 280.0) * 2.0 - 1.0
                                 HapticsEngine.shared.playPawRangeCue()
-                                CozySoundEngine.shared.playCompassChime()
+                                if petSpec.kind.isCatFamily {
+                                    CozySoundEngine.shared.playPetPurr()
+                                } else {
+                                    CozySoundEngine.shared.playPetChirp()
+                                }
                                 for _ in 0..<4 {
                                     emitTouchSparkle(
                                         at: CGPoint(
@@ -289,7 +294,13 @@ struct TactileCareView: View {
                                         force: true
                                     )
                                 }
-                                triggerPlayfulAction(.bellyBoop, bubble: cuteReactionLine(for: .bellyBoop))
+                                if tapNormY < -0.18 {
+                                    triggerPlayfulAction(.bellyBoop, bubble: "摸摸頭好舒服～耳朵動了一下♡")
+                                } else if tapNormY > 0.20 {
+                                    triggerPlayfulAction(.pounceHop, bubble: cuteReactionLine(for: .bellyBoop))
+                                } else {
+                                    triggerPlayfulAction(.bellyBoop, bubble: "抓抓下巴…呼嚕呼嚕♪")
+                                }
                             }
                             withAnimation(.easeOut(duration: 0.35)) {
                                 fingerFocus = nil
@@ -502,33 +513,54 @@ struct TactileCareView: View {
             MentorshipPlannerSheet(coordinator: coordinator, petID: petID)
                 .presentationDetents([.medium])
         }
-        .confirmationDialog("心照不宣 · 招牌習慣練習（\(petSpec.signatureHabitTitle)）", isPresented: $showKindredLessonSheet, titleVisibility: .visible) {
-            Button("放慢節奏，靜靜示範一次") {
-                coordinator.completeKindredHabitPractice(petID: petID, choiceTitle: "放慢節奏靜靜示範")
+        .sheet(isPresented: $showKindredLessonSheet) {
+            KawaiiKindredPracticeSheet(petSpec: petSpec) { choiceTitle in
+                showKindredLessonSheet = false
+                coordinator.completeKindredHabitPractice(petID: petID, choiceTitle: choiceTitle)
+                triggerPlayfulAction(.happyTwirl, bubble: "我學會「\(petSpec.signatureHabitTitle)」囉✦")
             }
-            Button("在牠身旁輕拍軟墊一起練習") {
-                coordinator.completeKindredHabitPractice(petID: petID, choiceTitle: "輕拍軟墊並肩練習")
-            }
-            Button("改天再練", role: .cancel) {}
-        } message: {
-            Text("\(petSpec.signatureHabitDetail)\n選擇一種溫柔的方式陪\(petSpec.name)練習，以後牠在家就會自主展現這個小習慣。")
+            .presentationDetents([.medium])
         }
-        .confirmationDialog("請\(petSpec.name)吃點心（日常飯碗永久免費）", isPresented: $showSnackPicker, titleVisibility: .visible) {
-            ForEach(FoodTexture.allCases, id: \.self) { texture in
-                Button("請吃「\(texture.rawValue)」小點心（3 幣）") {
+        .sheet(isPresented: $showSnackPicker) {
+            KawaiiSnackTraySheet(
+                petSpec: petSpec,
+                coinBalance: coordinator.ledger.coinBalance,
+                onSelectTexture: { texture in
                     if let bite = ShopCatalog.item(id: "treat.favorite_bite"),
                        coordinator.purchaseItem(bite) {
-                        coordinator.completeTactileCare(petID: petID, texture: texture)
-                        let loved = (texture == petSpec.favoriteTexture)
-                        coordinator.showWhisper(loved ? "\(petSpec.name)好喜歡「\(texture.rawValue)」口感！" : "\(petSpec.name)慢慢嚼完了\(texture.rawValue)點心。")
+                        showSnackPicker = false
+                        launchTossedSnack(texture: texture)
                     }
+                },
+                onSelectFreeBowl: {
+                    showSnackPicker = false
+                    launchTossedSnack(texture: nil)
                 }
+            )
+            .presentationDetents([.medium])
+        }
+    }
+
+    private func launchTossedSnack(texture: FoodTexture?) {
+        HapticsEngine.shared.playCurioUnpack()
+        CozySoundEngine.shared.playTeapotClink()
+        flyingSnackProgress = 0.0
+        withAnimation(.easeInOut(duration: 0.55)) {
+            flyingSnackProgress = 1.0
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            flyingSnackProgress = nil
+            emitBurstSparkles()
+            coordinator.completeTactileCare(petID: petID, texture: texture)
+            if let texture {
+                let loved = (texture == petSpec.favoriteTexture)
+                let msg = loved ? "最喜歡「\(texture.rawValue)」口感啦！♡" : "卡滋卡滋～\(texture.rawValue)點心真香♪"
+                triggerPlayfulAction(.eatMunch, bubble: msg)
+                if loved { emitBurstSparkles() }
+            } else {
+                triggerPlayfulAction(.eatMunch, bubble: "家常飯碗吃飽飽～好安心♡")
             }
-            Button("日常家常飯碗（免費）") {
-                coordinator.completeTactileCare(petID: petID)
-                coordinator.showWhisper("\(petSpec.name)安穩地吃飽了。基本照護永遠免費。")
-            }
-            Button("取消", role: .cancel) {}
         }
     }
 
@@ -753,6 +785,162 @@ private struct MentorshipPlannerSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("關閉") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+/// 專屬手繪茶點托盤（取代系統制式確認彈窗，點選口感直接拋出點心飛進毛孩嘴裡！）
+private struct KawaiiSnackTraySheet: View {
+    let petSpec: PetSpec
+    let coinBalance: Int
+    let onSelectTexture: (FoodTexture) -> Void
+    let onSelectFreeBowl: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("挑選給\(petSpec.name)的小點心")
+                            .font(AppTheme.serifTitle(17))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                        Spacer()
+                        Text("餘額 \(coinBalance) 幣")
+                            .font(AppTheme.diegeticLabel(12))
+                            .foregroundStyle(AppTheme.forestTeal)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(AppTheme.warmPaper, in: Capsule())
+                    }
+
+                    StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.vineGreen, paddingAmount: 12) {
+                        HStack {
+                            CuteCareToyIcon(kind: .fishSnack, size: 32)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("日常家常飯碗")
+                                    .font(AppTheme.serifTitle(15))
+                                    .foregroundStyle(AppTheme.deepPineInk)
+                                Text("基本照護永久免費，隨時讓\(petSpec.name)安心吃飽。")
+                                    .font(AppTheme.serifBody(12))
+                                    .foregroundStyle(AppTheme.softInk)
+                            }
+                            Spacer()
+                            CutePlushButton(
+                                title: "免費餵食",
+                                tone: .matchaMint,
+                                fontSize: 12,
+                                horizontalPadding: 11,
+                                verticalPadding: 7,
+                                icon: { Image(systemName: "heart.fill").font(.system(size: 10)) },
+                                action: onSelectFreeBowl
+                            )
+                        }
+                    }
+
+                    ForEach(FoodTexture.allCases, id: \.self) { texture in
+                        let isFav = (texture == petSpec.favoriteTexture)
+                        StorybookPaperCard(cornerRadius: 16, accentColor: isFav ? AppTheme.pawStrollChain : AppTheme.timberWarm, paddingAmount: 12) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack(spacing: 5) {
+                                        Text("「\(texture.rawValue)」手作茶點")
+                                            .font(AppTheme.serifTitle(15))
+                                            .foregroundStyle(AppTheme.deepPineInk)
+                                        if isFav {
+                                            Text("✦ 最愛口感")
+                                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                                .foregroundStyle(Color(hex: "#C85A32"))
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(Color(hex: "#FFF1DC"), in: Capsule())
+                                        }
+                                    }
+                                    Text("會拋出一口可愛小魚餅飛向\(petSpec.name)！")
+                                        .font(AppTheme.serifBody(12))
+                                        .foregroundStyle(AppTheme.softInk)
+                                }
+                                Spacer()
+                                CutePlushButton(
+                                    title: "3 幣",
+                                    tone: coinBalance >= 3 ? .butterHoney : .milkCream,
+                                    fontSize: 12,
+                                    horizontalPadding: 12,
+                                    verticalPadding: 7,
+                                    icon: { Image(systemName: "sparkles").font(.system(size: 10)) },
+                                    action: { onSelectTexture(texture) }
+                                )
+                                .disabled(coinBalance < 3)
+                                .opacity(coinBalance >= 3 ? 1.0 : 0.48)
+                            }
+                        }
+                    }
+                }
+                .padding(16)
+            }
+            .background(AppTheme.parchmentTray)
+            .navigationTitle("午茶小點心盤")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("先不用") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+private struct KawaiiKindredPracticeSheet: View {
+    let petSpec: PetSpec
+    let onChoose: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 14) {
+                StorybookPaperCard(cornerRadius: 18, accentColor: AppTheme.pawStrollChain, paddingAmount: 14) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("心照不宣 · 招牌習慣練習")
+                            .font(AppTheme.serifTitle(17))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                        Text(petSpec.signatureHabitTitle)
+                            .font(AppTheme.diegeticLabel(13))
+                            .foregroundStyle(AppTheme.forestTeal)
+                        Text(petSpec.signatureHabitDetail)
+                            .font(AppTheme.serifBody(13.5))
+                            .foregroundStyle(AppTheme.softInk)
+                    }
+                }
+
+                CutePlushButton(
+                    title: "放慢節奏，靜靜示範一次",
+                    tone: .matchaMint,
+                    fontSize: 13.5,
+                    horizontalPadding: 16,
+                    verticalPadding: 11,
+                    icon: { Image(systemName: "sparkles").font(.system(size: 12, weight: .bold)) },
+                    action: { onChoose("放慢節奏靜靜示範") }
+                )
+
+                CutePlushButton(
+                    title: "在牠身旁輕拍軟墊一起練習",
+                    tone: .butterHoney,
+                    fontSize: 13.5,
+                    horizontalPadding: 16,
+                    verticalPadding: 11,
+                    icon: { Image(systemName: "pawprint.fill").font(.system(size: 12, weight: .bold)) },
+                    action: { onChoose("輕拍軟墊並肩練習") }
+                )
+
+                Spacer()
+            }
+            .padding(18)
+            .background(AppTheme.parchmentTray)
+            .navigationTitle("與\(petSpec.name)的小約定")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("改天再練") { dismiss() }
                 }
             }
         }

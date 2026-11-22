@@ -3,6 +3,7 @@ import SwiftData
 
 @main
 struct PawprintDaysApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     let container: ModelContainer
     @State private var coordinator: GameCoordinator
 
@@ -30,6 +31,14 @@ struct PawprintDaysApp: App {
         WindowGroup {
             RootStageView(coordinator: coordinator)
                 .preferredColorScheme(.light)
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        coordinator.handleAppBecameActive()
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                    coordinator.handleAppBecameActive()
+                }
         }
         .modelContainer(container)
     }

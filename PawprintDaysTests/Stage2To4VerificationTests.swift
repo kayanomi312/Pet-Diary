@@ -333,4 +333,74 @@ final class Stage2To4VerificationTests: XCTestCase {
         XCTAssertEqual(roaming.floorRipples.count, 1)
         XCTAssertTrue(roaming.actors.values.contains(where: { $0.isWalking }))
     }
+
+    func testLiveStrollStepsNoDoubleCountAndMidnightRollover() throws {
+        let coordinator = try makeInMemoryCoordinator()
+        let startMorning = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 9, minute: 0))!
+        coordinator.currentSimulatedDate = startMorning
+        coordinator.isUsingSimulatedClock = false
+        let initialISO = coordinator.currentLocalDateISO
+
+        let started = coordinator.startStrollSession(companionPetID: nil, charm: .none)
+        XCTAssertTrue(started)
+
+        // Stream two live deltas within the same 15-min bucket -> both credit cleanly!
+        let d1 = coordinator.ingestLiveStrollSteps(deltaSteps: 120)
+        let d2 = coordinator.ingestLiveStrollSteps(deltaSteps: 130)
+        XCTAssertEqual(d1, 120)
+        XCTAssertEqual(d2, 130)
+        XCTAssertEqual(coordinator.activeStroll?.sessionSteps, 250)
+        XCTAssertEqual(coordinator.ledger.coinBalance, 1) // 250 / 200 = 1 coin, 50 carry
+
+        // Subsequent historical bucket query for the same 15-min interval (250 total) MUST NOT double-count!
+        let dup = coordinator.ingestSteps(steps: 250, intervalStartUTC: startMorning)
+        XCTAssertEqual(dup.newlyAcceptedSteps, 0)
+        XCTAssertEqual(coordinator.ledger.coinBalance, 1)
+
+        // Crossing midnight on app foreground rolls over currentLocalDateISO and gently archives yesterday's stroll!
+        let nextDay = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 11, hour: 8, minute: 30))!
+        coordinator.handleAppBecameActive(now: nextDay)
+        XCTAssertNotEqual(coordinator.currentLocalDateISO, initialISO)
+        XCTAssertNil(coordinator.activeStroll)
+    }
+
+    func testSunroomFurnitureCustomDragOrigamiAndZeroChurnInterpolation() throws {
+        let coordinator = try makeInMemoryCoordinator()
+        let roaming = SunroomRoamingEngine()
+        roaming.resetCustomSpotPositions()
+
+        // Custom 2.5D drag-to-place furniture persistence
+        roaming.setCustomSpotPosition(spotIndex: 2, uv: CGPoint(x: 0.77, y: 0.65))
+        let moved = roaming.resolvedSpotPosition(for: 2, verandaUnlocked: false)
+        XCTAssertEqual(moved.x, 0.77, accuracy: 0.001)
+        XCTAssertEqual(moved.y, 0.65, accuracy: 0.001)
+
+        // Pure 60fps interpolated position advances smoothly mid-walk without mutating stored anchor position
+        let t0 = Date()
+        roaming.syncResidents(invitedPetIDs: ["pet.02", "pet.03"], spots: coordinator.homeSpots, verandaUnlocked: false, now: t0)
+        roaming.callNearestPet(to: CGPoint(x: 0.88, y: 0.82), now: t0)
+        let walkingActor = try XCTUnwrap(roaming.actors.values.first(where: { $0.isWalking }))
+        let pStart = walkingActor.interpolatedPosition(at: t0)
+        let pMid = walkingActor.interpolatedPosition(at: t0.addingTimeInterval(1.5))
+        XCTAssertNotEqual(pStart, pMid)
+
+        // Juniper origami charm gift grants +1 coin cleanly
+        let coinsBefore = coordinator.ledger.coinBalance
+        coordinator.collectOrigamiCharmGift(note: "測試摺紙符")
+        XCTAssertEqual(coordinator.ledger.coinBalance, coinsBefore + 1)
+        roaming.resetCustomSpotPositions()
+    }
+
+    func testWeatherInferenceAndQuietNeighborhoodFallback() throws {
+        let morning = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 12, hour: 8, minute: 15))!
+        let dusk = Calendar(identifier: .gregorian).date(from: DateComponents(year: 2026, month: 11, day: 12, hour: 17, minute: 45))!
+        XCTAssertEqual(WeatherSyncService.inferTimeOfDayWeather(now: morning).weatherMode, .clearMorning)
+        XCTAssertEqual(WeatherSyncService.inferTimeOfDayWeather(now: dusk).weatherMode, .dusk)
+        XCTAssertEqual(WeatherSyncService.mapWMOCode(61, hour: 10), .lightRain)
+        XCTAssertEqual(WeatherSyncService.mapWMOCode(0, hour: 17), .dusk)
+
+        let center = LocationService.defaultNeighborhoodOrigin
+        let fallbacks = MapKitAnchorDiscoveryService.quietNeighborhoodFallbackAnchors(around: center, existing: [])
+        XCTAssertEqual(fallbacks.count, 3)
+    }
 }

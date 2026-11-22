@@ -382,34 +382,32 @@ struct ClothBookmarkBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            // 左側：手繪微笑天氣與日期奶霜牌（點擊可開啟天氣與時間光影面板）
-            Button {
+            // 左側：手繪微笑天氣與日期奶霜牌（長按 1.2 秒可開啟測試面板，日常誤觸不彈出開發抽屜）
+            HStack(spacing: 6) {
+                CuteWeatherFaceIcon(weather: weather, size: 24)
+                Text(dayTitle)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color(hex: "#3E2F28"))
+                    .lineLimit(1)
+            }
+            .padding(.leading, 7)
+            .padding(.trailing, 12)
+            .padding(.vertical, 5.5)
+            .background(
+                ZStack {
+                    Capsule().fill(Color(hex: "#CFC0A3")).offset(y: 3)
+                    Capsule().fill(Color(hex: "#FFFDF7"))
+                    Capsule().stroke(Color(hex: "#DFC8A2"), style: StrokeStyle(lineWidth: 1.0, dash: [3, 2.5])).padding(2.5)
+                    Capsule().stroke(Color(hex: "#B5956B").opacity(0.65), lineWidth: 1.1)
+                }
+            )
+            .padding(.bottom, 3)
+            .shadow(color: AppTheme.deepPineInk.opacity(0.15), radius: 4, y: 2)
+            .onLongPressGesture(minimumDuration: 1.2) {
                 HapticsEngine.shared.playBrushStrokeTick()
                 onOpenFixture()
-            } label: {
-                HStack(spacing: 6) {
-                    CuteWeatherFaceIcon(weather: weather, size: 24)
-                    Text(dayTitle)
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color(hex: "#3E2F28"))
-                        .lineLimit(1)
-                }
-                .padding(.leading, 7)
-                .padding(.trailing, 12)
-                .padding(.vertical, 5.5)
-                .background(
-                    ZStack {
-                        Capsule().fill(Color(hex: "#CFC0A3")).offset(y: 3)
-                        Capsule().fill(Color(hex: "#FFFDF7"))
-                        Capsule().stroke(Color(hex: "#DFC8A2"), style: StrokeStyle(lineWidth: 1.0, dash: [3, 2.5])).padding(2.5)
-                        Capsule().stroke(Color(hex: "#B5956B").opacity(0.65), lineWidth: 1.1)
-                    }
-                )
-                .padding(.bottom, 3)
-                .shadow(color: AppTheme.deepPineInk.opacity(0.15), radius: 4, y: 2)
             }
-            .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 2))
-            .accessibilityLabel("\(dayTitle)，\(weather.displayName)。點擊開啟測試與天氣切換面板。")
+            .accessibilityLabel("\(dayTitle)，\(weather.displayName)")
 
             Spacer(minLength: 4)
 

@@ -258,7 +258,7 @@ enum StrollSatchelCharm: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
-struct ActiveStrollSession: Sendable {
+struct ActiveStrollSession: Codable, Sendable {
     var sessionID: UUID = UUID()
     var startedAt: Date = Date()
     var localDateISO: String

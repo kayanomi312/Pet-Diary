@@ -7,13 +7,14 @@ enum PetRigPose: String, Sendable {
     case resting
 }
 
-/// 608 格高流暢度手繪逐格水彩精靈動畫快取（每隻毛孩 76 格：w1..w16、i1..i16、s1..s12、h1..h10、m1..m8、p1..p8 與原畫 f1..f6）
+/// 608 格高流暢度手繪逐格水彩精靈動畫快取（限制 40 MB 解碼記憶體上限，避免長時間遊玩佔用過高 RAM）
 private final class CelFrameImageCache: @unchecked Sendable {
     static let shared = CelFrameImageCache()
     private let cache = NSCache<NSString, UIImage>()
 
     private init() {
-        cache.countLimit = 650
+        cache.countLimit = 240
+        cache.totalCostLimit = 40 * 1024 * 1024 // 40 MB strict decoded memory budget
     }
 
     func image(named name: String) -> UIImage? {
@@ -22,7 +23,8 @@ private final class CelFrameImageCache: @unchecked Sendable {
             return cached
         }
         guard let loaded = UIImage(named: name) else { return nil }
-        cache.setObject(loaded, forKey: key)
+        let bytes = Int(loaded.size.width * loaded.scale * loaded.size.height * loaded.scale * 4)
+        cache.setObject(loaded, forKey: key, cost: max(1, bytes))
         return loaded
     }
 }
@@ -257,7 +259,25 @@ struct ProceduralPetRigView: View {
             break
         }
 
-        // 2. Live petting / brushing / happy-squint reactions
+        // 2. Live petting / zone-based touch focus / happy-squint reactions
+        if let focus = fingerFocusNormalized {
+            // Subtle directional lean & zone-aware facial expression!
+            let leanX = focus.x * minDim * 0.014
+            if focus.y < -0.18 {
+                // Touching head/ears -> blissful half-lidded purr & happy smile!
+                let f = (Int(tPet * 7.2) % 10) + 1
+                let useBlink = (Int(tPet * 2.0) % 3 == 0)
+                return CelFrameState(assetName: useBlink ? celName(2) : animName("h", frame: f), hopOffsetX: leanX, isExcited: true)
+            } else if focus.y > 0.20 {
+                // Touching belly -> playful paw-batting reaction!
+                let f = (Int(tPet * 8.5) % 8) + 1
+                return CelFrameState(assetName: animName("p", frame: f), hopOffsetX: leanX, isExcited: true)
+            } else {
+                // Chin / cheek scratch -> warm smiling squint!
+                let f = (Int(tPet * 7.5) % 10) + 1
+                return CelFrameState(assetName: animName("h", frame: f), hopOffsetX: leanX, isExcited: true)
+            }
+        }
         if brushRuffleAmount > 0.08 {
             let purrPhase = tPet.truncatingRemainder(dividingBy: 2.6)
             if purrPhase > 2.25 {
@@ -375,9 +395,14 @@ struct ProceduralPetRigView: View {
 
                     // Wardrobe accessory bound cleanly to sitting/standing poses (f1..f5); hidden on curled nap (f6)
                     if !state.isSleeping, let outfitID, let item = ShopCatalog.item(id: outfitID) {
+                        let actionNeckYOffset: CGFloat = (playfulAction == .walking) ? -minDim * 0.012 : 0
                         WardrobeSocketOverlayCanvas(
                             item: item,
-                            neckAnchor: calibratedNeckAnchor,
+                            neckAnchor: (
+                                u: calibratedNeckAnchor.u,
+                                v: calibratedNeckAnchor.v + actionNeckYOffset / max(1, h),
+                                width: calibratedNeckAnchor.width
+                            ),
                             canvasSize: CGSize(width: w, height: h),
                             time: isStaticSnapshot ? 0.5 : time
                         )
