@@ -125,9 +125,9 @@ final class SunroomRoamingEngine {
         }
     }
 
-    /// 每幀推進 2.5D 漫步位置、抵達狀態切換、相遇打招呼與自動對話泡泡
+    /// 每幀推進 2.5D 漫步位置、抵達狀態切換、相遇打招呼與自動對話泡泡（60fps 流暢滑行）
     func tick(now: Date, spots: [HomeSpotPlacement], verandaUnlocked: Bool) {
-        guard now.timeIntervalSince(lastTickDate) >= 0.03 else { return }
+        guard now.timeIntervalSince(lastTickDate) >= 0.016 else { return }
         lastTickDate = now
 
         // 清理已淡出的地板點擊波紋

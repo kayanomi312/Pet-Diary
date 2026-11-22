@@ -59,7 +59,7 @@ struct Sunroom25DStageView: View {
                     .offset(x: effectivePan * 0.55)
 
                 // MARK: Layer 2 — Interactive 2.5D Depth-Sorted Floor Stage (Furniture + Free-Roaming Pets)
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+                TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
                     let now = timeline.date
                     ZStack {
                         // Tap anywhere on the 2.5D wooden floor to call the nearest pet over!
