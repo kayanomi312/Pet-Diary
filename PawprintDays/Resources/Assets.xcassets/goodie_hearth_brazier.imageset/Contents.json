@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "goodie_hearth_brazier.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
