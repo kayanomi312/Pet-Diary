@@ -26,6 +26,11 @@ targets:
       - path: PawprintDays
         excludes:
           - "**/.DS_Store"
+          - "Resources/PetFrames"
+          - "Resources/PetFrames/**"
+      - path: PawprintDays/Resources/PetFrames
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.pawprintdays.app

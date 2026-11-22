@@ -390,6 +390,41 @@ final class SunroomRoamingEngine {
         actors[actor.petID] = actor
     }
 
+    /// 玩家在陽光室丟出一顆手工縫布球：布球滾過 2.5D 木地板，最近的清醒室友立刻開心地跑去追球並拍球！
+    @discardableResult
+    func tossClothBall(now: Date = Date()) -> String? {
+        let startX: CGFloat = Bool.random() ? 0.16 : 0.84
+        let startPos = CGPoint(x: startX, y: CGFloat.random(in: 0.42...0.68))
+        let targetPos = CGPoint(
+            x: startX < 0.5 ? CGFloat.random(in: 0.56...0.82) : CGFloat.random(in: 0.18...0.44),
+            y: CGFloat.random(in: 0.30...0.78)
+        )
+        rollingBall = RollingClothBall(from: startPos, to: targetPos, startedAt: now, duration: 2.3)
+
+        // 優先找醒著的室友；若全在午睡就喚醒離球最近的一位
+        let candidates = actors.values.filter { !$0.isNapping }
+        let pool = candidates.isEmpty ? Array(actors.values) : candidates
+        guard let chaser = pool.min(by: {
+            let p0 = $0.interpolatedPosition(at: now)
+            let p1 = $1.interpolatedPosition(at: now)
+            return hypot(p0.x - targetPos.x, p0.y - targetPos.y) < hypot(p1.x - targetPos.x, p1.y - targetPos.y)
+        }) else { return nil }
+
+        var actor = chaser
+        let curPos = actor.interpolatedPosition(at: now)
+        actor.position = curPos
+        let dist = hypot(targetPos.x - curPos.x, targetPos.y - curPos.y)
+        let dur = max(2.2, min(5.4, Double(dist) * 9.8))
+        actor.facingRight = targetPos.x > curPos.x
+        actor.behavior = .walking(from: curPos, to: targetPos, startedAt: now, duration: dur, arrivalSpotIndex: nil)
+        let spec = PetCatalog.pet(id: actor.petID)
+        actor.speechBubble = spec.kind.isCatFamily ? "咻——追布球囉！" : "汪嗚！我去接球♪"
+        actor.bubbleExpiresAt = now.addingTimeInterval(3.2)
+        actor.tapExcitedUntil = now.addingTimeInterval(2.4)
+        actors[actor.petID] = actor
+        return actor.petID
+    }
+
     private func speciesContextualWhisper(for petID: String, weather: WeatherMode) -> String {
         switch petID {
         case "pet.02": return "才不是在等你回來呢…"

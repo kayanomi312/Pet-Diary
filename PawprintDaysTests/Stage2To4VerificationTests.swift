@@ -403,4 +403,21 @@ final class Stage2To4VerificationTests: XCTestCase {
         let fallbacks = MapKitAnchorDiscoveryService.quietNeighborhoodFallbackAnchors(around: center, existing: [])
         XCTAssertEqual(fallbacks.count, 3)
     }
+
+    func testSunroomBallTossAndPetFramesBundleResolution() throws {
+        let coordinator = try makeInMemoryCoordinator()
+        let roaming = SunroomRoamingEngine()
+        let now = Date()
+        roaming.syncResidents(invitedPetIDs: ["pet.01", "pet.05"], spots: coordinator.homeSpots, verandaUnlocked: false, now: now)
+
+        let chaserID = roaming.tossClothBall(now: now)
+        XCTAssertNotNil(chaserID)
+        XCTAssertNotNil(roaming.rollingBall)
+        XCTAssertNotNil(roaming.rollingBall?.position(at: now.addingTimeInterval(0.8)))
+        XCTAssertEqual(roaming.actors[chaserID!]?.isWalking, true)
+
+        // Verify HEIC-alpha frames are bundled cleanly inside PetFrames/ folder reference
+        let frameURL = Bundle.main.url(forResource: "pet_01_w1", withExtension: "heic", subdirectory: "PetFrames")
+        XCTAssertNotNil(frameURL)
+    }
 }
