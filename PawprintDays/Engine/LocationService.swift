@@ -98,8 +98,8 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
             }
             if manager.accuracyAuthorization == .reducedAccuracy {
                 isReducedAccuracy = true
-                manager.requestTemporaryFullAccuracyAuthorization(withPurposeKey: "PreciseNeighborhoodWalk") { [weak self] _ in
-                    Task { @MainActor in
+                Self.requestTempAccuracy(manager: manager, purposeKey: "PreciseNeighborhoodWalk") { [weak self] in
+                    Task { @MainActor [weak self] in
                         guard let self else { return }
                         self.isReducedAccuracy = (self.manager.accuracyAuthorization == .reducedAccuracy)
                         self.manager.startUpdatingLocation()
@@ -412,6 +412,16 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
             let summary = "Quiet stop recorded (\(lat.formatted(.number.precision(.fractionLength(3)))), \(lon.formatted(.number.precision(.fractionLength(3)))))"
             self.recentVisitSummaries.append(summary)
             self.onBackgroundVisitRecorded?(lat, lon)
+        }
+    }
+
+    nonisolated private static func requestTempAccuracy(
+        manager: CLLocationManager,
+        purposeKey: String,
+        onDone: @escaping @Sendable () -> Void
+    ) {
+        manager.requestTemporaryFullAccuracyAuthorization(withPurposeKey: purposeKey) { _ in
+            onDone()
         }
     }
 }
