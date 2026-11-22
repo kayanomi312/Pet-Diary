@@ -114,7 +114,7 @@ enum MapKitAnchorDiscoveryService {
 
         let fullRoster = PetCatalog.allPets.map(\.id)
         let prioritized = metRegulars + fullRoster.filter { !metRegulars.contains($0) }
-        guard !prioritized.isEmpty else { return "pet.01" }
+        guard !prioritized.isEmpty else { return "pet.03" }
         return prioritized[index % prioritized.count]
     }
 

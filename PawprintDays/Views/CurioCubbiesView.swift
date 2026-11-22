@@ -8,6 +8,7 @@ struct CurioCubbiesView: View {
     @State private var showVisitOptInPreview: Bool = false
     @State private var showWalkingSettings: Bool = false
     @State private var showFullCompendium: Bool = true
+    @State private var confirmResetDiary: Bool = false
 
     private var discoveredCurioIDs: Set<String> {
         Set(coordinator.ledger.foragedCurios.map(\.curioID))
@@ -244,34 +245,20 @@ struct CurioCubbiesView: View {
                                     showPouchShop = true
                                 }
 
-                                HStack(spacing: 10) {
-                                    WoodPlaqueButton(
-                                        title: coordinator.pedometerService.isSyncing
-                                            ? "同步步數中…"
-                                            : (coordinator.ledger.pedometerOptIn ? "同步每日步數" : "用步數換步數幣"),
-                                        systemImage: "figure.walk",
-                                        tone: .warmCream,
-                                        fontSize: 12,
-                                        horizontalPadding: 10,
-                                        verticalPadding: 9,
-                                        fullWidth: true
-                                    ) {
-                                        Task { await coordinator.optInAndSyncPedometer() }
-                                    }
-                                    .disabled(coordinator.pedometerService.isSyncing)
-
-                                    WoodPlaqueButton(
-                                        title: "+1,400步",
-                                        systemImage: "sparkles",
-                                        tone: .brassGold,
-                                        fontSize: 12,
-                                        horizontalPadding: 12,
-                                        verticalPadding: 9
-                                    ) {
-                                        CozySoundEngine.shared.playCompassChime()
-                                        _ = coordinator.ingestSteps(steps: 1_400, intervalStartUTC: Date(), placeLabel: "鄰里散步")
-                                    }
+                                WoodPlaqueButton(
+                                    title: coordinator.pedometerService.isSyncing
+                                        ? "同步步數中…"
+                                        : (coordinator.ledger.pedometerOptIn ? "同步每日步數" : "用步數換步數幣"),
+                                    systemImage: "figure.walk",
+                                    tone: .warmCream,
+                                    fontSize: 12.5,
+                                    horizontalPadding: 14,
+                                    verticalPadding: 10,
+                                    fullWidth: true
+                                ) {
+                                    Task { await coordinator.optInAndSyncPedometer() }
                                 }
+                                .disabled(coordinator.pedometerService.isSyncing)
 
                                 // 摺疊式散步設定（讓主畫面維持純粹的收藏展示櫃氣氛）
                                 Divider()
@@ -360,6 +347,43 @@ struct CurioCubbiesView: View {
                                             .font(AppTheme.diegeticLabel(12))
                                             .foregroundStyle(AppTheme.forestTeal)
                                         }
+
+                                        Divider()
+
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("新手玩法引導")
+                                                    .font(AppTheme.serifTitle(13.5))
+                                                    .foregroundStyle(AppTheme.deepPineInk)
+                                                Text("隨時重新瀏覽散步、陽光室與日記圖解教學。")
+                                                    .font(AppTheme.serifBody(11))
+                                                    .foregroundStyle(AppTheme.softInk)
+                                            }
+                                            Spacer()
+                                            Button("查看引導") {
+                                                CozySoundEngine.shared.playPaperFlip()
+                                                coordinator.reopenInteractiveTutorial()
+                                            }
+                                            .font(AppTheme.diegeticLabel(12))
+                                            .foregroundStyle(AppTheme.forestTeal)
+                                        }
+
+                                        HStack {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("重新開始一本新日記")
+                                                    .font(AppTheme.serifTitle(13.5))
+                                                    .foregroundStyle(Color(hex: "#B5482B"))
+                                                Text("清除本機所有舊散步與收藏，從空白日記全新開始。")
+                                                    .font(AppTheme.serifBody(11))
+                                                    .foregroundStyle(AppTheme.softInk)
+                                            }
+                                            Spacer()
+                                            Button("重置日記") {
+                                                confirmResetDiary = true
+                                            }
+                                            .font(AppTheme.diegeticLabel(12))
+                                            .foregroundStyle(Color(hex: "#B5482B"))
+                                        }
                                     }
                                     .padding(.top, 8)
                                 } label: {
@@ -384,6 +408,18 @@ struct CurioCubbiesView: View {
         .sheet(isPresented: $showPouchShop) {
             PouchShopDrawer(coordinator: coordinator, selectedCategory: $selectedCategory)
                 .presentationDetents([.medium, .large])
+        }
+        .confirmationDialog(
+            "確定要重置所有日記並重新開始嗎？",
+            isPresented: $confirmResetDiary,
+            titleVisibility: .visible
+        ) {
+            Button("清除紀錄並重新開始", role: .destructive) {
+                coordinator.resetAllGameData()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("這會清除本機所有日記、步數幣、街角與室友紀錄，回到全新空白狀態並開啟新手引導。")
         }
         .sheet(isPresented: $showVisitOptInPreview) {
             NavigationStack {

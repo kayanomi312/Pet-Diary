@@ -75,7 +75,7 @@ enum AnchorRotationEngine {
             // Pilot Guarantee: player's very first Tap-3 opportunity offers Cinder (pet.03) or Hem (pet.04).
             if !ledger.pilotTap3MagicalDelivered {
                 let cinderMet = residents.first(where: { $0.petID == "pet.03" })?.inviteState != .unmet
-                chosenPetID = cinderMet ? "pet.04" : "pet.03"
+                chosenPetID = (cinderMet || anchor.regularPetID == "pet.03") ? "pet.04" : "pet.03"
             } else {
                 let candidates = availableSlicePetIDs.filter { $0 != anchor.regularPetID }
                 let unseen = candidates.filter { id in

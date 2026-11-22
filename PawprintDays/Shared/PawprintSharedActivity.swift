@@ -16,8 +16,8 @@ struct PawprintWidgetSnapshot: Codable, Sendable {
     var updatedAt: Date
 
     static let placeholder = PawprintWidgetSnapshot(
-        companionName: "芝麻",
-        companionPetID: "pet.01",
+        companionName: "餘燼",
+        companionPetID: "pet.03",
         weatherDisplayName: "微涼細雨",
         weatherSymbol: "cloud.drizzle.fill",
         stepsToday: 1_240,

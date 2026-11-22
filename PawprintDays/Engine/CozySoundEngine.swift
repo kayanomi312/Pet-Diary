@@ -220,50 +220,50 @@ final class CozySoundEngine {
 
     /// Warm brass compass / arrival chime (gentle C5 + G5 soft bell decay)
     func playCompassChime() {
-        guard let (player, fmt) = ensureRunning() else { return }
-        let buffer = synthesizeBellBuffer(format: fmt, frequencies: [523.25, 783.99], duration: 0.42, gain: 0.14)
+        guard let (player, fmt) = ensureRunning(),
+              let buffer = synthesizeBellBuffer(format: fmt, frequencies: [523.25, 783.99], duration: 0.42, gain: 0.14) else { return }
         player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
     }
 
     /// Crisp cotton-rag paper flip + warm wooden ink stamp thud
     func playPaperFlip() {
-        guard let (player, fmt) = ensureRunning() else { return }
-        let buffer = synthesizePaperBuffer(format: fmt, duration: 0.19, gain: 0.16)
+        guard let (player, fmt) = ensureRunning(),
+              let buffer = synthesizePaperBuffer(format: fmt, duration: 0.19, gain: 0.16) else { return }
         player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
     }
 
     /// Soft wooden floor paw-tap cue when calling a pet over in the 2.5D Sunroom
     func playPawTap() {
-        guard let (player, fmt) = ensureRunning() else { return }
-        let buffer = synthesizeWoodTapBuffer(format: fmt, duration: 0.11, gain: 0.14)
+        guard let (player, fmt) = ensureRunning(),
+              let buffer = synthesizeWoodTapBuffer(format: fmt, duration: 0.11, gain: 0.14) else { return }
         player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
     }
 
     /// Soft velvet grooming brush / towel-dry swish
     func playBrushSwish() {
-        guard let (player, fmt) = ensureRunning() else { return }
-        let buffer = synthesizeFilteredNoise(format: fmt, duration: 0.22, cutoffAlpha: 0.08, gain: 0.11)
+        guard let (player, fmt) = ensureRunning(),
+              let buffer = synthesizeFilteredNoise(format: fmt, duration: 0.22, cutoffAlpha: 0.08, gain: 0.11) else { return }
         player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
     }
 
     /// Gentle warm feline purr rumble (26 Hz amplitude-modulated soft warmth)
     func playPetPurr() {
-        guard let (player, fmt) = ensureRunning() else { return }
-        let buffer = synthesizePurrBuffer(format: fmt, duration: 0.52, gain: 0.12)
+        guard let (player, fmt) = ensureRunning(),
+              let buffer = synthesizePurrBuffer(format: fmt, duration: 0.52, gain: 0.12) else { return }
         player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
     }
 
     /// Soft cheerful puppy/spirit chirp (ascending gentle pentatonic trill)
     func playPetChirp() {
-        guard let (player, fmt) = ensureRunning() else { return }
-        let buffer = synthesizeChirpBuffer(format: fmt, duration: 0.24, gain: 0.10)
+        guard let (player, fmt) = ensureRunning(),
+              let buffer = synthesizeChirpBuffer(format: fmt, duration: 0.24, gain: 0.10) else { return }
         player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
     }
 
     /// Warm ceramic teapot chime (F5 + A5)
     func playTeapotClink() {
-        guard let (player, fmt) = ensureRunning() else { return }
-        let buffer = synthesizeBellBuffer(format: fmt, frequencies: [698.46, 880.0], duration: 0.36, gain: 0.12)
+        guard let (player, fmt) = ensureRunning(),
+              let buffer = synthesizeBellBuffer(format: fmt, frequencies: [698.46, 880.0], duration: 0.36, gain: 0.12) else { return }
         player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
     }
 
@@ -271,7 +271,7 @@ final class CozySoundEngine {
     func playWardrobeSnap(withBell: Bool = false) {
         guard let (player, fmt) = ensureRunning() else { return }
         let freqs: [Double] = withBell ? [1046.5, 1567.98] : [587.33, 880.0]
-        let buffer = synthesizeBellBuffer(format: fmt, frequencies: freqs, duration: 0.28, gain: 0.11)
+        guard let buffer = synthesizeBellBuffer(format: fmt, frequencies: freqs, duration: 0.28, gain: 0.11) else { return }
         player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
     }
 
@@ -285,8 +285,9 @@ final class CozySoundEngine {
         guard !isRainPlaying,
               let (eng, fmt) = ensureEngineStarted(),
               let rain = rainPlayer,
-              rain.engine === eng else { return }
-        let loopBuffer = synthesizeRainLoop(format: fmt, duration: 2.4, gain: 0.042)
+              rain.engine === eng,
+              !eng.outputConnectionPoints(for: rain, outputBus: 0).isEmpty,
+              let loopBuffer = synthesizeRainLoop(format: fmt, duration: 2.4, gain: 0.042) else { return }
         rain.scheduleBuffer(loopBuffer, at: nil, options: [.loops], completionHandler: nil)
         rain.play()
         isRainPlaying = true
@@ -307,9 +308,10 @@ final class CozySoundEngine {
         }
         guard let (eng, fmt) = ensureEngineStarted(),
               let music = musicPlayer,
-              music.engine === eng else { return }
+              music.engine === eng,
+              !eng.outputConnectionPoints(for: music, outputBus: 0).isEmpty,
+              let loopBuffer = synthesizeKalimbaLoop(format: fmt, weather: weather, gain: 0.055) else { return }
         music.stop()
-        let loopBuffer = synthesizeKalimbaLoop(format: fmt, weather: weather, gain: 0.055)
         music.scheduleBuffer(loopBuffer, at: nil, options: [.loops], completionHandler: nil)
         music.play()
         isMusicPlaying = true
@@ -332,9 +334,9 @@ final class CozySoundEngine {
         right.update(from: left, count: n)
     }
 
-    private func synthesizeBellBuffer(format: AVAudioFormat, frequencies: [Double], duration: Double, gain: Float) -> AVAudioPCMBuffer {
+    private func synthesizeBellBuffer(format: AVAudioFormat, frequencies: [Double], duration: Double, gain: Float) -> AVAudioPCMBuffer? {
         let count = AVAudioFrameCount(format.sampleRate * duration)
-        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count)!
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count) else { return nil }
         buffer.frameLength = count
         guard let ptr = buffer.floatChannelData?[0] else { return buffer }
         let sr = format.sampleRate
@@ -354,9 +356,9 @@ final class CozySoundEngine {
         return buffer
     }
 
-    private func synthesizeWoodTapBuffer(format: AVAudioFormat, duration: Double, gain: Float) -> AVAudioPCMBuffer {
+    private func synthesizeWoodTapBuffer(format: AVAudioFormat, duration: Double, gain: Float) -> AVAudioPCMBuffer? {
         let count = AVAudioFrameCount(format.sampleRate * duration)
-        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count)!
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count) else { return nil }
         buffer.frameLength = count
         guard let ptr = buffer.floatChannelData?[0] else { return buffer }
         let sr = format.sampleRate
@@ -370,9 +372,9 @@ final class CozySoundEngine {
         return buffer
     }
 
-    private func synthesizePurrBuffer(format: AVAudioFormat, duration: Double, gain: Float) -> AVAudioPCMBuffer {
+    private func synthesizePurrBuffer(format: AVAudioFormat, duration: Double, gain: Float) -> AVAudioPCMBuffer? {
         let count = AVAudioFrameCount(format.sampleRate * duration)
-        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count)!
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count) else { return nil }
         buffer.frameLength = count
         guard let ptr = buffer.floatChannelData?[0] else { return buffer }
         let sr = format.sampleRate
@@ -387,9 +389,9 @@ final class CozySoundEngine {
         return buffer
     }
 
-    private func synthesizeChirpBuffer(format: AVAudioFormat, duration: Double, gain: Float) -> AVAudioPCMBuffer {
+    private func synthesizeChirpBuffer(format: AVAudioFormat, duration: Double, gain: Float) -> AVAudioPCMBuffer? {
         let count = AVAudioFrameCount(format.sampleRate * duration)
-        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count)!
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count) else { return nil }
         buffer.frameLength = count
         guard let ptr = buffer.floatChannelData?[0] else { return buffer }
         let sr = format.sampleRate
@@ -406,10 +408,10 @@ final class CozySoundEngine {
         return buffer
     }
 
-    private func synthesizeKalimbaLoop(format: AVAudioFormat, weather: WeatherMode, gain: Float) -> AVAudioPCMBuffer {
+    private func synthesizeKalimbaLoop(format: AVAudioFormat, weather: WeatherMode, gain: Float) -> AVAudioPCMBuffer? {
         let duration = 8.0
         let count = AVAudioFrameCount(format.sampleRate * duration)
-        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count)!
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count) else { return nil }
         buffer.frameLength = count
         guard let ptr = buffer.floatChannelData?[0] else { return buffer }
         let sr = format.sampleRate
@@ -444,9 +446,9 @@ final class CozySoundEngine {
         return buffer
     }
 
-    private func synthesizePaperBuffer(format: AVAudioFormat, duration: Double, gain: Float) -> AVAudioPCMBuffer {
+    private func synthesizePaperBuffer(format: AVAudioFormat, duration: Double, gain: Float) -> AVAudioPCMBuffer? {
         let count = AVAudioFrameCount(format.sampleRate * duration)
-        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count)!
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count) else { return nil }
         buffer.frameLength = count
         guard let ptr = buffer.floatChannelData?[0] else { return buffer }
         let sr = format.sampleRate
@@ -465,9 +467,9 @@ final class CozySoundEngine {
         return buffer
     }
 
-    private func synthesizeFilteredNoise(format: AVAudioFormat, duration: Double, cutoffAlpha: Float, gain: Float) -> AVAudioPCMBuffer {
+    private func synthesizeFilteredNoise(format: AVAudioFormat, duration: Double, cutoffAlpha: Float, gain: Float) -> AVAudioPCMBuffer? {
         let count = AVAudioFrameCount(format.sampleRate * duration)
-        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count)!
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count) else { return nil }
         buffer.frameLength = count
         guard let ptr = buffer.floatChannelData?[0] else { return buffer }
         let n = Int(count)
@@ -483,9 +485,9 @@ final class CozySoundEngine {
         return buffer
     }
 
-    private func synthesizeRainLoop(format: AVAudioFormat, duration: Double, gain: Float) -> AVAudioPCMBuffer {
+    private func synthesizeRainLoop(format: AVAudioFormat, duration: Double, gain: Float) -> AVAudioPCMBuffer? {
         let count = AVAudioFrameCount(format.sampleRate * duration)
-        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count)!
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count) else { return nil }
         buffer.frameLength = count
         guard let ptr = buffer.floatChannelData?[0] else { return buffer }
         let n = Int(count)

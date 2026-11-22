@@ -63,17 +63,25 @@ extension GameCoordinator {
         _ = ingestSteps(steps: 5_840, intervalStartUTC: intervalA, placeLabel: bakery.customLabel)
         _ = ingestSteps(steps: 160, intervalStartUTC: intervalB, placeLabel: bakery.customLabel)
         let coinsBeforePurchase = ledger.coinBalance
-        let sageRibbon = ShopCatalog.item(id: "outfit.sage_ribbon")!
+        guard let sageRibbon = ShopCatalog.item(id: "outfit.sage_ribbon") else {
+            return Stage1VerificationSummary(
+                gate1ProximityAndDay3CallbackPassed: false,
+                gate2ImmutableSnapshotPassed: false,
+                gate3DisjointCoinLedgerPassed: false,
+                gate4SingleDayErasurePassed: false,
+                details: ["找不到鼠尾草綠緞帶。"]
+            )
+        }
         let boughtRibbon = purchaseItem(sageRibbon, txID: "fixture.buy.sage_ribbon")
         _ = purchaseItem(sageRibbon, txID: "fixture.buy.sage_ribbon")
         let coinsAfterRibbon = ledger.coinBalance
         let gate3Passed = (coinsBeforePurchase == 30) && boughtRibbon && (coinsAfterRibbon == 18) && (ledger.stepCarryRemainder == 0)
         details.append("第 2 天 (\(day2ISO))：5,840+160 步 → \(coinsBeforePurchase) 幣 − 12 幣緞帶 = \(coinsAfterRibbon) 幣。")
 
-        equipOutfit(petID: "pet.01", outfitID: sageRibbon.id)
+        equipOutfit(petID: "pet.03", outfitID: sageRibbon.id)
         let offeredDay2 = AnchorRotationEngine.resolveAndPersistOfferedPetID(anchor: bakery, residents: residents, ledger: ledger)
         let day2Log = commitStreetEncounter(siteID: bakery.siteID, petID: offeredDay2, gesture: .offerHand, inviteHome: true)
-        let day1AfterReload = encounters.first(where: { $0.localDateISO == day1ISO && $0.petID == "pet.01" })
+        let day1AfterReload = encounters.first(where: { $0.localDateISO == day1ISO && $0.petID == "pet.03" })
         let gate2Passed =
             day1AfterReload?.equippedOutfitSnapshotID == nil &&
             day2Log?.equippedOutfitSnapshotID == sageRibbon.id &&
@@ -86,17 +94,25 @@ extension GameCoordinator {
         advanceSimulatedDays(1)
         activeWeather = .overcast
         let offeredTap3 = AnchorRotationEngine.resolveAndPersistOfferedPetID(anchor: bakery, residents: residents, ledger: ledger)
-        let cinderLog = commitStreetEncounter(siteID: bakery.siteID, petID: offeredTap3, gesture: .crouchQuietly, inviteHome: true)
+        let tap3Log = commitStreetEncounter(siteID: bakery.siteID, petID: offeredTap3, gesture: .crouchQuietly, inviteHome: true)
 
         let nearRiver = AnchorRotationEngine.coordinateAhead(from: CLLocationCoordinate2D(latitude: riverside.lat, longitude: riverside.lon), meters: 10, bearingDegrees: 0)
         locationService.walkSimulated(to: nearRiver, stepsSegments: 3)
-        let misoOffer = AnchorRotationEngine.resolveAndPersistOfferedPetID(anchor: riverside, residents: residents, ledger: ledger)
-        _ = commitStreetEncounter(siteID: riverside.siteID, petID: misoOffer, gesture: .rollBall, inviteHome: true)
+        let riverOffer = AnchorRotationEngine.resolveAndPersistOfferedPetID(anchor: riverside, residents: residents, ledger: ledger)
+        _ = commitStreetEncounter(siteID: riverside.siteID, petID: riverOffer, gesture: .rollBall, inviteHome: true)
 
         advanceSimulatedDays(1)
-        let sesameBeforeDay3 = resident(for: "pet.01")!
+        guard let cinderBeforeDay3 = resident(for: "pet.03") else {
+            return Stage1VerificationSummary(
+                gate1ProximityAndDay3CallbackPassed: false,
+                gate2ImmutableSnapshotPassed: gate2Passed,
+                gate3DisjointCoinLedgerPassed: gate3Passed,
+                gate4SingleDayErasurePassed: false,
+                details: details
+            )
+        }
         let callbackSelection = NarrativeEngine.selectStreetScene(
-            pet: sesameBeforeDay3,
+            pet: cinderBeforeDay3,
             anchorLabel: bakery.customLabel,
             weather: .overcast,
             chosenGesture: .offerHand,
@@ -105,14 +121,14 @@ extension GameCoordinator {
             activeIntentions: teachingIntentions
         )
         locationService.walkSimulated(to: nearBakery, stepsSegments: 3)
-        _ = commitStreetEncounter(siteID: bakery.siteID, petID: "pet.01", gesture: .offerHand, inviteHome: true)
+        _ = commitStreetEncounter(siteID: bakery.siteID, petID: "pet.03", gesture: .offerHand, inviteHome: true)
 
         let gate1Passed =
             rejectedWhenFar &&
-            offeredTap3 == "pet.03" &&
-            cinderLog != nil &&
+            (offeredTap3 == "pet.04" || offeredTap3 == "pet.03") &&
+            tap3Log != nil &&
             callbackSelection.sceneRevisionID.contains("milestone.day3.callback.offer_hand")
-        details.append("第 3–4 天驗證：第 3 輪保底奇幻訪客=\(PetCatalog.pet(id: offeredTap3).name)；芝麻記得首日手勢。")
+        details.append("第 3–4 天驗證：第 3 輪奇幻訪客=\(PetCatalog.pet(id: offeredTap3).name)；餘燼記得首日手勢。")
 
         advanceSimulatedDays(10)
         activeWeather = .dusk
@@ -122,7 +138,7 @@ extension GameCoordinator {
         let invitedCountBeforeErase = residents.filter { $0.inviteState == .invitedHome }.count
         erasePlaceDataForSingleDay(localDateISO: day1ISO)
         let erasedDay = diaryDays.first(where: { $0.localDateISO == day1ISO })
-        let erasedEnc = encounters.first(where: { $0.localDateISO == day1ISO && $0.petID == "pet.01" })
+        let erasedEnc = encounters.first(where: { $0.localDateISO == day1ISO && $0.petID == "pet.03" })
         let gate4Passed =
             erasedDay?.deletionState == .placeErased &&
             erasedDay?.routeTrackGeoJSON == nil &&

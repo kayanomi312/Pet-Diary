@@ -113,10 +113,6 @@ struct StreetOverworldView: View {
                             }
                         }
                     }
-                    .onLongPressGesture(minimumDuration: 1.2) {
-                        HapticsEngine.shared.playBrushStrokeTick()
-                        coordinator.showFixtureDrawer = true
-                    }
 
                     Spacer(minLength: 4)
 
@@ -398,39 +394,30 @@ struct StreetOverworldView: View {
                 }
 
                 if let far = selectedFarAnchor {
+                    let meters = Int(coordinator.distanceMeters(to: far))
+                    let walkMin = max(1, Int(ceil(Double(meters) / 75.0)))
                     StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.timberWarm, paddingAmount: 13) {
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(far.customLabel)
                                     .font(AppTheme.serifTitle(15))
                                     .foregroundStyle(AppTheme.deepPineInk)
-                                Text("距離 \(Int(coordinator.distanceMeters(to: far))) 公尺 — 走近 75 公尺內即可打招呼。")
+                                Text("距離 \(meters) 公尺（約步行 \(walkMin) 分鐘）— 走近 75 公尺內即可向奇幻靈獸打招呼。")
                                     .font(AppTheme.serifBody(12.5))
                                     .foregroundStyle(AppTheme.softInk)
                             }
                             Spacer()
-                            WoodPlaqueButton(
-                                title: "模擬走過去",
-                                systemImage: "figure.walk",
-                                tone: .forestTeal,
-                                fontSize: 12,
-                                horizontalPadding: 12,
-                                verticalPadding: 8
-                            ) {
-                                let target = AnchorRotationEngine.coordinateAhead(
-                                    from: CLLocationCoordinate2D(latitude: far.lat, longitude: far.lon),
-                                    meters: 14,
-                                    bearingDegrees: 210
-                                )
-                                coordinator.locationService.walkSimulated(to: target, stepsSegments: 6)
-                                _ = coordinator.ingestSteps(steps: 240, placeLabel: far.customLabel)
-                                selectedFarAnchor = nil
-                                withAnimation(.easeInOut(duration: 0.6)) {
-                                    cameraPosition = .region(
-                                        MKCoordinateRegion(center: target, latitudinalMeters: 300, longitudinalMeters: 300)
-                                    )
-                                }
+                            Button {
+                                withAnimation(.easeOut(duration: 0.2)) { selectedFarAnchor = nil }
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(AppTheme.softInk)
+                                    .frame(width: 28, height: 28)
+                                    .background(Color(hex: "#EFE7D8"), in: Circle())
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("關閉距離提示")
                         }
                     }
                     .padding(.horizontal, 16)
@@ -501,7 +488,7 @@ struct StreetOverworldView: View {
                             }
                         }
                         .buttonStyle(TactileGameButtonStyle(pressScale: 0.92, pressOffsetY: 1.5))
-                        .accessibilityLabel(activePet != nil ? "散步夥伴：\(activePet!.name)" : "選擇散步夥伴")
+                        .accessibilityLabel(activePet.map { "散步夥伴：\($0.name)" } ?? "選擇散步夥伴")
 
                         Spacer()
 
@@ -582,6 +569,14 @@ struct StreetOverworldView: View {
                                     tint: Color(hex: "#C98D26")
                                 ) {
                                     coordinator.showAccessibleNearbyList = true
+                                },
+                                CozyPopoverMenuItem(
+                                    id: "tutorial",
+                                    title: "重新查看新手引導",
+                                    systemImage: "book.pages.fill",
+                                    tint: Color(hex: "#5B8A68")
+                                ) {
+                                    coordinator.reopenInteractiveTutorial()
                                 }
                             ],
                             onDismiss: {
@@ -904,22 +899,13 @@ private struct AccessibleNearbyListSheet: View {
                                         }
                                     )
                                 } else if state == .distant || state == .strollChain {
-                                    CutePlushButton(
-                                        title: "模擬走近",
-                                        tone: .milkCream,
-                                        fontSize: 12,
-                                        horizontalPadding: 10,
-                                        verticalPadding: 7,
-                                        icon: { Image(systemName: "figure.walk").font(.system(size: 10, weight: .bold)) },
-                                        action: {
-                                            let target = AnchorRotationEngine.coordinateAhead(
-                                                from: CLLocationCoordinate2D(latitude: anchor.lat, longitude: anchor.lon),
-                                                meters: 15,
-                                                bearingDegrees: 180
-                                            )
-                                            coordinator.locationService.walkSimulated(to: target)
-                                        }
-                                    )
+                                    let walkMin = max(1, Int(ceil(Double(dist) / 75.0)))
+                                    Text("步行約 \(walkMin) 分")
+                                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(AppTheme.softInk)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(Color(hex: "#EFE7D8"), in: Capsule())
                                 }
                                 Menu {
                                     if let mergeTarget = coordinator.visibleAnchors.first(where: { $0.siteID != anchor.siteID }) {

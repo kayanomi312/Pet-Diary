@@ -51,28 +51,8 @@ struct CurioSpec: Identifiable, Hashable, Sendable {
 }
 
 enum PetCatalog {
-    /// 完整 8 位首發動物角色（繁體中文台灣繪本語氣）
+    /// 完整 6 位奇幻小靈獸夥伴（繁體中文台灣繪本語氣，純奇幻陣容）
     static let allPets: [PetSpec] = [
-        PetSpec(
-            id: "pet.01",
-            name: "芝麻",
-            kind: .ordinaryCat,
-            rigID: "rig_cat_med",
-            primaryCoatHex: "#7D848C",
-            accentHex: "#F8FAFC",
-            earDetailHex: "#555B63",
-            personalityWord: "沉靜守望",
-            signatureHabitTitle: "沉靜守候",
-            signatureHabitDetail: "如森林老母貓般安穩守在麵包店騎樓，照顧著街角藏匿的奇幻貓群。",
-            habitFamily: .wait,
-            resonantWeathers: [.overcast, .lightRain],
-            favoriteGoodieIDs: ["goodie.folded_towel", "goodie.wool_blanket", "goodie.window_cushion", "goodie.cedar_perch"],
-            favoriteTexture: .warm,
-            matureKindness: "替緊張的小龍貓與新夥伴讓出一半窗邊軟墊。",
-            socketNeckU: 0.41,
-            socketNeckV: 0.56,
-            includedInStage1Slice: true
-        ),
         PetSpec(
             id: "pet.02",
             name: "杜松",
@@ -86,7 +66,7 @@ enum PetCatalog {
             signatureHabitDetail: "頭頂彎曲黑曜小角的貓型惡魔，總把摺得方正的小紙符安靜放在朋友身旁。",
             habitFamily: .offer,
             resonantWeathers: [.overcast, .dusk],
-            favoriteGoodieIDs: ["goodie.bakery_box", "goodie.folded_towel", "goodie.hearth_brazier"],
+            favoriteGoodieIDs: ["goodie.bakery_box", "goodie.folded_towel", "goodie.hearth_brazier", "goodie.cedar_perch"],
             favoriteTexture: .crispy,
             matureKindness: "嘴上說著惡魔才不撒嬌，卻悄悄把緞帶排整齊放在老夥伴墊邊。",
             socketNeckU: 0.43,
@@ -103,10 +83,10 @@ enum PetCatalog {
             earDetailHex: "#F5E9D6",
             personalityWord: "溫柔小心",
             signatureHabitTitle: "爐爪烘暖",
-            signatureHabitDetail: "把自己當成普通小貓的赤炎幼龍，背上陶瓦龍鱗會吐出微溫把毛毯烘得暖烘烘。",
+            signatureHabitDetail: "以為自己是普通街貓的赤炎幼龍，背上陶瓦龍鱗會吐出微溫把毛毯烘得暖烘烘。",
             habitFamily: .nest,
             resonantWeathers: [.postRain, .lightRain],
-            favoriteGoodieIDs: ["goodie.wool_blanket", "goodie.folded_towel", "goodie.hearth_brazier"],
+            favoriteGoodieIDs: ["goodie.wool_blanket", "goodie.folded_towel", "goodie.hearth_brazier", "goodie.woven_hammock"],
             favoriteTexture: .warm,
             matureKindness: "在涼亭用龍息的餘溫替淋濕的室友烘乾一條軟毯。",
             socketNeckU: 0.40,
@@ -134,26 +114,6 @@ enum PetCatalog {
             includedInStage1Slice: true
         ),
         PetSpec(
-            id: "pet.05",
-            name: "味噌",
-            kind: .ordinaryDog,
-            rigID: "rig_dog_med",
-            primaryCoatHex: "#D6A86E",
-            accentHex: "#8C5E32",
-            earDetailHex: "#F7EFE2",
-            personalityWord: "熱情好客",
-            signatureHabitTitle: "溫柔滾球",
-            signatureHabitDetail: "不論對方是龍貓還是惡魔貓，都會把縫布球剛剛好滾到伸手可及的位置。",
-            habitFamily: .offer,
-            resonantWeathers: [.clearMorning, .overcast],
-            favoriteGoodieIDs: ["goodie.cloth_ball", "goodie.wool_blanket", "goodie.woven_hammock"],
-            favoriteTexture: .crispy,
-            matureKindness: "總能把球穩穩停在夥伴腳邊，不讓牠多跑一步。",
-            socketNeckU: 0.38,
-            socketNeckV: 0.53,
-            includedInStage1Slice: true
-        ),
-        PetSpec(
             id: "pet.06",
             name: "鈕扣",
             kind: .impHound,
@@ -164,9 +124,9 @@ enum PetCatalog {
             personalityWord: "忠厚貼心",
             signatureHabitTitle: "幽火排鞋",
             signatureHabitDetail: "長著一對圓潤小魔角、肩畔飄著藍紫微火的小魔犬，最愛把玄關拖鞋排得整整齊齊。",
-            habitFamily: .nest,
+            habitFamily: .offer,
             resonantWeathers: [.overcast, .lightRain],
-            favoriteGoodieIDs: ["goodie.folded_towel", "goodie.wool_blanket", "goodie.hearth_brazier"],
+            favoriteGoodieIDs: ["goodie.folded_towel", "goodie.wool_blanket", "goodie.cloth_ball", "goodie.hearth_brazier"],
             favoriteTexture: .warm,
             matureKindness: "雨夜點起微弱的小鬼火替剛進門的室友照亮乾地墊。",
             socketNeckU: 0.36,
@@ -408,7 +368,7 @@ enum ShopCatalog {
             slotType: "one_slot",
             swatchHex: "#C85A32",
             secondaryHex: "#F0DEC4",
-            summary: "吸引愛玩的狗狗（味噌）；也是「輕遞小物」跨物種傳承道具。",
+            summary: "吸引愛玩的奇幻夥伴（鈕扣、蘆葦）；也是「輕遞小物」跨物種傳承道具。",
             capacitySlots: 1
         ),
         ShopItemSpec(
@@ -452,7 +412,7 @@ enum ShopCatalog {
             slotType: "window_or_alcove",
             swatchHex: "#8C603B",
             secondaryHex: "#DCC5A1",
-            summary: "雙層紅檜棲木架，摺翼與芝麻喜歡登高俯瞰整個陽光室與雨景。",
+            summary: "雙層紅檜棲木架，摺翼與杜松喜歡登高俯瞰整個陽光室與雨景。",
             capacitySlots: 1
         ),
         ShopItemSpec(
@@ -463,7 +423,7 @@ enum ShopCatalog {
             slotType: "two_slot",
             swatchHex: "#C7A672",
             secondaryHex: "#F5EAD4",
-            summary: "隨微風輕輕搖曳的竹編吊床，讓味噌與梅子舒舒服服打個長盹。",
+            summary: "隨微風輕輕搖曳的竹編吊床，讓梅子與餘燼舒舒服服打個長盹。",
             capacitySlots: 2
         ),
         ShopItemSpec(
@@ -643,7 +603,7 @@ enum CurioCatalog {
             placeCategory: "烘豆咖啡館",
             weatherTag: .clearMorning,
             stampHex: "#B88C3E",
-            journalNote: "被晨光曬得暖融融的舊銅釦，味噌用鼻尖把它推到了鞋尖旁。"
+            journalNote: "被晨光曬得暖融融的舊銅釦，鈕扣用鼻尖把它推到了鞋尖旁。"
         ),
         CurioSpec(
             id: "curio.bat_pod_seed",

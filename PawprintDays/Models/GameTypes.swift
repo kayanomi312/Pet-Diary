@@ -139,37 +139,30 @@ enum PawState: String, Sendable {
 }
 
 enum PetSpeciesKind: String, Codable, Sendable {
-    case ordinaryCat = "街角虎斑貓"
     case demonCat = "黑曜惡魔貓"
     case dragonCat = "赤瓦龍貓"
     case batCat = "暮光夜魔貓"
-    case ordinaryDog = "巷口暖金犬"
     case impHound = "墨玉小魔犬"
     case spiritHound = "銀月星靈犬"
     case marshHound = "鹿角森靈犬"
 
     var isCatFamily: Bool {
         switch self {
-        case .ordinaryCat, .demonCat, .dragonCat, .batCat: return true
-        case .ordinaryDog, .impHound, .spiritHound, .marshHound: return false
+        case .demonCat, .dragonCat, .batCat: return true
+        case .impHound, .spiritHound, .marshHound: return false
         }
     }
 
     var isMagical: Bool {
-        switch self {
-        case .demonCat, .dragonCat, .batCat, .impHound, .spiritHound, .marshHound: return true
-        case .ordinaryCat, .ordinaryDog: return false
-        }
+        true
     }
 
     /// 《貓與龍》風格奇幻物種分類徽章
     var folkloreCategoryTag: String {
         switch self {
-        case .ordinaryCat: return "森町常住貓"
         case .demonCat:    return "貓型惡魔"
         case .dragonCat:   return "貓型火龍"
         case .batCat:      return "貓型夜翼"
-        case .ordinaryDog: return "街角守護犬"
         case .impHound:    return "犬型小魔"
         case .spiritHound: return "銀月星靈"
         case .marshHound:  return "鹿角森靈"
@@ -178,11 +171,9 @@ enum PetSpeciesKind: String, Codable, Sendable {
 
     var badgeSymbol: String {
         switch self {
-        case .ordinaryCat: return "pawprint.fill"
         case .demonCat:    return "flame.fill"
         case .dragonCat:   return "sparkles"
         case .batCat:      return "moon.stars.fill"
-        case .ordinaryDog: return "sun.max.fill"
         case .impHound:    return "bolt.heart.fill"
         case .spiritHound: return "cloud.fill"
         case .marshHound:  return "leaf.fill"
@@ -191,11 +182,9 @@ enum PetSpeciesKind: String, Codable, Sendable {
 
     var badgeHex: String {
         switch self {
-        case .ordinaryCat: return "#5A7276"
         case .demonCat:    return "#7D3554"
         case .dragonCat:   return "#C85A32"
         case .batCat:      return "#5D4B7A"
-        case .ordinaryDog: return "#B68246"
         case .impHound:    return "#49476B"
         case .spiritHound: return "#6E8596"
         case .marshHound:  return "#3F7356"
