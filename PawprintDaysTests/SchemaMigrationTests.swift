@@ -72,7 +72,11 @@ final class SchemaMigrationTests: XCTestCase {
     /// recorded in the frozen fixture must equal those of a store created from `PawprintSchemaV2` today.
     func testV2SchemaStillMatchesFrozenFixtureVersionHashes() throws {
         let fixture = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "PawprintV2", withExtension: "store"))
-        let shipped = try Self.entityVersionHashes(ofStoreAt: fixture)
+        // Read a copy: Core Data opens the WAL-mode store read-write and would create -wal/-shm sidecars
+        // inside the (possibly read-only, e.g. on device) test bundle.
+        let fixtureCopy = storeDirectory.appendingPathComponent("shipped-v2.store")
+        try FileManager.default.copyItem(at: fixture, to: fixtureCopy)
+        let shipped = try Self.entityVersionHashes(ofStoreAt: fixtureCopy)
 
         let freshURL = storeDirectory.appendingPathComponent("fresh-v2.store")
         try autoreleasepool {
