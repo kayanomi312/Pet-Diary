@@ -122,4 +122,14 @@ final class CelClipTests: XCTestCase {
         XCTAssertTrue(pool.active(at: date.addingTimeInterval(0.5)).isEmpty)
         XCTAssertEqual(SpriteFXKind.heart.frame(at: 0.61), 7)
     }
+
+    func testOutfitTailLagsTheGaitByTwoAndAHalfFrames() {
+        let player = CelClipPlayer(CelClip(bank: "w", frames: 12, fps: 12, loop: .loop))
+        let lag = 2.5 / player.clip.fps
+        let start = CelOutfitMotion.sway(during: CelPlayback(player: player, elapsed: 0))
+        let peak = CelOutfitMotion.sway(during: CelPlayback(player: player, elapsed: lag + 0.25))
+        XCTAssertEqual(start, .zero)
+        XCTAssertEqual(peak.x, 0.018, accuracy: 0.000001)
+        XCTAssertEqual(peak.y, 0, accuracy: 0.000001)
+    }
 }

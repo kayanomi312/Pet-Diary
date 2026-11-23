@@ -47,8 +47,10 @@ struct ProceduralPetRigView: View {
     var onCelEvent: ((String, Date) -> Void)? = nil
     var previewFrame: String? = nil
     var previewNeck: [Double]? = nil
+    var previewPlayback: CelPlayback? = nil
 
     private var assetPrefix: String { CelLibrary.prefix(for: pet.id) }
+    private var petPhase: Double { Double(StableHash.value(pet.id) % 11) * 0.53 }
 
     var body: some View {
         Group {
@@ -79,9 +81,6 @@ struct ProceduralPetRigView: View {
 
     /// Legacy socket calibration for pets without authored anchors.
     private var calibratedNeckAnchor: (u: CGFloat, v: CGFloat, width: CGFloat) {
-        if let neck = previewNeck, neck.count == 3 {
-            return (neck[0], neck[1], neck[2])
-        }
         switch pet.id {
         case "pet.01": return (0.43, 0.50, 0.22) // 芝麻
         case "pet.02": return (0.41, 0.49, 0.20) // 杜松（黑曜惡魔貓）
@@ -140,7 +139,7 @@ struct ProceduralPetRigView: View {
     }
 
     private func resolveCelFrameState(time: Double, minDim: CGFloat) -> CelFrameState {
-        if let previewFrame { return CelFrameState(assetName: previewFrame) }
+        if let previewFrame { return CelFrameState(assetName: previewFrame, playback: previewPlayback) }
         if isStaticSnapshot {
             let staticIdx: Int
             switch pose {
@@ -157,7 +156,6 @@ struct ProceduralPetRigView: View {
         }
         let elapsed = max(0, time - actionTriggerDate.timeIntervalSinceReferenceDate)
         let poseElapsed = max(0, time - (poseStartedAt ?? actionTriggerDate).timeIntervalSinceReferenceDate)
-        let petPhase = Double(StableHash.value(pet.id) % 11) * 0.53
         let tPet = time + petPhase
 
         // 1. Active explicit playful interactions (highest priority)
@@ -332,10 +330,37 @@ struct ProceduralPetRigView: View {
         }
     }
 
+    private func bank(of asset: String) -> String {
+        let suffix = asset.dropFirst(assetPrefix.count + 1)
+        return String(suffix.prefix { $0.isLetter })
+    }
+
+    private func neckAnchor(bank: String) -> (u: CGFloat, v: CGFloat, width: CGFloat) {
+        let entries = if isStaticSnapshot {
+            [previewNeck]
+        } else {
+            [CelLibrary.authored(for: pet.id, bank: bank)?.clip.anchors?.neck,
+             CelLibrary.manifest(for: pet.id)?.anchors?.neck]
+        }
+        for case let neck? in entries where neck.count == 3 && neck[2] > 0 && neck.allSatisfy({ (0...1).contains($0) }) {
+            return (neck[0], neck[1], neck[2])
+        }
+        return calibratedNeckAnchor
+    }
+
+    private func outfitSway(playback: CelPlayback?, bank: String, time: Double) -> CGPoint {
+        if reduceMotion { return .zero }
+        if ["w", "wr", "wf", "wb"].contains(bank),
+           let player = playback?.player ?? CelLibrary.player(for: pet.id, bank: bank) {
+            let sample = playback ?? CelPlayback(player: player, elapsed: time + petPhase)
+            return CelOutfitMotion.sway(during: sample)
+        }
+        return CGPoint(x: sin((isStaticSnapshot ? 0.5 : time) * 1.05) * 0.005, y: 0)
+    }
+
     private func preloadPlan(state: CelFrameState, date: Date, pixels: CGFloat) -> CelClipPreloader.Plan? {
         guard !isStaticSnapshot, !reduceMotion else { return nil }
-        let suffix = state.assetName.dropFirst(assetPrefix.count + 1)
-        let bank = String(suffix.prefix { $0.isLetter })
+        let bank = bank(of: state.assetName)
         let current = state.playback?.player ?? CelLibrary.player(for: pet.id, bank: bank)
         var upcoming: [CelClipPlayer] = []
         if let poseTransition, date < poseTransition.arrivesAt {
@@ -366,9 +391,9 @@ struct ProceduralPetRigView: View {
             let recentDust = playback?.player.events(after: (playback?.elapsed ?? 0) - 0.42,
                                                      through: playback?.elapsed ?? 0)
                 .filter { $0.name == "footContact" || $0.name == "land" } ?? []
-            let activeBank = state.playback?.player.clip.bank
+            let activeBank = state.playback?.player.clip.bank ?? bank(of: state.assetName)
             let hasRightWalk = CelLibrary.authored(for: pet.id, bank: "wr") != nil
-            let mirror = facingRight && !hasRightWalk && !(["wr", "wf", "wb", "tr"].contains(activeBank ?? ""))
+            let mirror = !reduceMotion && facingRight && !hasRightWalk && !(["wr", "wf", "wb", "tr"].contains(activeBank))
             let shadowShrink = max(0.76, 1.0 + (state.hopOffsetY / max(1, minDim)) * 1.4)
 
             let rimGlowColor: Color = {
@@ -432,22 +457,12 @@ struct ProceduralPetRigView: View {
 
                     // Wardrobe accessory bound cleanly to sitting/standing poses (f1..f5); hidden on curled nap (f6)
                     if !state.isSleeping, let outfitID, let item = ShopCatalog.item(id: outfitID) {
-                        let authoredNeck = state.playback?.player.clip.anchors?.neck ?? CelLibrary.manifest(for: pet.id)?.anchors?.neck
-                        let neck = if let authoredNeck, authoredNeck.count == 3, !isStaticSnapshot {
-                            (u: CGFloat(authoredNeck[0]), v: CGFloat(authoredNeck[1]), width: CGFloat(authoredNeck[2]))
-                        } else {
-                            calibratedNeckAnchor
-                        }
-                        let actionNeckYOffset: CGFloat = (playfulAction == .walking) ? -minDim * 0.012 : 0
+                        let neck = neckAnchor(bank: activeBank)
+                        let legacyWalkOffset = activeBank == "w" && CelLibrary.authored(for: pet.id, bank: "w") == nil ? -0.012 : 0
                         WardrobeSocketOverlayCanvas(
                             item: item,
-                            neckAnchor: (
-                                u: neck.u,
-                                v: neck.v + actionNeckYOffset / max(1, h),
-                                width: neck.width
-                            ),
-                            canvasSize: CGSize(width: w, height: h),
-                            time: isStaticSnapshot ? 0.5 : time
+                            neckAnchor: (u: neck.u, v: neck.v + legacyWalkOffset, width: neck.width),
+                            sway: outfitSway(playback: state.playback, bank: activeBank, time: time)
                         )
                     }
                 }
@@ -482,7 +497,7 @@ struct ProceduralPetRigView: View {
                 }
             }
             .scaleEffect(x: mirror ? -1 : 1, y: 1)
-            .animation(reduceMotion || hasRightWalk || ["wf", "wb", "tn", "tr"].contains(activeBank ?? "") ? nil : .easeInOut(duration: 0.16), value: mirror)
+            .animation(reduceMotion || hasRightWalk || ["wf", "wb", "tn", "tr"].contains(activeBank) ? nil : .easeInOut(duration: 0.16), value: mirror)
         }
     }
 }
@@ -491,21 +506,21 @@ struct ProceduralPetRigView: View {
 private struct WardrobeSocketOverlayCanvas: View {
     let item: ShopItemSpec
     let neckAnchor: (u: CGFloat, v: CGFloat, width: CGFloat)
-    let canvasSize: CGSize
-    let time: Double
+    let sway: CGPoint
 
     var body: some View {
         Canvas { ctx, size in
             let w = size.width
             let h = size.height
             let minDim = min(w, h)
-            let nx = w * neckAnchor.u
-            let ny = h * neckAnchor.v
+            let nx = (w - minDim) / 2 + minDim * neckAnchor.u
+            let ny = (h - minDim) / 2 + minDim * neckAnchor.v
             let nw = minDim * neckAnchor.width
             let ink = Color(hex: "#2C3536").opacity(0.76)
             let swatch = Color(hex: item.swatchHex)
             let secondary = Color(hex: item.secondaryHex)
-            let sway = CGFloat(sin(time * 1.05)) * minDim * 0.005
+            let swayX = sway.x * minDim
+            let swayY = sway.y * minDim
 
             if item.slotType == "socket_back" {
                 let bx = nx + nw * 0.62
@@ -547,7 +562,7 @@ private struct WardrobeSocketOverlayCanvas: View {
                     to: CGPoint(x: nx + nw * 0.42, y: ny + minDim * 0.007),
                     control: CGPoint(x: nx, y: ny + minDim * 0.032)
                 )
-                drape.addLine(to: CGPoint(x: nx - nw * 0.04 + sway, y: ny + minDim * 0.140))
+                drape.addLine(to: CGPoint(x: nx - nw * 0.04 + swayX, y: ny + minDim * 0.140 + swayY))
                 drape.closeSubpath()
                 ctx.fill(drape, with: .color(swatch.opacity(0.96)))
                 ctx.stroke(drape, with: .color(secondary.opacity(0.88)), style: StrokeStyle(lineWidth: minDim * 0.006, dash: [minDim * 0.013, minDim * 0.009]))
@@ -555,7 +570,7 @@ private struct WardrobeSocketOverlayCanvas: View {
             } else if item.id == "outfit.occasion_collar" {
                 ctx.stroke(collar, with: .color(secondary.opacity(0.85)), style: StrokeStyle(lineWidth: minDim * 0.007, dash: [minDim * 0.013, minDim * 0.013]))
                 let bellR = minDim * 0.030
-                let bellRect = CGRect(x: nx - bellR + sway * 0.8, y: ny + minDim * 0.022, width: bellR * 2, height: bellR * 2)
+                let bellRect = CGRect(x: nx - bellR + swayX * 0.8, y: ny + minDim * 0.022 + swayY * 0.4, width: bellR * 2, height: bellR * 2)
                 ctx.fill(
                     Path(ellipseIn: bellRect),
                     with: .radialGradient(
@@ -570,10 +585,10 @@ private struct WardrobeSocketOverlayCanvas: View {
                 var leftTail = Path()
                 leftTail.move(to: CGPoint(x: nx - minDim * 0.010, y: ny + minDim * 0.018))
                 leftTail.addQuadCurve(
-                    to: CGPoint(x: nx - minDim * 0.070 + sway, y: ny + minDim * 0.100),
+                    to: CGPoint(x: nx - minDim * 0.070 + swayX, y: ny + minDim * 0.100 + swayY),
                     control: CGPoint(x: nx - minDim * 0.052, y: ny + minDim * 0.046)
                 )
-                leftTail.addLine(to: CGPoint(x: nx - minDim * 0.022 + sway * 0.7, y: ny + minDim * 0.106))
+                leftTail.addLine(to: CGPoint(x: nx - minDim * 0.022 + swayX * 0.7, y: ny + minDim * 0.106 + swayY * 0.7))
                 leftTail.closeSubpath()
                 ctx.fill(leftTail, with: .color(swatch))
                 ctx.stroke(leftTail, with: .color(ink), lineWidth: minDim * 0.007)
@@ -581,10 +596,10 @@ private struct WardrobeSocketOverlayCanvas: View {
                 var rightTail = Path()
                 rightTail.move(to: CGPoint(x: nx + minDim * 0.008, y: ny + minDim * 0.018))
                 rightTail.addQuadCurve(
-                    to: CGPoint(x: nx + minDim * 0.064 + sway, y: ny + minDim * 0.098),
+                    to: CGPoint(x: nx + minDim * 0.064 + swayX * 0.55, y: ny + minDim * 0.098 + swayY * 0.55),
                     control: CGPoint(x: nx + minDim * 0.048, y: ny + minDim * 0.045)
                 )
-                rightTail.addLine(to: CGPoint(x: nx + minDim * 0.016 + sway * 0.7, y: ny + minDim * 0.104))
+                rightTail.addLine(to: CGPoint(x: nx + minDim * 0.016 + swayX * 0.4, y: ny + minDim * 0.104 + swayY * 0.4))
                 rightTail.closeSubpath()
                 ctx.fill(rightTail, with: .color(secondary))
                 ctx.stroke(rightTail, with: .color(ink), lineWidth: minDim * 0.007)
