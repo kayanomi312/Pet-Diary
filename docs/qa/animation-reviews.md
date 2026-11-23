@@ -62,12 +62,25 @@ All three use 768 × 768 transparent PNGs with warm dark-brown ink, watercolor w
 | `pet_06/j` (A2.6, `00013b9`) | **Approved (minor head-height note)** | Smooth 9-frame anticipation crouch → airborne leap → 4-paw landing squash → sit settle; bronze horns, lavender wisp, 4 cream socks intact. Skull sits ~25–30 px above `y=170` in `01`/`09`. |
 | `pet_07/e` (A2.5, `b3e408a`) | **Approved** | Clean 10-frame eat/chew/lip-lick loop on `y=690`; cloud ruff/ribbon stays strictly on viewer-right shoulder and crown stars remain consistent. |
 | `pet_07/tu` (A2.1, `52882c9`) | **Approved (minor duplicate note)** | Clean 6-frame sit → standing profile transition on `y=690`; `01`–`02` and `05`–`06` are visually near-identical. |
+| `pet_08/wr` & `tn` (A2.3, `10486af`) | **Approved** | Strictly preserves `pet_08` asymmetric antlers across all 12 right-walk and 5 turnaround frames (dog's right = 2 tines, dog's left = 3 tines; 4 legs, cream markings intact). Minor note: leaf buds on the smallest tine vary slightly on a few frames. |
 
 ---
 
-## 6. Code Review Notes (`codex/anim-code` @ `ff2917c`)
+## 6. Simulator & Code QA (`A0.5`, `A3.5`, `A5.3`)
+
+- **A0.5 Animation Gallery (verified on iPhone 18 Pro Simulator, Debug build):** Reachable via `Debug menu` → `Animation Gallery`; `bg_home_sunroom`, pet/clip pickers, frame stepper, `0.25×`–`2×` playback slider, `Onion skin`, `Mirror`, and `Outfit` toggles render cleanly (minor note: bottom `Onion skin` toggle sits close to the bottom sheet edge).
+- **A3.5 Reduce Motion pass (verified):**
+  - `grep "spring("` outside `AppTheme.swift` returns 0 animation springs; all 10 `TimelineView` instances use `AppTheme.Motion.interval(fps:reduceMotion:)`.
+  - With iOS Accessibility → Motion → **Reduce Motion ON** on simulator, a 9.0 s Sunroom recording (`36` sample times) produced `1` unique frame (`0` pixel changes), holding calm seated idle poses on `餘燼`, `梅子`, and window visitor `摺翼`.
+- **A5.3 Partial/Code-Engine Pass (verified on `gemini/anim-art` @ `95cd7d2` merge):**
+  - `xcodebuild test` passed (`Stage2To4VerificationTests` & `CelClipTests` green).
+  - 33.4 s Sunroom roaming (`A3.2`, `A3.4`, `A4.3`, `A4.4`, `A4.5`) stayed live with zero white-screen crashes, smooth depth sorting, and clean diagonal sunbeams.
+  - `DiarySnapshotBaker` (`HardcoverSketchbookView`) continues to render static `f` keyframe postcards cleanly with weather, date, and `遇` stamp intact.
+  - *Remaining scope:* Final full-cast A5.3 sign-off (including 4-pet room perf & outfit check across all new clips) waits on the GH character art banks (`A1.1`, `A1.4`, `A2.2`, `A2.4`, `A2.7`, `A2.8` for `03/07/08`), which are blocked by server capacity (`503 MODEL_CAPACITY_EXHAUSTED` on `gemini-3.1-flash-image`).
+
+## 7. Open Code Review Notes (`codex/anim-code` @ `95cd7d2`)
 
 1. **`tools/frames/build.swift` (`broadSilhouetteTop` heuristic):** Needs refinement or documented per-pet tolerances for horned/antlered/tall-eared species (`pet_03`, `pet_08`, `pet_04`) so `tools/frames/lint` does not fail 114 checks when skull tops are actually at `y = 170`.
 2. **`PlaceholderAssetGenerator.swift` (`events.blink`):** Wire `"blink"` event from `CelClip` manifests (used by `A1.3` in `pet_01..08.json`) so idle loops trigger a brief blink frame/overlay without popping the whole pose.
 3. **`SpriteFXLayer.swift` (`SpriteFXKind.sleep.frameCount`):** Expects 6 cells for `fx_sleep`, while `ANIMATION_PLAN.md` / `art-src/fx/LOOK.md` specify 8 frames for `zzz`. `art-src/fx/zzz/sheet.png` is exported as a 6-frame `768×128` strip matching `SpriteFXKind.sleep`, with all 8 individual frames (`01..08.png`) plus `sheet_8f.png` preserved.
-4. **Sunroom stage bounds / crash investigation (`docs/qa/animation-baseline/`):** Ensure `SunroomRoamingEngine` UV bounds keep sprites & speech bubbles inside the visible stage (observed right-edge clipping in baseline `01-sunroom-roaming.mp4`) and monitor simulator stability after `A3.4` display-size thumbnail decoding lands.
+4. **Sunroom stage bounds / crash investigation (`docs/qa/animation-baseline/`):** Monitor sustained (>2 min) roaming stability and ensure `SunroomRoamingEngine` UV bounds keep speech bubbles inside the right edge.
