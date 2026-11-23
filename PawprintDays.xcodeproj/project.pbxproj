@@ -54,6 +54,7 @@
 		D2DA54B2E0A7B9E6385CE914 /* GameCoordinator+IndoorAndRaising.swift in Sources */ = {isa = PBXBuildFile; fileRef = 187676AF72A63606215B3006 /* GameCoordinator+IndoorAndRaising.swift */; };
 		D61598D9F86F05DED885F12B /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514894921375578990F18305 /* AppTheme.swift */; };
 		D64A6D405769C13E1DA11AB4 /* PetFrames in Resources */ = {isa = PBXBuildFile; fileRef = AEB687F1A5B3765C222D233C /* PetFrames */; };
+		D7568C1250FDF5CCFCC310F9 /* CelClipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4981D7FA840E24791A0A24FA /* CelClipTests.swift */; };
 		D831966FC956CB4BAE66930C /* StrollRitualSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 577B6815AA46FB69A029BEF6 /* StrollRitualSheets.swift */; };
 		DB3DEA62CDF9D1CFC6329002 /* PawprintSharedActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44819E4445781D509B8BAC53 /* PawprintSharedActivity.swift */; };
 		DB3E692B58476DEC3953FFDD /* SunroomInWorldStations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C1A9B21CD584B1C4932B697 /* SunroomInWorldStations.swift */; };
@@ -115,6 +116,7 @@
 		3658077F88E869B7E55F647E /* paw_range.ahap */ = {isa = PBXFileReference; path = paw_range.ahap; sourceTree = "<group>"; };
 		3E4A60D543B4A7CF4B6B6FD6 /* CozyOnboardingTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CozyOnboardingTutorialView.swift; sourceTree = "<group>"; };
 		44819E4445781D509B8BAC53 /* PawprintSharedActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PawprintSharedActivity.swift; sourceTree = "<group>"; };
+		4981D7FA840E24791A0A24FA /* CelClipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelClipTests.swift; sourceTree = "<group>"; };
 		4A74C81C1FC7B537AAD7B171 /* HardcoverSketchbookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardcoverSketchbookView.swift; sourceTree = "<group>"; };
 		4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stage2To4VerificationTests.swift; sourceTree = "<group>"; };
 		4EF9FFDCCCDA69DD0153196B /* dog_ball_roll.ahap */ = {isa = PBXFileReference; path = dog_ball_roll.ahap; sourceTree = "<group>"; };
@@ -197,6 +199,7 @@
 		527344F3CAEAF57120A6CF38 /* PawprintDaysTests */ = {
 			isa = PBXGroup;
 			children = (
+				4981D7FA840E24791A0A24FA /* CelClipTests.swift */,
 				F853C14BC0C2937B7ED00B3D /* GameplayBalanceTests.swift */,
 				1BB82F737C708433848BA4E4 /* Stage1VerificationTests.swift */,
 				4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */,
@@ -522,6 +525,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D7568C1250FDF5CCFCC310F9 /* CelClipTests.swift in Sources */,
 				EB7112D171106873B5C7CF43 /* GameplayBalanceTests.swift in Sources */,
 				541DE44C842987CE7AC096F4 /* Stage1VerificationTests.swift in Sources */,
 				32AD8FA0C4478A92BC144378 /* Stage2To4VerificationTests.swift in Sources */,

@@ -71,6 +71,13 @@ struct CelClipPlayer: Sendable {
     }
 }
 
+struct CelPlayback: Sendable {
+    let player: CelClipPlayer
+    let elapsed: Double
+
+    var frame: Int { player.frame(at: elapsed) }
+}
+
 struct CelManifest: Decodable, Sendable {
     let pet: String
     let spec: Int
@@ -102,11 +109,37 @@ enum CelLibrary {
         return result
     }()
 
+    private static let authoredPlayers = manifests.mapValues { $0.clips.mapValues(CelClipPlayer.init) }
+
+    static func authored(for petID: String, bank: String) -> CelClipPlayer? {
+        authoredPlayers[prefix(for: petID)]?.values.first { $0.clip.bank == bank }
+    }
+
+    static func player(for petID: String, bank: String) -> CelClipPlayer? {
+        authored(for: petID, bank: bank) ?? legacyPlayers.values.first { $0.clip.bank == bank }
+    }
+
+    /// Follows one-shot links on the same clock. A missing link leaves the caller's legacy fallback in control.
+    static func playback(for petID: String, starting player: CelClipPlayer, elapsed: Double) -> CelPlayback? {
+        var current = player
+        var time = elapsed
+        var visited: Set<String> = []
+        while current.clip.loop == .once && time >= current.duration {
+            guard let next = current.clip.next, visited.insert(next).inserted,
+                  let following = authoredPlayers[prefix(for: petID)]?[next] ?? legacyPlayers[next] else { return nil }
+            time -= current.duration
+            current = following
+        }
+        return CelPlayback(player: current, elapsed: time)
+    }
+
     static func manifest(for petID: String) -> CelManifest? { manifests[prefix(for: petID)] }
 
     static func frameURL(_ name: String) -> URL? {
         Bundle.main.url(forResource: name, withExtension: "heic", subdirectory: "PetFrames")
     }
+
+    private static let legacyPlayers = legacy.mapValues(CelClipPlayer.init)
 
     static let legacy: [String: CelClip] = [
         "walk": CelClip(bank: "w", frames: 16, fps: 9, loop: .loop),

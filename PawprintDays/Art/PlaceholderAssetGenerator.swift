@@ -36,7 +36,7 @@ final class CelFrameImageCache: @unchecked Sendable {
     }
 }
 
-/// 手繪逐格動畫動作狀態（使用每隻毛孩專屬的 50 格高流暢度手繪水彩精靈幀，完全無圖片拉扯變形！）
+/// Public animation intents used by encounters, care and the Sunroom.
 enum PetPlayfulAction: Equatable, Sendable {
     case idle
     case walking
@@ -48,15 +48,8 @@ enum PetPlayfulAction: Equatable, Sendable {
     case curiousWaddle
 }
 
-/// High-Framerate Hand-Painted Cel Animation Engine (400 Crisp Watercolor Frames across all 8 Pets — 50 Frames / Pet):
-///   - `w1`..`w12`: 12-frame 14fps smooth gait cycle (4-paw trot / winged flutter-prance / puppy bound)
-///   - `i1`..`i8`:  8-frame 10fps living sitting idle (soft breath, silky tail S-wave, ear twitch, wing hover)
-///   - `h1`..`h6`:  6-frame 12fps joyful `^ ^` smile loop (bilateral wing flutter, brisk tail wag, happy sway)
-///   - `m1`..`m6`:  6-frame 12fps vocal / munch / dancing dragon-flame loop
-///   - `p1`..`p6`:  6-frame 14fps playful paw-batting swipe & pounce loop
-///   - `s1`..`s6`:  6-frame 6.5fps curled sleeping loaf organic breathing & dreaming ear flick
-///   - `f1`..`f6`:  6 core hand-painted keyframes (including natural half-lidded blink `f2`)
-/// Zero whole-image squeezing, zero rigid flipping, zero ghosted overlays!
+/// Renders hand-painted cels from a per-pet manifest, with legacy choreography
+/// for pets whose new banks are still being drawn.
 struct ProceduralPetRigView: View {
     let pet: PetSpec
     var outfitID: String? = nil
@@ -76,9 +69,7 @@ struct ProceduralPetRigView: View {
     var previewFrame: String? = nil
     var previewNeck: [Double]? = nil
 
-    private var assetPrefix: String {
-        pet.id.replacingOccurrences(of: ".", with: "_") // "pet.01" -> "pet_01"
-    }
+    private var assetPrefix: String { CelLibrary.prefix(for: pet.id) }
 
     var body: some View {
         Group {
@@ -105,7 +96,7 @@ struct ProceduralPetRigView: View {
         return "\(pet.name)，\(pet.personalityWord)的\(pet.kind.rawValue)\(outfitText)。"
     }
 
-    /// Calibrated neck anchor `(u, v, neckWidthFraction)` for the new 512x512 baseline-aligned cel frames.
+    /// Legacy socket calibration for pets without authored anchors.
     private var calibratedNeckAnchor: (u: CGFloat, v: CGFloat, width: CGFloat) {
         if let neck = previewNeck, neck.count == 3 {
             return (neck[0], neck[1], neck[2])
@@ -130,17 +121,36 @@ struct ProceduralPetRigView: View {
         var isSleeping: Bool = false
         var isExcited: Bool = false
         var isWalkingDust: Bool = false
+        var playback: CelPlayback? = nil
     }
 
     private func celName(_ idx: Int) -> String {
         "\(assetPrefix)_f\(idx)"
     }
 
-    private func animName(_ bank: String, frame: Int) -> String {
-        "\(assetPrefix)_\(bank)\(frame)"
+    private func bankFrame(_ bank: String, time: Double, legacyRate: Double? = nil) -> String {
+        guard let player = CelLibrary.player(for: pet.id, bank: bank) else { return celName(1) }
+        let adjusted = if let legacyRate, CelLibrary.authored(for: pet.id, bank: bank) == nil {
+            time * legacyRate / player.clip.fps
+        } else {
+            time
+        }
+        return player.clip.asset(prefix: assetPrefix, frame: player.frame(at: adjusted))
     }
 
-    /// Selects the exact high-framerate cel frame (76 calm, natural frames per pet) for every moment.
+    private func authoredFrame(_ bank: String, elapsed: Double) -> CelFrameState? {
+        guard let player = CelLibrary.authored(for: pet.id, bank: bank),
+              let playback = CelLibrary.playback(for: pet.id, starting: player, elapsed: elapsed) else { return nil }
+        let activeBank = playback.player.clip.bank
+        return CelFrameState(
+            assetName: playback.player.clip.asset(prefix: assetPrefix, frame: playback.frame),
+            isSleeping: activeBank == "s",
+            isExcited: ["e", "g", "j", "h", "p"].contains(activeBank),
+            isWalkingDust: activeBank == "w",
+            playback: playback
+        )
+    }
+
     private func resolveCelFrameState(time: Double, minDim: CGFloat) -> CelFrameState {
         if let previewFrame { return CelFrameState(assetName: previewFrame) }
         if isStaticSnapshot {
@@ -153,84 +163,77 @@ struct ProceduralPetRigView: View {
             return CelFrameState(assetName: celName(staticIdx), isSleeping: staticIdx == 6, isExcited: isHappySquint)
         }
 
-        let elapsed = max(0, Date().timeIntervalSince(actionTriggerDate))
+        let elapsed = max(0, time - actionTriggerDate.timeIntervalSinceReferenceDate)
         let petPhase = Double(StableHash.value(pet.id) % 11) * 0.53
         let tPet = time + petPhase
 
         // 1. Active explicit playful interactions (highest priority)
         switch playfulAction {
         case .walking:
+            if let authored = authoredFrame("w", elapsed: elapsed) { return authored }
             // Relaxed, natural 16-frame stroll cycle (`w1`..`w16`) at 9.0fps (~1.78s per unhurried stride)
             let walkFPS = 9.0
-            let stepIdx = (Int(tPet * walkFPS) % 16) + 1
             let subtleCadence = -CGFloat(abs(sin(tPet * walkFPS * .pi / 8.0))) * minDim * 0.008
             return CelFrameState(
-                assetName: animName("w", frame: stepIdx),
+                assetName: bankFrame("w", time: tPet),
                 hopOffsetY: subtleCadence,
                 isWalkingDust: true
             )
 
         case .cozyNap:
+            if let authored = authoredFrame("s", elapsed: elapsed) { return authored }
             if elapsed < 0.45 {
                 return CelFrameState(assetName: celName(2), isSleeping: false)
             }
             // Tranquil 12-frame deep sleeping breath (~3.75s per full breath)
-            let sleepIdx = (Int(tPet * 3.2) % 12) + 1
-            return CelFrameState(assetName: animName("s", frame: sleepIdx), isSleeping: true)
+            return CelFrameState(assetName: bankFrame("s", time: tPet), isSleeping: true)
 
         case .bellyBoop:
+            if let authored = authoredFrame("g", elapsed: elapsed) { return authored }
             if elapsed < 2.2 {
                 let hopArc = (elapsed < 0.65) ? sin(elapsed / 0.65 * .pi) : 0.0
                 if elapsed < 0.65 {
-                    let f = (Int(elapsed * 7.0) % 10) + 1
-                    return CelFrameState(assetName: animName("h", frame: f), hopOffsetY: -CGFloat(hopArc) * minDim * 0.036, isExcited: true)
+                    return CelFrameState(assetName: bankFrame("h", time: elapsed), hopOffsetY: -CGFloat(hopArc) * minDim * 0.036, isExcited: true)
                 } else if elapsed < 1.25 {
-                    let f = (Int(elapsed * 7.5) % 8) + 1
-                    return CelFrameState(assetName: animName("m", frame: f), hopOffsetY: -CGFloat(hopArc) * minDim * 0.015, isExcited: true)
+                    return CelFrameState(assetName: bankFrame("m", time: elapsed), hopOffsetY: -CGFloat(hopArc) * minDim * 0.015, isExcited: true)
                 } else if elapsed < 1.75 {
-                    let f = (Int(elapsed * 8.5) % 8) + 1
-                    return CelFrameState(assetName: animName("p", frame: f), isExcited: true)
+                    return CelFrameState(assetName: bankFrame("p", time: elapsed), isExcited: true)
                 } else {
-                    let f = (Int(elapsed * 7.0) % 10) + 1
-                    return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
+                    return CelFrameState(assetName: bankFrame("h", time: elapsed), isExcited: true)
                 }
             }
 
         case .pounceHop:
+            if let authored = authoredFrame("j", elapsed: elapsed) { return authored }
             if elapsed < 2.25 {
                 if elapsed < 0.22 {
-                    return CelFrameState(assetName: animName("i", frame: 3), isExcited: true)
+                    return CelFrameState(assetName: bankFrame("i", time: 2.0 / 5.2), isExcited: true)
                 } else if elapsed < 0.92 {
                     let p = (elapsed - 0.22) / 0.70
                     let hopY = -CGFloat(sin(p * .pi)) * minDim * 0.088
                     let hopX = -CGFloat(sin(p * .pi)) * minDim * 0.036
-                    let f = (Int((elapsed - 0.22) * 8.5) % 8) + 1
-                    return CelFrameState(assetName: animName("p", frame: f), hopOffsetX: hopX, hopOffsetY: hopY, isExcited: true)
+                    return CelFrameState(assetName: bankFrame("p", time: (elapsed - 0.22)), hopOffsetX: hopX, hopOffsetY: hopY, isExcited: true)
                 } else if elapsed < 1.55 {
                     let p = (elapsed - 0.92) / 0.63
                     let hopY = -CGFloat(sin(p * .pi)) * minDim * 0.03
-                    let f = (Int((elapsed - 0.92) * 7.5) % 8) + 1
-                    return CelFrameState(assetName: animName("m", frame: f), hopOffsetY: hopY, isExcited: true)
+                    return CelFrameState(assetName: bankFrame("m", time: (elapsed - 0.92)), hopOffsetY: hopY, isExcited: true)
                 } else {
-                    let f = (Int((elapsed - 1.55) * 7.0) % 10) + 1
-                    return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
+                    return CelFrameState(assetName: bankFrame("h", time: (elapsed - 1.55)), isExcited: true)
                 }
             }
 
         case .eatMunch:
+            if let authored = authoredFrame("e", elapsed: elapsed) { return authored }
             if elapsed < 2.65 {
                 if elapsed > 1.95 {
-                    let f = (Int(elapsed * 7.0) % 10) + 1
-                    return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
+                    return CelFrameState(assetName: bankFrame("h", time: elapsed), isExcited: true)
                 }
                 // Calm, adorable rhythmic munching (`m1..m8`) alternating gently with rosy smile (`h1..h10`)
                 let chewBeat = Int(elapsed / 0.72) % 2
                 if chewBeat == 0 {
-                    let f = (Int(elapsed * 7.5) % 8) + 1
-                    return CelFrameState(assetName: animName("m", frame: f), hopOffsetY: -minDim * 0.008, isExcited: true)
+                    return CelFrameState(assetName: bankFrame("m", time: elapsed), hopOffsetY: -minDim * 0.008, isExcited: true)
                 } else {
-                    let f = (Int(elapsed * 7.0) % 10) + 1
-                    return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
+                    return CelFrameState(assetName: bankFrame("h", time: elapsed), isExcited: true)
                 }
             }
 
@@ -240,14 +243,11 @@ struct ProceduralPetRigView: View {
                 let beat = (elapsed.truncatingRemainder(dividingBy: 0.78)) / 0.78
                 let hop = (phase != 1) ? -CGFloat(sin(beat * .pi)) * minDim * 0.028 : 0
                 if phase == 0 {
-                    let f = (Int(elapsed * 8.5) % 8) + 1
-                    return CelFrameState(assetName: animName("p", frame: f), hopOffsetY: hop, isExcited: true)
+                    return CelFrameState(assetName: bankFrame("p", time: elapsed), hopOffsetY: hop, isExcited: true)
                 } else if phase == 1 {
-                    let f = (Int(elapsed * 7.0) % 10) + 1
-                    return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
+                    return CelFrameState(assetName: bankFrame("h", time: elapsed), isExcited: true)
                 } else {
-                    let f = (Int(elapsed * 7.5) % 8) + 1
-                    return CelFrameState(assetName: animName("m", frame: f), hopOffsetY: hop, isExcited: true)
+                    return CelFrameState(assetName: bankFrame("m", time: elapsed), hopOffsetY: hop, isExcited: true)
                 }
             }
 
@@ -255,19 +255,15 @@ struct ProceduralPetRigView: View {
             let cycle = tPet.truncatingRemainder(dividingBy: 7.4)
             let driftX = CGFloat(sin(tPet * 0.45)) * minDim * 0.020
             if cycle < 2.6 {
-                let f = (Int(tPet * 5.2) % 16) + 1
-                return CelFrameState(assetName: animName("i", frame: f), hopOffsetX: driftX)
+                return CelFrameState(assetName: bankFrame("i", time: tPet), hopOffsetX: driftX)
             } else if cycle < 4.2 {
-                let f = (Int(tPet * 8.0) % 8) + 1
-                return CelFrameState(assetName: animName("p", frame: f), hopOffsetX: driftX)
+                return CelFrameState(assetName: bankFrame("p", time: tPet, legacyRate: 8.0), hopOffsetX: driftX)
             } else if cycle < 4.44 {
                 return CelFrameState(assetName: celName(2), hopOffsetX: driftX)
             } else if cycle < 6.0 {
-                let f = (Int(tPet * 7.0) % 10) + 1
-                return CelFrameState(assetName: animName("h", frame: f), hopOffsetX: driftX, isExcited: true)
+                return CelFrameState(assetName: bankFrame("h", time: tPet), hopOffsetX: driftX, isExcited: true)
             } else {
-                let f = (Int(tPet * 5.2) % 16) + 1
-                return CelFrameState(assetName: animName("i", frame: f), hopOffsetX: driftX)
+                return CelFrameState(assetName: bankFrame("i", time: tPet), hopOffsetX: driftX)
             }
 
         case .idle:
@@ -280,17 +276,14 @@ struct ProceduralPetRigView: View {
             let leanX = focus.x * minDim * 0.014
             if focus.y < -0.18 {
                 // Touching head/ears -> blissful half-lidded purr & happy smile!
-                let f = (Int(tPet * 7.2) % 10) + 1
                 let useBlink = (Int(tPet * 2.0) % 3 == 0)
-                return CelFrameState(assetName: useBlink ? celName(2) : animName("h", frame: f), hopOffsetX: leanX, isExcited: true)
+                return CelFrameState(assetName: useBlink ? celName(2) : bankFrame("h", time: tPet, legacyRate: 7.2), hopOffsetX: leanX, isExcited: true)
             } else if focus.y > 0.20 {
                 // Touching belly -> playful paw-batting reaction!
-                let f = (Int(tPet * 8.5) % 8) + 1
-                return CelFrameState(assetName: animName("p", frame: f), hopOffsetX: leanX, isExcited: true)
+                return CelFrameState(assetName: bankFrame("p", time: tPet), hopOffsetX: leanX, isExcited: true)
             } else {
                 // Chin / cheek scratch -> warm smiling squint!
-                let f = (Int(tPet * 7.5) % 10) + 1
-                return CelFrameState(assetName: animName("h", frame: f), hopOffsetX: leanX, isExcited: true)
+                return CelFrameState(assetName: bankFrame("h", time: tPet, legacyRate: 7.5), hopOffsetX: leanX, isExcited: true)
             }
         }
         if brushRuffleAmount > 0.08 {
@@ -298,44 +291,39 @@ struct ProceduralPetRigView: View {
             if purrPhase > 2.25 {
                 return CelFrameState(assetName: celName(2), isExcited: true)
             }
-            let f = (Int(tPet * 7.0) % 10) + 1
-            return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
+            return CelFrameState(assetName: bankFrame("h", time: tPet), isExcited: true)
         }
         if isHappySquint {
             let cycle = tPet.truncatingRemainder(dividingBy: 4.4)
             if cycle > 3.1 && cycle < 3.9 {
-                let f = (Int(tPet * 7.5) % 8) + 1
-                return CelFrameState(assetName: animName("m", frame: f), isExcited: true)
+                return CelFrameState(assetName: bankFrame("m", time: tPet), isExcited: true)
             }
-            let f = (Int(tPet * 7.0) % 10) + 1
-            return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
+            return CelFrameState(assetName: bankFrame("h", time: tPet), isExcited: true)
         }
         if tapBounceScale > 0.1 {
-            let f = (Int(tPet * 7.0) % 10) + 1
-            return CelFrameState(assetName: animName("h", frame: f), hopOffsetY: -minDim * 0.025, isExcited: true)
+            return CelFrameState(assetName: bankFrame("h", time: tPet), hopOffsetY: -minDim * 0.025, isExcited: true)
         }
 
         // 3. Resting pose -> deep tranquil 12-frame sleeping breath loop (~3.75s / breath)
         if pose == .resting {
+            if let authored = authoredFrame("s", elapsed: tPet) { return authored }
             let napCycle = tPet.truncatingRemainder(dividingBy: 16.0)
             if napCycle > 15.1 {
                 return CelFrameState(assetName: celName(2), isSleeping: false)
             }
-            let sleepIdx = (Int(tPet * 3.2) % 12) + 1
-            return CelFrameState(assetName: animName("s", frame: sleepIdx), isSleeping: true)
+            return CelFrameState(assetName: bankFrame("s", time: tPet), isSleeping: true)
         }
 
         // 4. Calm living idle cel loop (5.2fps `i1`..`i16` = 3.08s per gentle breath + lazy tail drift + natural blink `f2`)
+        if let authored = authoredFrame("i", elapsed: tPet) { return authored }
         let t = tPet.truncatingRemainder(dividingBy: 10.8)
         if (t >= 3.10 && t < 3.30) || (t >= 6.40 && t < 6.56) || (t >= 6.72 && t < 6.88) {
             return CelFrameState(assetName: celName(2))
         }
         if t >= 8.40 && t < 9.85 {
-            let f = (Int(tPet * 6.8) % 10) + 1
-            return CelFrameState(assetName: animName("h", frame: f), isExcited: true)
+            return CelFrameState(assetName: bankFrame("h", time: tPet, legacyRate: 6.8), isExcited: true)
         }
-        let idleIdx = (Int(tPet * 5.2) % 16) + 1
-        return CelFrameState(assetName: animName("i", frame: idleIdx))
+        return CelFrameState(assetName: bankFrame("i", time: tPet))
     }
 
     @ViewBuilder
@@ -410,13 +398,19 @@ struct ProceduralPetRigView: View {
 
                     // Wardrobe accessory bound cleanly to sitting/standing poses (f1..f5); hidden on curled nap (f6)
                     if !state.isSleeping, let outfitID, let item = ShopCatalog.item(id: outfitID) {
+                        let authoredNeck = state.playback?.player.clip.anchors?.neck ?? CelLibrary.manifest(for: pet.id)?.anchors?.neck
+                        let neck = if let authoredNeck, authoredNeck.count == 3, !isStaticSnapshot {
+                            (u: CGFloat(authoredNeck[0]), v: CGFloat(authoredNeck[1]), width: CGFloat(authoredNeck[2]))
+                        } else {
+                            calibratedNeckAnchor
+                        }
                         let actionNeckYOffset: CGFloat = (playfulAction == .walking) ? -minDim * 0.012 : 0
                         WardrobeSocketOverlayCanvas(
                             item: item,
                             neckAnchor: (
-                                u: calibratedNeckAnchor.u,
-                                v: calibratedNeckAnchor.v + actionNeckYOffset / max(1, h),
-                                width: calibratedNeckAnchor.width
+                                u: neck.u,
+                                v: neck.v + actionNeckYOffset / max(1, h),
+                                width: neck.width
                             ),
                             canvasSize: CGSize(width: w, height: h),
                             time: isStaticSnapshot ? 0.5 : time
