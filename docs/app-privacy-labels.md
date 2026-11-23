@@ -6,7 +6,7 @@ _Pawprint Days (足印日記) · written 2026-11-23 · matches `PawprintDays/Res
 
 Precise location, steps, the diary and companions are processed **on the device only**. There is no account, no server, no analytics SDK, no ads and no third-party code. Nothing is used to track people.
 
-**One exception — live weather.** On a real device `WeatherSyncService.fetchLiveWeather` sends latitude/longitude **rounded to 0.01° (~1.1 km)** to `api.open-meteo.com` (at most once per 30 min; the simulator and offline path never call it). That is *Coarse Location* leaving the device to a third-party service, so it **must be declared** as collected. Open-Meteo also sees the request IP address as any web server does; no identifier is sent. If you would rather ship a literally "Data Not Collected" label, remove or replace this call (e.g. WeatherKit or a local time-of-day inference only) — see open questions in the PR notes.
+**One exception — live weather.** On a real device `WeatherSyncService.fetchLiveWeather` sends latitude/longitude **rounded to 0.01° (~1.1 km)** to `api.open-meteo.com` (at most once per 30 min; the simulator and offline path never call it). That is *Coarse Location* leaving the device to a third-party service, so it **must be declared** as collected. Open-Meteo also sees the request IP address as any web server does; no identifier is sent. Decision (2026-11-23): keep Open-Meteo and declare it; real weather stays always on with no settings toggle. WeatherKit is a possible post-launch upgrade, not needed for 1.0.
 
 ## Answers for App Store Connect → App Privacy
 
@@ -48,7 +48,7 @@ Re-run the audit (`grep -rnE "UserDefaults|creationDate|modificationDate|systemU
 
 ## Permission strings (Info.plist, already present)
 
-- `NSLocationWhenInUseUsageDescription` — precise position for 75 m street-corner encounters and watercolor stroll trail; stays on device.
+- `NSLocationWhenInUseUsageDescription` — precise position for 75 m street-corner encounters and watercolor stroll trail; stays on device. The string also discloses that a ~1 km blurred location is sent for live weather (real weather is always on by design — no in-app toggle; offline/failed requests fall back to local time-of-day lighting).
 - `NSLocationAlwaysAndWhenInUseUsageDescription` — only if the player opts into remembering long stops.
 - `NSMotionUsageDescription` — pedometer → step coins; no health data uploaded.
 - Local notifications (opt-in, added by task 2.2) need no usage-description string; the system permission prompt is requested at runtime.
