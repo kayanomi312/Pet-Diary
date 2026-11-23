@@ -48,121 +48,122 @@ struct Sunroom25DStageView: View {
             let floorHorizonY = viewH * 0.455
             let floorBottomY = viewH * 0.855
 
-            ZStack {
-                // MARK: Layer 1A — Back Hand-Painted Sunroom Wall & Sunlit Window (0.35x Parallax)
+            TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 60, reduceMotion: reduceMotion))) { timeline in
+                let now = timeline.date
                 ZStack {
-                    if let uiBg = UIImage(named: "bg_home_sunroom") {
-                        Image(uiImage: uiBg)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: stageW, height: viewH)
-                            .overlay(
-                                Rectangle()
-                                    .fill(sunroomThemeTint(weather: coordinator.activeWeather, theme: coordinator.ledger.activeRoomTheme))
-                                    .blendMode(.multiply)
+                    // MARK: Layer 1A — Back Hand-Painted Sunroom Wall & Sunlit Window (0.35x Parallax)
+                    ZStack {
+                        if let uiBg = UIImage(named: "bg_home_sunroom") {
+                            Image(uiImage: uiBg)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: stageW, height: viewH)
+                                .overlay(
+                                    Rectangle()
+                                        .fill(sunroomThemeTint(weather: coordinator.activeWeather, theme: coordinator.ledger.activeRoomTheme))
+                                        .blendMode(.multiply)
+                                )
+                        } else {
+                            LinearGradient(
+                                colors: [Color(hex: "#F2E9D8"), Color(hex: "#DFC9A8")],
+                                startPoint: .top,
+                                endPoint: .bottom
                             )
-                    } else {
-                        LinearGradient(
-                            colors: [Color(hex: "#F2E9D8"), Color(hex: "#DFC9A8")],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+                        }
                     }
-                }
-                .offset(x: effectivePan * (reduceMotion ? 1 : 0.35))
+                    .offset(x: effectivePan * (reduceMotion ? 1 : 0.35))
 
-                // MARK: Layer 1B — True 1-Point Perspective 2.5D Cedar Floorboard Plane, Baseboard & Rug (0.88x Parallax)
-                PerspectiveCedarFloorCanvas(
-                    horizonY: floorHorizonY,
-                    weather: coordinator.activeWeather,
-                    theme: coordinator.ledger.activeRoomTheme,
-                    verandaUnlocked: coordinator.ledger.verandaUnlocked
-                )
-                .frame(width: stageW, height: viewH)
-                .offset(x: effectivePan * (reduceMotion ? 1 : 0.88))
+                    // MARK: Layer 1B — True 1-Point Perspective 2.5D Cedar Floorboard Plane, Baseboard & Rug (0.88x Parallax)
+                    PerspectiveCedarFloorCanvas(
+                        horizonY: floorHorizonY,
+                        weather: coordinator.activeWeather,
+                        theme: coordinator.ledger.activeRoomTheme,
+                        verandaUnlocked: coordinator.ledger.verandaUnlocked
+                    )
+                    .frame(width: stageW, height: viewH)
+                    .offset(x: effectivePan * (reduceMotion ? 1 : 0.88))
 
-                // MARK: Layer 1C — Volumetric Sunbeams, Calendar Seasonal Window Ambiance & Tappable Curio Shelf (0.55x Parallax)
-                if !reduceMotion {
-                    SunroomAtmosphereParticlesView(weather: coordinator.activeWeather)
-                        .offset(x: effectivePan * (reduceMotion ? 1 : 0.55))
-
-                    SeasonalWindowAmbianceOverlay(date: coordinator.currentSimulatedDate)
+                    // MARK: Layer 1C — Volumetric Sunbeams, Calendar Seasonal Window Ambiance & Tappable Curio Shelf (0.55x Parallax)
+                    SunroomAmbientLayers(weather: coordinator.activeWeather, date: now, reduceMotion: reduceMotion)
                         .frame(width: stageW, height: viewH)
-                        .offset(x: effectivePan * (reduceMotion ? 1 : 0.58))
-                        .allowsHitTesting(false)
+                        .offset(x: effectivePan * (reduceMotion ? 1 : 0.35))
 
-                    if coordinator.activeWeather == .dusk {
-                        DuskFireflyMotesOverlay()
+                    if !reduceMotion {
+                        SeasonalWindowAmbianceOverlay(stageDate: now, date: coordinator.currentSimulatedDate)
                             .frame(width: stageW, height: viewH)
-                            .offset(x: effectivePan * (reduceMotion ? 1 : 0.70))
+                            .offset(x: effectivePan * (reduceMotion ? 1 : 0.58))
                             .allowsHitTesting(false)
-                    }
-                }
 
-                if !coordinator.ledger.foragedCurios.isEmpty {
-                    WindowsillCurioShelfView(
-                        curios: Array(coordinator.ledger.foragedCurios.prefix(6)),
-                        onTapCurio: { entry in
-                            HapticsEngine.shared.playBrushStrokeTick()
-                            CozySoundEngine.shared.playTeapotClink()
-                            onTapWindowsillCurio?(entry)
+                        if coordinator.activeWeather == .dusk {
+                            DuskFireflyMotesOverlay(stageDate: now)
+                                .frame(width: stageW, height: viewH)
+                                .offset(x: effectivePan * (reduceMotion ? 1 : 0.70))
+                                .allowsHitTesting(false)
+                        }
+                    }
+
+                    if !coordinator.ledger.foragedCurios.isEmpty {
+                        WindowsillCurioShelfView(
+                            curios: Array(coordinator.ledger.foragedCurios.prefix(6)),
+                            onTapCurio: { entry in
+                                HapticsEngine.shared.playBrushStrokeTick()
+                                CozySoundEngine.shared.playTeapotClink()
+                                onTapWindowsillCurio?(entry)
+                            }
+                        )
+                        .position(x: stageW * 0.50, y: floorHorizonY - 26)
+                        .offset(x: effectivePan * (reduceMotion ? 1 : 0.60))
+                    }
+
+                    // Hanging Window Beam Decor: Swipeable Edo Glass Wind Chime + Crafted Origamis!
+                    HangingWindowDecorBeamView(
+                        origamis: coordinator.indoorState.hangingOrigamis,
+                        isRinging: windChimeRingPulse,
+                        onRingChime: {
+                            coordinator.ringSunroomWindChime()
+                            roaming.emitFloatingBurst(at: CGPoint(x: 0.48, y: 0.16), text: "♪ 叮噹清響", colorHex: "#4A7A76")
+                            withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) {
+                                windChimeRingPulse = true
+                            }
+                            Task { @MainActor in
+                                try? await Task.sleep(for: .milliseconds(700))
+                                withAnimation(.easeOut(duration: 0.3)) { windChimeRingPulse = false }
+                            }
                         }
                     )
-                    .position(x: stageW * 0.50, y: floorHorizonY - 26)
-                    .offset(x: effectivePan * (reduceMotion ? 1 : 0.60))
-                }
+                    .position(x: stageW * 0.50, y: max(116, floorHorizonY - 126))
+                    .offset(x: effectivePan * (reduceMotion ? 1 : 0.50))
 
-                // Hanging Window Beam Decor: Swipeable Edo Glass Wind Chime + Crafted Origamis!
-                HangingWindowDecorBeamView(
-                    origamis: coordinator.indoorState.hangingOrigamis,
-                    isRinging: windChimeRingPulse,
-                    onRingChime: {
-                        coordinator.ringSunroomWindChime()
-                        roaming.emitFloatingBurst(at: CGPoint(x: 0.48, y: 0.16), text: "♪ 叮噹清響", colorHex: "#4A7A76")
-                        withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) {
-                            windChimeRingPulse = true
+                    // Pinned Watercolor Diary Postcard mounted with Washi Tape on the back left wall
+                    if let pinnedID = coordinator.indoorState.pinnedPostcardEncounterID,
+                       let enc = coordinator.encounters.first(where: { $0.encounterUUID == pinnedID }),
+                       let pngData = enc.bakedSnapshotPNGData,
+                       let img = UIImage(data: pngData) {
+                        PinnedWallPostcardView(image: img, placeLabel: enc.siteDisplayLabel) {
+                            HapticsEngine.shared.playBrushStrokeTick()
+                            CozySoundEngine.shared.playPaperFlip()
+                            coordinator.showWhisper("牆上的珍藏明信片：\(enc.narrativeLine)")
                         }
-                        Task { @MainActor in
-                            try? await Task.sleep(for: .milliseconds(700))
-                            withAnimation(.easeOut(duration: 0.3)) { windChimeRingPulse = false }
+                        .position(x: stageW * 0.24, y: floorHorizonY - 76)
+                        .offset(x: effectivePan * (reduceMotion ? 1 : 0.44))
+                    }
+
+                    // Shy Undiscovered Mystical Companion peeking outside the Sunroom Window!
+                    if !isDecoratingMode, !isFeatherWandMode, let visitorID = coordinator.currentWindowVisitorPetID {
+                        let visits = coordinator.indoorState.windowVisitCounts[visitorID] ?? 0
+                        SunroomWindowVisitorView(
+                            petSpec: PetCatalog.pet(id: visitorID),
+                            weather: coordinator.activeWeather,
+                            visitCount: visits,
+                            greetedToday: coordinator.hasGreetedWindowVisitorToday
+                        ) {
+                            coordinator.greetWindowVisitor(petID: visitorID)
                         }
+                        .position(x: stageW * 0.76, y: floorHorizonY - 46)
+                        .offset(x: effectivePan * (reduceMotion ? 1 : 0.52))
                     }
-                )
-                .position(x: stageW * 0.50, y: max(116, floorHorizonY - 126))
-                .offset(x: effectivePan * (reduceMotion ? 1 : 0.50))
 
-                // Pinned Watercolor Diary Postcard mounted with Washi Tape on the back left wall
-                if let pinnedID = coordinator.indoorState.pinnedPostcardEncounterID,
-                   let enc = coordinator.encounters.first(where: { $0.encounterUUID == pinnedID }),
-                   let pngData = enc.bakedSnapshotPNGData,
-                   let img = UIImage(data: pngData) {
-                    PinnedWallPostcardView(image: img, placeLabel: enc.siteDisplayLabel) {
-                        HapticsEngine.shared.playBrushStrokeTick()
-                        CozySoundEngine.shared.playPaperFlip()
-                        coordinator.showWhisper("牆上的珍藏明信片：\(enc.narrativeLine)")
-                    }
-                    .position(x: stageW * 0.24, y: floorHorizonY - 76)
-                    .offset(x: effectivePan * (reduceMotion ? 1 : 0.44))
-                }
-
-                // Shy Undiscovered Mystical Companion peeking outside the Sunroom Window!
-                if !isDecoratingMode, !isFeatherWandMode, let visitorID = coordinator.currentWindowVisitorPetID {
-                    let visits = coordinator.indoorState.windowVisitCounts[visitorID] ?? 0
-                    SunroomWindowVisitorView(
-                        petSpec: PetCatalog.pet(id: visitorID),
-                        weather: coordinator.activeWeather,
-                        visitCount: visits,
-                        greetedToday: coordinator.hasGreetedWindowVisitorToday
-                    ) {
-                        coordinator.greetWindowVisitor(petID: visitorID)
-                    }
-                    .position(x: stageW * 0.76, y: floorHorizonY - 46)
-                    .offset(x: effectivePan * (reduceMotion ? 1 : 0.52))
-                }
-
-                // MARK: Layer 2 — Interactive 2.5D Depth-Sorted Floor Stage (Furniture + Free-Roaming Pets)
-                TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 60.0, reduceMotion: reduceMotion))) { timeline in
-                    let now = timeline.date
+                    // MARK: Layer 2 — Interactive 2.5D Depth-Sorted Floor Stage (Furniture + Free-Roaming Pets)
                     ZStack {
                         // Tap anywhere on the 2.5D wooden floor to call the nearest pet over!
                         // Hit area covers only the floor, so taps on the window wall (window visitor,
@@ -735,17 +736,17 @@ struct Sunroom25DStageView: View {
                             weather: coordinator.activeWeather
                         )
                     }
-                }
-                .offset(x: effectivePan)
+                    .offset(x: effectivePan)
 
-                // MARK: Layer 3 — Foreground Out-of-Focus Botanical & Timber Depth Frame (1.32x Parallax!)
-                ForegroundBotanicalParallaxOverlay(weather: coordinator.activeWeather)
-                    .frame(width: viewW + 260, height: viewH)
-                    .offset(x: effectivePan * (reduceMotion ? 1 : 1.32))
-                    .allowsHitTesting(false)
+                    // MARK: Layer 3 — Foreground Out-of-Focus Botanical & Timber Depth Frame (1.32x Parallax!)
+                    ForegroundBotanicalParallaxOverlay(weather: coordinator.activeWeather)
+                        .frame(width: viewW + 260, height: viewH)
+                        .offset(x: effectivePan * (reduceMotion ? 1 : 1.32))
+                        .allowsHitTesting(false)
+                }
+                .frame(width: viewW, height: viewH)
+                .clipped()
             }
-            .frame(width: viewW, height: viewH)
-            .clipped()
         }
         .ignoresSafeArea()
     }
@@ -1065,29 +1066,27 @@ private struct SpeciesRoomMagicAuraCanvas: View {
 
 /// Gentle glowing amber dusk fireflies / lantern motes drifting slowly through the 2.5D Sunroom at twilight!
 private struct DuskFireflyMotesOverlay: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let stageDate: Date
     var body: some View {
-        TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 24.0, reduceMotion: reduceMotion))) { timeline in
-            let t = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
-            Canvas { ctx, size in
-                for idx in 0..<10 {
-                    let seed = Double(idx) * 1.73
-                    let baseX = size.width * (0.12 + 0.76 * CGFloat((idx * 37 % 100)) / 100.0)
-                    let baseY = size.height * (0.28 + 0.44 * CGFloat((idx * 53 % 100)) / 100.0)
-                    let px = baseX + CGFloat(sin(t * 0.35 + seed)) * 24
-                    let py = baseY + CGFloat(cos(t * 0.28 + seed * 1.3)) * 18
-                    let glow = 0.25 + 0.55 * (0.5 + 0.5 * sin(t * 1.1 + seed * 2.0))
-                    let r: CGFloat = 9.0
-                    ctx.fill(
-                        Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)),
-                        with: .radialGradient(
-                            Gradient(colors: [Color(hex: "#FFE79B").opacity(glow), .clear]),
-                            center: CGPoint(x: px, y: py),
-                            startRadius: 0.5,
-                            endRadius: r
-                        )
+        let t = stageDate.timeIntervalSinceReferenceDate
+        Canvas { ctx, size in
+            for idx in 0..<10 {
+                let seed = Double(idx) * 1.73
+                let baseX = size.width * (0.12 + 0.76 * CGFloat((idx * 37 % 100)) / 100.0)
+                let baseY = size.height * (0.28 + 0.44 * CGFloat((idx * 53 % 100)) / 100.0)
+                let px = baseX + CGFloat(sin(t * 0.35 + seed)) * 24
+                let py = baseY + CGFloat(cos(t * 0.28 + seed * 1.3)) * 18
+                let glow = 0.25 + 0.55 * (0.5 + 0.5 * sin(t * 1.1 + seed * 2.0))
+                let r: CGFloat = 9.0
+                ctx.fill(
+                    Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)),
+                    with: .radialGradient(
+                        Gradient(colors: [Color(hex: "#FFE79B").opacity(glow), .clear]),
+                        center: CGPoint(x: px, y: py),
+                        startRadius: 0.5,
+                        endRadius: r
                     )
-                }
+                )
             }
         }
     }
@@ -1096,7 +1095,7 @@ private struct DuskFireflyMotesOverlay: View {
 /// Calendar-driven subtle seasonal ambiance outside the Sunroom window (zero FOMO, pure living charm!):
 /// Spring sakura petals, Summer warm fireflies, Autumn golden ginkgo leaves, Winter cozy frosted windowpanes.
 private struct SeasonalWindowAmbianceOverlay: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let stageDate: Date
     let date: Date
 
     private var season: Int {
@@ -1110,57 +1109,55 @@ private struct SeasonalWindowAmbianceOverlay: View {
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 20.0, reduceMotion: reduceMotion))) { timeline in
-            let t = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
-            Canvas { ctx, size in
-                switch season {
-                case 0: // Spring sakura petals drifting gently across window light
-                    for idx in 0..<8 {
-                        let phase = (t * 0.11 + Double(idx) * 0.14).truncatingRemainder(dividingBy: 1.0)
-                        let px = size.width * (0.14 + 0.72 * CGFloat((idx * 41 % 100)) / 100.0) + CGFloat(sin(t * 0.8 + Double(idx))) * 22
-                        let py = size.height * (0.06 + CGFloat(phase) * 0.42)
-                        let alpha = sin(phase * .pi) * 0.55
-                        ctx.fill(
-                            Path(ellipseIn: CGRect(x: px - 4, y: py - 2.2, width: 8, height: 4.5)),
-                            with: .color(Color(hex: "#F6C8D2").opacity(alpha))
+        let t = stageDate.timeIntervalSinceReferenceDate
+        Canvas { ctx, size in
+            switch season {
+            case 0: // Spring sakura petals drifting gently across window light
+                for idx in 0..<8 {
+                    let phase = (t * 0.11 + Double(idx) * 0.14).truncatingRemainder(dividingBy: 1.0)
+                    let px = size.width * (0.14 + 0.72 * CGFloat((idx * 41 % 100)) / 100.0) + CGFloat(sin(t * 0.8 + Double(idx))) * 22
+                    let py = size.height * (0.06 + CGFloat(phase) * 0.42)
+                    let alpha = sin(phase * .pi) * 0.55
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: px - 4, y: py - 2.2, width: 8, height: 4.5)),
+                        with: .color(Color(hex: "#F6C8D2").opacity(alpha))
+                    )
+                }
+            case 1: // Summer soft drifting pollen & warm glow motes
+                for idx in 0..<7 {
+                    let seed = Double(idx) * 1.9
+                    let px = size.width * (0.18 + 0.64 * CGFloat((idx * 31 % 100)) / 100.0) + CGFloat(sin(t * 0.4 + seed)) * 18
+                    let py = size.height * (0.12 + 0.30 * CGFloat((idx * 47 % 100)) / 100.0) + CGFloat(cos(t * 0.35 + seed)) * 12
+                    let alpha = 0.25 + 0.30 * sin(t * 1.2 + seed)
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: px - 3, y: py - 3, width: 6, height: 6)),
+                        with: .color(Color(hex: "#FFF0B3").opacity(alpha))
+                    )
+                }
+            case 2: // Autumn golden ginkgo leaves gliding slowly past the window
+                for idx in 0..<7 {
+                    let phase = (t * 0.09 + Double(idx) * 0.17).truncatingRemainder(dividingBy: 1.0)
+                    let px = size.width * (0.15 + 0.70 * CGFloat((idx * 43 % 100)) / 100.0) + CGFloat(cos(t * 0.7 + Double(idx))) * 26
+                    let py = size.height * (0.06 + CGFloat(phase) * 0.40)
+                    let alpha = sin(phase * .pi) * 0.52
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: px - 5, y: py - 3, width: 10, height: 6)),
+                        with: .color(Color(hex: "#E6B44C").opacity(alpha))
+                    )
+                }
+            default: // Winter delicate frosted watercolor rim along top window corners
+                let leftFrost = CGRect(x: size.width * 0.08, y: size.height * 0.05, width: 120, height: 80)
+                let rightFrost = CGRect(x: size.width * 0.72, y: size.height * 0.05, width: 120, height: 80)
+                for rect in [leftFrost, rightFrost] {
+                    ctx.fill(
+                        Path(ellipseIn: rect),
+                        with: .radialGradient(
+                            Gradient(colors: [Color.white.opacity(0.32), .clear]),
+                            center: CGPoint(x: rect.midX, y: rect.midY),
+                            startRadius: 4,
+                            endRadius: 60
                         )
-                    }
-                case 1: // Summer soft drifting pollen & warm glow motes
-                    for idx in 0..<7 {
-                        let seed = Double(idx) * 1.9
-                        let px = size.width * (0.18 + 0.64 * CGFloat((idx * 31 % 100)) / 100.0) + CGFloat(sin(t * 0.4 + seed)) * 18
-                        let py = size.height * (0.12 + 0.30 * CGFloat((idx * 47 % 100)) / 100.0) + CGFloat(cos(t * 0.35 + seed)) * 12
-                        let alpha = 0.25 + 0.30 * sin(t * 1.2 + seed)
-                        ctx.fill(
-                            Path(ellipseIn: CGRect(x: px - 3, y: py - 3, width: 6, height: 6)),
-                            with: .color(Color(hex: "#FFF0B3").opacity(alpha))
-                        )
-                    }
-                case 2: // Autumn golden ginkgo leaves gliding slowly past the window
-                    for idx in 0..<7 {
-                        let phase = (t * 0.09 + Double(idx) * 0.17).truncatingRemainder(dividingBy: 1.0)
-                        let px = size.width * (0.15 + 0.70 * CGFloat((idx * 43 % 100)) / 100.0) + CGFloat(cos(t * 0.7 + Double(idx))) * 26
-                        let py = size.height * (0.06 + CGFloat(phase) * 0.40)
-                        let alpha = sin(phase * .pi) * 0.52
-                        ctx.fill(
-                            Path(ellipseIn: CGRect(x: px - 5, y: py - 3, width: 10, height: 6)),
-                            with: .color(Color(hex: "#E6B44C").opacity(alpha))
-                        )
-                    }
-                default: // Winter delicate frosted watercolor rim along top window corners
-                    let leftFrost = CGRect(x: size.width * 0.08, y: size.height * 0.05, width: 120, height: 80)
-                    let rightFrost = CGRect(x: size.width * 0.72, y: size.height * 0.05, width: 120, height: 80)
-                    for rect in [leftFrost, rightFrost] {
-                        ctx.fill(
-                            Path(ellipseIn: rect),
-                            with: .radialGradient(
-                                Gradient(colors: [Color.white.opacity(0.32), .clear]),
-                                center: CGPoint(x: rect.midX, y: rect.midY),
-                                startRadius: 4,
-                                endRadius: 60
-                            )
-                        )
-                    }
+                    )
                 }
             }
         }
