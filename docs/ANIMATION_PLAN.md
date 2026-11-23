@@ -172,8 +172,8 @@ A4.* props/FX — after A0, in parallel with A1/A2
 > **Done when:** 12 unique frames, `tools/frames/lint pet_04` green, contact sheet + GIF in the PR, 30 s Gallery recording.
 > **Report:** branch, head SHA, lint output, preview paths.
 
-## 5. Decisions needed from you
-1. **Source resolution 768 px** (PetFrames grows from 13 MB to roughly 50–60 MB of HEIC before any new clips; runtime memory stays flat because A3.4 decodes at display size) or keep 512 and accept slight softness in the Encounter view?
-2. **Right-facing art** for asymmetric pets (≈ +17 clips), or accept the mirror flip?
-3. **Toward/away walks (A2.4)**: worth roughly 128 more frames, or keep side-on walking and limit depth movement to shallow angles?
-4. **Git LFS** for `art-src/` (recommended), or keep the PNG sources outside the repo?
+## 5. Decisions (settled 2026-11-24: defaults kept)
+1. **Source resolution: 768 px.** PetFrames grows from 13 MB to roughly 50–60 MB of HEIC before new clips; runtime memory stays flat via A3.4.
+2. **Right-facing art: yes.** Authored right-facing clips for asymmetric pets 03, 04 and 08 (no mirror flip for them).
+3. **Toward/away walks (A2.4): yes.** `wf`/`wb` for all 8 pets.
+4. **Art sources: Git LFS** for `art-src/**/*.png` if `git lfs` is installed; otherwise git-ignored and documented in `art-src/README.md`.
