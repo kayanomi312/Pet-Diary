@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Pawprint Days Cel Spec v2",
+  "type": "object",
+  "required": ["pet", "spec", "clips"],
+  "properties": {
+    "pet": { "type": "string", "pattern": "^pet_0[1-8]$" },
+    "spec": { "const": 2 },
+    "clips": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/clip" }
+    },
+    "anchors": { "$ref": "#/$defs/anchors" },
+    "strideLengthUV": { "type": "number", "exclusiveMinimum": 0 }
+  },
+  "$defs": {
+    "anchors": {
+      "type": "object",
+      "properties": {
+        "neck": {
+          "type": "array",
+          "items": { "type": "number", "minimum": 0, "maximum": 1 },
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "clip": {
+      "type": "object",
+      "required": ["bank", "frames", "fps", "loop"],
+      "properties": {
+        "bank": { "type": "string", "pattern": "^[a-z]+$" },
+        "frames": { "type": "integer", "minimum": 1, "maximum": 99 },
+        "fps": { "type": "number", "exclusiveMinimum": 0, "maximum": 120 },
+        "loop": { "enum": ["loop", "once", "pingpong"] },
+        "holds": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[1-9][0-9]?$" },
+          "additionalProperties": { "type": "integer", "minimum": 1, "maximum": 120 }
+        },
+        "events": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "type": "integer", "minimum": 1, "maximum": 99 }
+          }
+        },
+        "next": { "type": "string", "minLength": 1 },
+        "anchors": { "$ref": "#/$defs/anchors" },
+        "strideLengthUV": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    }
+  }
+}

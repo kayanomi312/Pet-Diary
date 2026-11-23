@@ -1,6 +1,31 @@
 import SwiftUI
 
 enum AppTheme {
+    enum Motion {
+        static let short = 0.16
+        static let standard = 0.28
+        static let relaxed = 0.42
+        static let reduced = Animation.easeInOut(duration: short)
+
+        enum Preset {
+            case gentle, bouncy, snappy, settle
+        }
+
+        static func resolved(_ preset: Preset, reduceMotion: Bool) -> Animation {
+            if reduceMotion { return reduced }
+            switch preset {
+            case .gentle: return .spring(response: relaxed, dampingFraction: 0.83)
+            case .bouncy: return .spring(response: standard, dampingFraction: 0.58)
+            case .snappy: return .spring(response: 0.23, dampingFraction: 0.8)
+            case .settle: return .spring(response: 0.32, dampingFraction: 0.78)
+            }
+        }
+
+        static func interval(fps: Double, reduceMotion: Bool) -> TimeInterval {
+            reduceMotion ? 1 : 1 / fps
+        }
+    }
+
     // WCAG 2.2 AAA Outdoor Contrast Palette
     static let warmPaper = Color(hex: "#FAF6EE")         // Cotton-rag paper
     static let parchmentTray = Color(hex: "#F3ECE0")     // Tactile drawer surface

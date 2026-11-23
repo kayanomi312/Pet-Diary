@@ -1,0 +1,131 @@
+{
+  "clips" : {
+    "eat" : {
+      "bank" : "e",
+      "events" : {
+        "chew" : [
+          5,
+          7
+        ]
+      },
+      "fps" : 10,
+      "frames" : 10,
+      "loop" : "once",
+      "next" : "idle"
+    },
+    "happy" : {
+      "bank" : "h",
+      "fps" : 7,
+      "frames" : 10,
+      "loop" : "loop"
+    },
+    "hop" : {
+      "bank" : "j",
+      "events" : {
+        "land" : [
+          7
+        ]
+      },
+      "fps" : 12,
+      "frames" : 9,
+      "loop" : "once",
+      "next" : "idle"
+    },
+    "idle" : {
+      "bank" : "i",
+      "events" : {
+        "blink" : [
+          14
+        ]
+      },
+      "fps" : 8,
+      "frames" : 16,
+      "holds" : {
+        "7" : 3,
+        "14" : 3
+      },
+      "loop" : "loop"
+    },
+    "mouth" : {
+      "bank" : "m",
+      "fps" : 7.5,
+      "frames" : 8,
+      "loop" : "loop"
+    },
+    "play" : {
+      "bank" : "p",
+      "fps" : 8.5,
+      "frames" : 8,
+      "loop" : "loop"
+    },
+    "signature" : {
+      "bank" : "x",
+      "events" : {
+        "wingShade" : [
+          5
+        ]
+      },
+      "fps" : 10,
+      "frames" : 10,
+      "holds" : {
+        "5" : 3,
+        "10" : 2
+      },
+      "loop" : "once",
+      "next" : "idle"
+    },
+    "sit_to_stand" : {
+      "bank" : "tu",
+      "fps" : 12,
+      "frames" : 6,
+      "loop" : "once",
+      "next" : "walk"
+    },
+    "sleep" : {
+      "bank" : "s",
+      "fps" : 3.2000000000000002,
+      "frames" : 8,
+      "loop" : "pingpong"
+    },
+    "stand_to_sit" : {
+      "bank" : "td",
+      "fps" : 12,
+      "frames" : 6,
+      "loop" : "once",
+      "next" : "idle"
+    },
+    "turn" : {
+      "bank" : "tn",
+      "fps" : 12,
+      "frames" : 5,
+      "loop" : "once",
+      "next" : "walk"
+    },
+    "walk" : {
+      "bank" : "w",
+      "events" : {
+        "footContact" : [
+          1,
+          7
+        ]
+      },
+      "fps" : 12,
+      "frames" : 12,
+      "loop" : "loop"
+    },
+    "walk_right" : {
+      "bank" : "wr",
+      "events" : {
+        "footContact" : [
+          1,
+          7
+        ]
+      },
+      "fps" : 12,
+      "frames" : 12,
+      "loop" : "loop"
+    }
+  },
+  "pet" : "pet_04",
+  "spec" : 2
+}

@@ -1,0 +1,11 @@
+{
+  "pet": "pet_03",
+  "spec": 2,
+  "clips": {
+    "walk": { "bank": "w", "frames": 12, "fps": 12, "loop": "loop", "events": { "footContact": [1, 7] } },
+    "idle": { "bank": "i", "frames": 16, "fps": 8, "loop": "loop", "holds": { "1": 3 } },
+    "sit_to_stand": { "bank": "tu", "frames": 6, "fps": 12, "loop": "once", "next": "walk" },
+    "sleep": { "bank": "s", "frames": 12, "fps": 4, "loop": "pingpong" }
+  },
+  "anchors": { "neck": [0.42, 0.50, 0.21] }
+}

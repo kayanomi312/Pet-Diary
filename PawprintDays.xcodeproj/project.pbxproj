@@ -28,8 +28,10 @@
 		4ADCB51C815697E0AAB599C2 /* PawprintSharedActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44819E4445781D509B8BAC53 /* PawprintSharedActivity.swift */; };
 		4C5A2CDC1017220D0F44DA8B /* DiarySnapshotBaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F2454D976BB67C83BE9F36 /* DiarySnapshotBaker.swift */; };
 		541DE44C842987CE7AC096F4 /* Stage1VerificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BB82F737C708433848BA4E4 /* Stage1VerificationTests.swift */; };
+		558EF8B8951A8B564C8486B1 /* CelFrameImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E8F2B605B2C8BCD1FE7CE1 /* CelFrameImageCache.swift */; };
 		5615223262C0BE9353F20324 /* cat_purr.ahap in Resources */ = {isa = PBXBuildFile; fileRef = 8FA68C348F168F5266C8FF2B /* cat_purr.ahap */; };
 		578BC54F831104EB75548792 /* HomeSunroomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1BB69ACCDDB09346B6CD70E /* HomeSunroomView.swift */; };
+		65D8877789A213B463755FB7 /* AnimationGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0F2F7E3C3CDE85FBD2E2BFE /* AnimationGalleryView.swift */; };
 		6BAD6FE020F29A88D2B224C3 /* NarrativeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8607EA677A0697AC9B749D7A /* NarrativeEngine.swift */; };
 		6D76B7FB85BE4EA9C46B3F63 /* CozySoundEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71448162A759227F2D467E47 /* CozySoundEngine.swift */; };
 		791C6F02F784C61FDA0FD869 /* CozyOnboardingTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E4A60D543B4A7CF4B6B6FD6 /* CozyOnboardingTutorialView.swift */; };
@@ -44,6 +46,7 @@
 		B64CE2119FA3AE383C22D752 /* GameCoordinator+Progression.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D92A468F9BEDEEBA1580BCA /* GameCoordinator+Progression.swift */; };
 		B9E0D6FF5ADD861C160546AC /* GameCoordinator+Fixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 695FB44687F27EE0E023B4EB /* GameCoordinator+Fixtures.swift */; };
 		C129648729AE2C786C4E8CD7 /* PawprintAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A37DA5888EB9B52CFF84855E /* PawprintAppIntents.swift */; };
+		C22566FE27D76125FC7314B6 /* SpriteFXLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2589FA611DB3A4BC0FA7A098 /* SpriteFXLayer.swift */; };
 		C768CB603C207703F6ED3370 /* WeatherSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF3DBFDAF506E7ED900643F2 /* WeatherSyncService.swift */; };
 		C881DC0B473CB523E163DC1F /* HapticsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C568E5706C32C149A0CC402 /* HapticsEngine.swift */; };
 		C93E1B479E8580F215D66CD8 /* DiegeticProps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 071983DCB25BE655FF909410 /* DiegeticProps.swift */; };
@@ -53,6 +56,7 @@
 		D2DA54B2E0A7B9E6385CE914 /* GameCoordinator+IndoorAndRaising.swift in Sources */ = {isa = PBXBuildFile; fileRef = 187676AF72A63606215B3006 /* GameCoordinator+IndoorAndRaising.swift */; };
 		D61598D9F86F05DED885F12B /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 514894921375578990F18305 /* AppTheme.swift */; };
 		D64A6D405769C13E1DA11AB4 /* PetFrames in Resources */ = {isa = PBXBuildFile; fileRef = AEB687F1A5B3765C222D233C /* PetFrames */; };
+		D7568C1250FDF5CCFCC310F9 /* CelClipTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4981D7FA840E24791A0A24FA /* CelClipTests.swift */; };
 		D831966FC956CB4BAE66930C /* StrollRitualSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 577B6815AA46FB69A029BEF6 /* StrollRitualSheets.swift */; };
 		DB3DEA62CDF9D1CFC6329002 /* PawprintSharedActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44819E4445781D509B8BAC53 /* PawprintSharedActivity.swift */; };
 		DB3E692B58476DEC3953FFDD /* SunroomInWorldStations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C1A9B21CD584B1C4932B697 /* SunroomInWorldStations.swift */; };
@@ -61,6 +65,7 @@
 		E25FC44CEFCC856722142CF6 /* CuteKawaiiIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E7501CACD547594CF9F3CB /* CuteKawaiiIcons.swift */; };
 		E2B720A0774F3E793E5340E2 /* AnchorRotationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FAA300ED020BC39BC83F973 /* AnchorRotationEngine.swift */; };
 		E52A5349635D7FE3F78072AB /* PawprintDaysApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0740C979C9E98A4DEB2763B7 /* PawprintDaysApp.swift */; };
+		E53C8AF27625B072E9D3808E /* CelClip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 298FCD0EE8F0FAE692B68EB0 /* CelClip.swift */; };
 		EA98F78935CA143C0BF14B9F /* HardcoverSketchbookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A74C81C1FC7B537AAD7B171 /* HardcoverSketchbookView.swift */; };
 		EB7112D171106873B5C7CF43 /* GameplayBalanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F853C14BC0C2937B7ED00B3D /* GameplayBalanceTests.swift */; };
 		EC6DD98609A3BF8E763BF9EE /* GameTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A600ABFFADCDFB70A967183 /* GameTypes.swift */; };
@@ -106,12 +111,15 @@
 		1C1A9B21CD584B1C4932B697 /* SunroomInWorldStations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunroomInWorldStations.swift; sourceTree = "<group>"; };
 		1D92A468F9BEDEEBA1580BCA /* GameCoordinator+Progression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GameCoordinator+Progression.swift"; sourceTree = "<group>"; };
 		240A215BE2D51BF1C17FC3C6 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
+		2589FA611DB3A4BC0FA7A098 /* SpriteFXLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteFXLayer.swift; sourceTree = "<group>"; };
 		294ECBE64107C69E3AE79B88 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		298FCD0EE8F0FAE692B68EB0 /* CelClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelClip.swift; sourceTree = "<group>"; };
 		2FAA300ED020BC39BC83F973 /* AnchorRotationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorRotationEngine.swift; sourceTree = "<group>"; };
 		33F2454D976BB67C83BE9F36 /* DiarySnapshotBaker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiarySnapshotBaker.swift; sourceTree = "<group>"; };
 		3658077F88E869B7E55F647E /* paw_range.ahap */ = {isa = PBXFileReference; path = paw_range.ahap; sourceTree = "<group>"; };
 		3E4A60D543B4A7CF4B6B6FD6 /* CozyOnboardingTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CozyOnboardingTutorialView.swift; sourceTree = "<group>"; };
 		44819E4445781D509B8BAC53 /* PawprintSharedActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PawprintSharedActivity.swift; sourceTree = "<group>"; };
+		4981D7FA840E24791A0A24FA /* CelClipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelClipTests.swift; sourceTree = "<group>"; };
 		4A74C81C1FC7B537AAD7B171 /* HardcoverSketchbookView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardcoverSketchbookView.swift; sourceTree = "<group>"; };
 		4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stage2To4VerificationTests.swift; sourceTree = "<group>"; };
 		4EF9FFDCCCDA69DD0153196B /* dog_ball_roll.ahap */ = {isa = PBXFileReference; path = dog_ball_roll.ahap; sourceTree = "<group>"; };
@@ -136,6 +144,8 @@
 		9131649D46AD6C948295A1D7 /* StorybookGameUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorybookGameUI.swift; sourceTree = "<group>"; };
 		95711078B296384E1C6AD9A3 /* StepCoinLedgerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCoinLedgerEngine.swift; sourceTree = "<group>"; };
 		9C568E5706C32C149A0CC402 /* HapticsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticsEngine.swift; sourceTree = "<group>"; };
+		A0F2F7E3C3CDE85FBD2E2BFE /* AnimationGalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationGalleryView.swift; sourceTree = "<group>"; };
+		A2E8F2B605B2C8BCD1FE7CE1 /* CelFrameImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelFrameImageCache.swift; sourceTree = "<group>"; };
 		A37DA5888EB9B52CFF84855E /* PawprintAppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PawprintAppIntents.swift; sourceTree = "<group>"; };
 		A5396DC8F62A51EA4DBF5FA0 /* CurioCubbiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurioCubbiesView.swift; sourceTree = "<group>"; };
 		A93CFFA2DFDC1657DFAD6BE0 /* GameCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCoordinator.swift; sourceTree = "<group>"; };
@@ -175,6 +185,7 @@
 				7625FA3318755BEFCDDDB260 /* Sunroom25DStage.swift */,
 				1C1A9B21CD584B1C4932B697 /* SunroomInWorldStations.swift */,
 				60C2DCCD080EBEEA8618B504 /* TactileCareView.swift */,
+				947286CA9B4A33676431C2F2 /* Debug */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -192,6 +203,7 @@
 		527344F3CAEAF57120A6CF38 /* PawprintDaysTests */ = {
 			isa = PBXGroup;
 			children = (
+				4981D7FA840E24791A0A24FA /* CelClipTests.swift */,
 				F853C14BC0C2937B7ED00B3D /* GameplayBalanceTests.swift */,
 				1BB82F737C708433848BA4E4 /* Stage1VerificationTests.swift */,
 				4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */,
@@ -221,10 +233,13 @@
 		872466B92342D6D21A2805E3 /* Art */ = {
 			isa = PBXGroup;
 			children = (
+				298FCD0EE8F0FAE692B68EB0 /* CelClip.swift */,
+				A2E8F2B605B2C8BCD1FE7CE1 /* CelFrameImageCache.swift */,
 				B4A13283725832011B999E96 /* CozyUnifiedUI.swift */,
 				F8E7501CACD547594CF9F3CB /* CuteKawaiiIcons.swift */,
 				071983DCB25BE655FF909410 /* DiegeticProps.swift */,
 				AFF60970FD6466DF84DA9D35 /* PlaceholderAssetGenerator.swift */,
+				2589FA611DB3A4BC0FA7A098 /* SpriteFXLayer.swift */,
 				9131649D46AD6C948295A1D7 /* StorybookGameUI.swift */,
 				C8C1C754DD8A26DFF8DBC7EB /* StorybookPropArt.swift */,
 				EEA141F93210351F30F0F3DA /* Shaders */,
@@ -264,6 +279,14 @@
 				6AE753BFE83AECF2523A7649 /* PawprintDaysWidgets.swift */,
 			);
 			path = PawprintDaysWidgets;
+			sourceTree = "<group>";
+		};
+		947286CA9B4A33676431C2F2 /* Debug */ = {
+			isa = PBXGroup;
+			children = (
+				A0F2F7E3C3CDE85FBD2E2BFE /* AnimationGalleryView.swift */,
+			);
+			path = Debug;
 			sourceTree = "<group>";
 		};
 		BC023671477C43852059BC83 /* Engine */ = {
@@ -455,7 +478,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				E2B720A0774F3E793E5340E2 /* AnchorRotationEngine.swift in Sources */,
+				65D8877789A213B463755FB7 /* AnimationGalleryView.swift in Sources */,
 				D61598D9F86F05DED885F12B /* AppTheme.swift in Sources */,
+				E53C8AF27625B072E9D3808E /* CelClip.swift in Sources */,
+				558EF8B8951A8B564C8486B1 /* CelFrameImageCache.swift in Sources */,
 				791C6F02F784C61FDA0FD869 /* CozyOnboardingTutorialView.swift in Sources */,
 				6D76B7FB85BE4EA9C46B3F63 /* CozySoundEngine.swift in Sources */,
 				0B4D4E3AF991E4D6E9B5113D /* CozyUnifiedUI.swift in Sources */,
@@ -487,6 +513,7 @@
 				29D2B56A5B1A15CF8920CA22 /* RoomOccupancySolver.swift in Sources */,
 				CA8581F4D6976F1140243EA6 /* RootStageView.swift in Sources */,
 				7C018745BC28708B329A0467 /* SidewalkEncounterView.swift in Sources */,
+				C22566FE27D76125FC7314B6 /* SpriteFXLayer.swift in Sources */,
 				1EA24F4C854908AC4C4ACEBE /* StepCoinLedgerEngine.swift in Sources */,
 				D03F5B5256D397DB58C261A1 /* StorybookGameUI.swift in Sources */,
 				0437345AC7B1271F5FDA70B5 /* StorybookPropArt.swift in Sources */,
@@ -506,6 +533,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D7568C1250FDF5CCFCC310F9 /* CelClipTests.swift in Sources */,
 				EB7112D171106873B5C7CF43 /* GameplayBalanceTests.swift in Sources */,
 				541DE44C842987CE7AC096F4 /* Stage1VerificationTests.swift in Sources */,
 				32AD8FA0C4478A92BC144378 /* Stage2To4VerificationTests.swift in Sources */,

@@ -81,6 +81,7 @@ struct HybridOffspringRigView: View {
 
 /// Hand-crafted watercolor glowing Mystical Egg nestled on a woven straw cushion!
 struct GlowingMysticalEggView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let primaryHex: String
     let secondaryHex: String
     var size: CGFloat = 72
@@ -128,11 +129,11 @@ struct GlowingMysticalEggView: View {
                     }
                 )
                 .overlay(Ellipse().stroke(Color(hex: "#6B5642").opacity(0.45), lineWidth: 1.2))
-                .rotationEffect(.degrees(pulse ? 2.5 : -2.5))
+                .rotationEffect(.degrees(reduceMotion ? 0 : (pulse ? 2.5 : -2.5)))
         }
         .frame(width: size, height: size)
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.9).repeatForever(autoreverses: true)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 1.9).repeatForever(autoreverses: true)) {
                 pulse = true
             }
         }
@@ -142,6 +143,7 @@ struct GlowingMysticalEggView: View {
 // MARK: - Unified Cozy Indoor Play & Mystical Nursery Hub Sheet
 
 struct IndoorPlayHubSheet: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     enum HubTab: Int, CaseIterable {
         case wishes = 0
         case tea = 1
@@ -245,7 +247,7 @@ struct IndoorPlayHubSheet: View {
         return Button {
             HapticsEngine.shared.playBrushStrokeTick()
             CozySoundEngine.shared.playPaperFlip()
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+            withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
                 selectedTab = id
             }
         } label: {
@@ -550,7 +552,7 @@ struct IndoorPlayHubSheet: View {
 
                 if origamiFoldStep >= 3 {
                     WoodPlaqueButton(title: "再摺一件新掛飾", systemImage: "plus", tone: .warmCream, fontSize: 12.5) {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                             origamiFoldStep = 0
                         }
                     }
@@ -564,7 +566,7 @@ struct IndoorPlayHubSheet: View {
         guard origamiFoldStep < 3 else { return }
         CozySoundEngine.shared.playPaperFlip()
         HapticsEngine.shared.playBrushStrokeTick()
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
+        withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
             origamiFoldStep += 1
         }
         if origamiFoldStep == 3 {
