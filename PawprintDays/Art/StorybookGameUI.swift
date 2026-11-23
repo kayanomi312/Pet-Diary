@@ -2,15 +2,16 @@ import SwiftUI
 
 // MARK: - 1. Tactile Springy Game Button Style
 struct TactileGameButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var pressScale: CGFloat = 0.94
     var pressOffsetY: CGFloat = 2.0
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? pressScale : 1.0)
-            .offset(y: configuration.isPressed ? pressOffsetY : 0)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? pressScale : 1.0)
+            .offset(y: configuration.isPressed && !reduceMotion ? pressOffsetY : 0)
             .brightness(configuration.isPressed ? -0.03 : 0)
-            .animation(.spring(response: 0.22, dampingFraction: 0.65), value: configuration.isPressed)
+            .animation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion), value: configuration.isPressed)
     }
 }
 
@@ -190,6 +191,7 @@ struct WashiTapeStrip: View {
 
 // MARK: - 4. Unified Capsule Segmented Tab Bar (Matches Floating Dock & Care Tabs!)
 struct StitchedClothTabBar<Tab: Hashable & CaseIterable & RawRepresentable>: View where Tab.RawValue == String, Tab.AllCases: RandomAccessCollection {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var selection: Tab
     let iconProvider: (Tab) -> String
 
@@ -199,7 +201,7 @@ struct StitchedClothTabBar<Tab: Hashable & CaseIterable & RawRepresentable>: Vie
                 let active = (selection == tab)
                 Button {
                     guard !active else { return }
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                    withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
                         selection = tab
                     }
                     CozySoundEngine.shared.playPaperFlip()
@@ -411,6 +413,7 @@ struct PaintedPouchIconView: View {
 
 // MARK: - 7. Hanko Celebration Ink Stamp + Watercolor Confetti Burst
 struct HankoCelebrationStampView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let title: String
     var subtitle: String? = nil
     var stampColor: Color = AppTheme.clothBookmark
@@ -460,17 +463,17 @@ struct HankoCelebrationStampView: View {
                         .padding(3)
                 }
             )
-            .rotationEffect(.degrees(stamped ? -3.5 : -14))
-            .scaleEffect(stamped ? 1.0 : 1.75)
+            .rotationEffect(.degrees(stamped || reduceMotion ? -3.5 : -14))
+            .scaleEffect(stamped || reduceMotion ? 1.0 : 1.75)
             .opacity(stamped ? 1.0 : 0.0)
             .shadow(color: stampColor.opacity(0.25), radius: 8, y: 4)
         }
         .onAppear {
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.58)) {
+            withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) {
                 stamped = true
             }
-            withAnimation(.easeOut(duration: 0.85)) {
-                burst = true
+            if !reduceMotion {
+                withAnimation(.easeOut(duration: 0.85)) { burst = true }
             }
         }
         .allowsHitTesting(false)
@@ -479,6 +482,7 @@ struct HankoCelebrationStampView: View {
 
 // MARK: - 8. Sunroom Ambient Cozy Speech Bubble
 struct SunroomPetSpeechBubble: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let text: String
 
     var body: some View {
@@ -502,7 +506,7 @@ struct SunroomPetSpeechBubble: View {
                 .overlay(Circle().stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 0.8))
                 .offset(y: -1)
         }
-        .transition(.scale(scale: 0.75).combined(with: .opacity))
+        .transition(reduceMotion ? .opacity : .scale(scale: 0.75).combined(with: .opacity))
     }
 }
 
@@ -517,16 +521,17 @@ struct TouchSparkleSeed: Identifiable {
 }
 
 struct LiveTouchSparkleLayer: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let seeds: [TouchSparkleSeed]
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+        TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 30.0, reduceMotion: reduceMotion))) { timeline in
             let now = timeline.date
             Canvas { ctx, _ in
                 for seed in seeds {
                     let age = now.timeIntervalSince(seed.createdAt)
                     guard age >= 0 && age < 0.95 else { continue }
-                    let p = CGFloat(age / 0.95)
+                    let p = reduceMotion ? 0 : CGFloat(age / 0.95)
                     let alpha = Double(1.0 - p)
                     let x = seed.position.x + seed.driftX * p
                     let y = seed.position.y - p * 44

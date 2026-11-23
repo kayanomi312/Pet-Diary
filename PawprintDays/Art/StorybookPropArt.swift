@@ -602,7 +602,7 @@ struct SteamingGingerTeaTrayView: View {
 
     var body: some View {
         Button(action: onTap) {
-            TimelineView(.animation(minimumInterval: reduceMotion ? 1.0 : 1.0 / 24.0)) { timeline in
+            TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 24.0, reduceMotion: reduceMotion))) { timeline in
                 let t = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
                 Canvas { ctx, size in
                     let w = size.width, h = size.height
@@ -670,6 +670,7 @@ struct SteamingGingerTeaTrayView: View {
 
 // MARK: - 3. Ultra-Detailed Painterly Taiwanese Bakery Sidewalk Scene
 struct TaiwaneseBakeryStorybookBackdrop: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let weather: WeatherMode
     var isStatic: Bool = false
 
@@ -678,7 +679,7 @@ struct TaiwaneseBakeryStorybookBackdrop: View {
             if isStatic {
                 sceneCanvas(time: 1.0)
             } else {
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+                TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 30.0, reduceMotion: reduceMotion))) { timeline in
                     sceneCanvas(time: timeline.date.timeIntervalSinceReferenceDate)
                 }
             }
@@ -1116,14 +1117,15 @@ struct WickerBasketCornerButton: View {
 }
 
 struct CeramicTeapotCornerButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let isSteaming: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
-                    let t = timeline.date.timeIntervalSinceReferenceDate
+                TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 20.0, reduceMotion: reduceMotion))) { timeline in
+                    let t = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
                     Canvas { ctx, size in
                         let w = size.width, h = size.height
                         let ink = Color(hex: "#2C3536").opacity(0.76)
@@ -1201,11 +1203,12 @@ struct CeramicTeapotCornerButton: View {
 
 // MARK: - 5. Ambient Sunroom Volumetric Sunbeams, Dust Motes & Window Rain Beads
 struct SunroomAtmosphereParticlesView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let weather: WeatherMode
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
+        TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 24.0, reduceMotion: reduceMotion))) { timeline in
+            let t = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
             Canvas { ctx, size in
                 let w = size.width, h = size.height
                 if weather.isRainy {
@@ -1262,11 +1265,12 @@ struct SunroomAtmosphereParticlesView: View {
 
 // MARK: - 6. Tactile Care Cozy Sunlit Cedar Floor, Dappled Leaves & Hand-Braided Rug Backdrop
 struct TactileCareFloorBackdrop: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let weather: WeatherMode
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
+        TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 20.0, reduceMotion: reduceMotion))) { timeline in
+            let t = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
             Canvas { ctx, size in
                 let w = size.width, h = size.height
 

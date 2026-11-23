@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - 1. Physical In-World Tea & Biscuit Tray (Swirl Directly on the Sunroom Floor to Brew!)
 
 struct InWorldTeaStationView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let recipe: TeaRecipeSpec
     let onCycleRecipe: () -> Void
     let onBrewCompleted: (TeaRecipeSpec) -> Void
@@ -100,7 +101,7 @@ struct InWorldTeaStationView: View {
                         .offset(x: 20, y: 12)
                 }
                 .rotationEffect(.degrees(isSwirling ? 14 : 0))
-                .animation(.spring(response: 0.25, dampingFraction: 0.65), value: isSwirling)
+                .animation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion), value: isSwirling)
             }
             .frame(width: 84, height: 68)
             .contentShape(Circle())
@@ -165,7 +166,7 @@ struct InWorldTeaStationView: View {
         brewProgress = 0
         lastPoint = nil
         isSwirling = false
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+        withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) {
             steamBurst = true
         }
         onBrewCompleted(recipe)
@@ -238,6 +239,7 @@ struct InWorldOrigamiTableView: View {
 
 /// Lightweight live in-room folding square floating over the Sunroom floor — swipe 3 times and watch it fly to the window beam!
 struct InWorldOrigamiFoldOverlay: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let onCraftComplete: (OrigamiCraftKind) -> Void
     let onClose: () -> Void
 
@@ -321,7 +323,7 @@ struct InWorldOrigamiFoldOverlay: View {
                 .offset(y: isFlyingUp ? -240 : 0)
                 .scaleEffect(isFlyingUp ? 0.55 : 1.0)
                 .opacity(isFlyingUp ? 0.0 : 1.0)
-                .animation(.spring(response: 0.42, dampingFraction: 0.68), value: foldStep)
+                .animation(AppTheme.Motion.resolved(.gentle, reduceMotion: reduceMotion), value: foldStep)
                 .animation(.easeIn(duration: 0.55), value: isFlyingUp)
             }
             .contentShape(Rectangle())
@@ -375,6 +377,7 @@ struct InWorldOrigamiFoldOverlay: View {
 // MARK: - 3. Physical Porch Adventure Satchel (Direct In-Room Solo Errand Dispatch & Return!)
 
 struct InWorldPorchSatchelView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let activeErrand: ActivePetErrand?
     let now: Date
     let coinBalance: Int
@@ -392,7 +395,7 @@ struct InWorldPorchSatchelView: View {
                         let canAfford = coinBalance >= pack.costCoins
                         Button {
                             guard canAfford else { return }
-                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                            withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
                                 isExpanded = false
                             }
                             onSendSupply(pack)
@@ -415,7 +418,7 @@ struct InWorldPorchSatchelView: View {
                         .opacity(canAfford ? 1.0 : 0.45)
                     }
                 }
-                .transition(.scale(scale: 0.85, anchor: .bottom).combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : .scale(scale: 0.85, anchor: .bottom).combined(with: .opacity))
             }
 
             // Main physical doorway prop
@@ -460,7 +463,7 @@ struct InWorldPorchSatchelView: View {
                 Button {
                     HapticsEngine.shared.playBrushStrokeTick()
                     CozySoundEngine.shared.playPaperFlip()
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                    withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
                         isExpanded.toggle()
                     }
                 } label: {
@@ -495,6 +498,7 @@ struct InWorldPorchSatchelView: View {
 // MARK: - 4. Lightweight In-World Floating Radial Care Card for Tapped Egg / Baby (Zero Full-Screen Nursery Sheet!)
 
 struct InWorldOffspringFloatingCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let offspring: MysticalOffspringRecord
     let anchors: [AnchorSiteRecord]
     let onNurture: (PersonalityAxis, String) -> Void
@@ -623,7 +627,7 @@ struct InWorldOffspringFloatingCard: View {
                     }
                 } else if !anchors.isEmpty {
                     Button {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+                        withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
                             showGraduateCorners = true
                         }
                     } label: {
