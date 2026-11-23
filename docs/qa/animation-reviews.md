@@ -48,12 +48,26 @@ All three use 768 × 768 transparent PNGs with warm dark-brown ink, watercolor w
 | `rain` (`d88eb65`) | **Approved** | 6 × 128² (`384×256` sheet). Perspective 2:1 splash crown and expanding wash rings match `LOOK.md` §3.8. Note: directory is `art-src/fx/rain/` (vs `rain_splash/` in `LOOK.md` — align `SpriteFXLayer` loader to `rain`). |
 | `ripple` (`5717588`) | **Approved** | 8 × 256² (`1024×512` sheet). Perspective-foreshortened sepia paw stamp + expanding feathered blue-grey wash ring; clean alpha. |
 | `coin` (`5baaa45`) | **Approved (minor note)** | 6 × 256² (`768×512` sheet). Hand-painted brass coin + `+1` with paper grain and clean alpha. Omits the `#B83B32` vermilion seal rim accent from `LOOK.md` §3.6 (acceptable if intentional). |
-| `steam` (`380c441`) | **Reject — must fix** | **1) Opaque `#000000` black background** instead of transparent straight alpha (`01.png`, `08.png`, `sheet.png`). **2) Wrong visual style:** flat grey silhouette with outer glow and solid puddle blob at base instead of translucent warm-cream (`#FAF6EE`) watercolor ribbons. **3) Nearly static:** frames `01–08` show almost identical twin-ribbon silhouettes with minimal upward curl/loop flow. |
+| `steam` (`380c441`, fixup `e4c4c42`) | **Reject — still unfixed** | **1) Opaque `#000000` black background** persists in `01.png`, `08.png`, and `sheet.png` after `e4c4c42`. **2) Wrong visual style:** flat grey silhouette instead of translucent warm-cream (`#FAF6EE`) watercolor ribbons. **3) Static:** all 8 frames show identical silhouettes with no rising curl. |
 
 ---
 
-## 5. Code Review Notes (`codex/anim-code` @ `dbbaa0a`)
+## 5. A2 Character Clips Spot-Check (`codex/anim-art` @ `0b411bb`)
+
+| Clip | Status | Findings |
+|---|---|---|
+| `pet_02/x` (A2.8, `7510e64`) | **Approved** | Follows `art-src/design/signature_clips.md` beat-by-beat (sit → tuck charm → reach → floor place `y=690` → nudge → proud admire → tsundere look-away → settle). White bib/4 socks, crimson horns, burgundy wing, spade tail intact; minor note: `09`–`10` are near-identical and skull sits ~15–20 px above `y=170`. |
+| `pet_03/wr` (A2.3, `30a69dd`) | **Reject on sight — missing marking** | Clean right-facing 12-frame walk cycle on `y=690`, **but the terracotta dorsal spine scales along the back are completely absent in all 12 frames** (present in `tn/01.png`), and forehead scales are barely visible. |
+| `pet_03/tn` (A2.3, `30a69dd`) | **Approved (minor note)** | Smooth 5-frame turn (`right → 3/4 right → front → 3/4 left → left`), horns/3 forehead scales/pinecone tail/baseline intact. Minor note: in frame `03` (front view), dorsal scales peek symmetrically on both sides of the waist. |
+| `pet_06/j` (A2.6, `00013b9`) | **Approved (minor head-height note)** | Smooth 9-frame anticipation crouch → airborne leap → 4-paw landing squash → sit settle; bronze horns, lavender wisp, 4 cream socks intact. Skull sits ~25–30 px above `y=170` in `01`/`09`. |
+| `pet_07/e` (A2.5, `b3e408a`) | **Approved** | Clean 10-frame eat/chew/lip-lick loop on `y=690`; cloud ruff/ribbon stays strictly on viewer-right shoulder and crown stars remain consistent. |
+| `pet_07/tu` (A2.1, `52882c9`) | **Approved (minor duplicate note)** | Clean 6-frame sit → standing profile transition on `y=690`; `01`–`02` and `05`–`06` are visually near-identical. |
+
+---
+
+## 6. Code Review Notes (`codex/anim-code` @ `ff2917c`)
 
 1. **`tools/frames/build.swift` (`broadSilhouetteTop` heuristic):** Needs refinement or documented per-pet tolerances for horned/antlered/tall-eared species (`pet_03`, `pet_08`, `pet_04`) so `tools/frames/lint` does not fail 114 checks when skull tops are actually at `y = 170`.
 2. **`PlaceholderAssetGenerator.swift` (`events.blink`):** Wire `"blink"` event from `CelClip` manifests (used by `A1.3` in `pet_01..08.json`) so idle loops trigger a brief blink frame/overlay without popping the whole pose.
-3. **Sunroom stage bounds / crash investigation (`docs/qa/animation-baseline/`):** Ensure `SunroomRoamingEngine` UV bounds keep sprites & speech bubbles inside the visible stage (observed right-edge clipping in baseline `01-sunroom-roaming.mp4`) and monitor simulator stability after `A3.4` display-size thumbnail decoding lands.
+3. **`SpriteFXLayer.swift` (`SpriteFXKind.sleep.frameCount`):** Expects 6 cells for `fx_sleep`, while `ANIMATION_PLAN.md` / `art-src/fx/LOOK.md` specify 8 frames for `zzz`. `art-src/fx/zzz/sheet.png` is exported as a 6-frame `768×128` strip matching `SpriteFXKind.sleep`, with all 8 individual frames (`01..08.png`) plus `sheet_8f.png` preserved.
+4. **Sunroom stage bounds / crash investigation (`docs/qa/animation-baseline/`):** Ensure `SunroomRoamingEngine` UV bounds keep sprites & speech bubbles inside the visible stage (observed right-edge clipping in baseline `01-sunroom-roaming.mp4`) and monitor simulator stability after `A3.4` display-size thumbnail decoding lands.
