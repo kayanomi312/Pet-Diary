@@ -1,5 +1,18 @@
 {
   "clips" : {
+    "eat" : {
+      "bank" : "e",
+      "events" : {
+        "chew" : [
+          5,
+          7
+        ]
+      },
+      "fps" : 10,
+      "frames" : 10,
+      "loop" : "once",
+      "next" : "idle"
+    },
     "happy" : {
       "bank" : "h",
       "fps" : 7,
