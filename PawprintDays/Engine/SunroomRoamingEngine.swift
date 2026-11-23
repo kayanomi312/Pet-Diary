@@ -33,6 +33,7 @@ final class SunroomRoamingEngine {
         var waitingForWalkPose = false
         var poseStartedAt: Date = .distantPast
         var direction: CelLocomotion?
+        var hasMatchedStride = false
 
         var targetPose: CelPose {
             switch behavior {
@@ -66,8 +67,13 @@ final class SunroomRoamingEngine {
             waitingForWalkPose = !transition.players.isEmpty
             self.facingRight = nextFacing
             self.direction = direction
+            let player = CelLibrary.player(for: petID, bank: direction.bank)
+            let length = player?.clip.strideLengthUV ?? CelLibrary.manifest(for: petID)?.strideLengthUV
+            let stride = CelStride(lengthUV: length, player: player)
+            let matchedDuration = stride?.duration(forDistance: hypot(to.x - from.x, to.y - from.y))
+            hasMatchedStride = matchedDuration != nil
             behavior = .walking(from: from, to: to, startedAt: transition.arrivesAt,
-                                duration: duration, arrivalSpotIndex: arrivalSpotIndex)
+                                duration: matchedDuration ?? duration, arrivalSpotIndex: arrivalSpotIndex)
             poseStartedAt = transition.arrivesAt
         }
 
@@ -114,10 +120,13 @@ final class SunroomRoamingEngine {
                 return position
             }
             if waitingForWalkPose { return from }
-            let rawP = min(1.0, max(0.0, now.timeIntervalSince(startedAt) / max(0.2, duration)))
-            let eased = rawP < 0.5
-                ? 2.0 * rawP * rawP
-                : 1.0 - pow(-2.0 * rawP + 2.0, 2.0) / 2.0
+            let rawP = min(1.0, max(0.0, now.timeIntervalSince(startedAt) / duration))
+            let eased: Double
+            if hasMatchedStride {
+                eased = rawP
+            } else {
+                eased = rawP < 0.5 ? 2.0 * rawP * rawP : 1.0 - pow(-2.0 * rawP + 2.0, 2.0) / 2.0
+            }
             return CGPoint(
                 x: from.x + (to.x - from.x) * eased,
                 y: from.y + (to.y - from.y) * eased
@@ -359,7 +368,7 @@ final class SunroomRoamingEngine {
             switch actor.behavior {
             case .walking(_, let to, let startedAt, let duration, let arrivalSpot):
                 guard !actor.waitingForWalkPose else { break }
-                let rawP = min(1.0, max(0.0, now.timeIntervalSince(startedAt) / max(0.2, duration)))
+                let rawP = min(1.0, max(0.0, now.timeIntervalSince(startedAt) / duration))
                 let currentPos = actor.interpolatedPosition(at: now)
 
                 if rawP >= 1.0 {
