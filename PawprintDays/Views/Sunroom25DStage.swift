@@ -12,6 +12,7 @@ struct Sunroom25DStageView: View {
     var isDecoratingMode: Bool = false
     var selectedDecorateSpotIndex: Int = 1
     var isFeatherWandMode: Bool = false
+    var isPhotoMode: Bool = false
     var hidingSpotIndex: Int? = nil
     var hidingPetID: String? = nil
     var activeTeaRecipe: TeaRecipeSpec = TeaKitchenCatalog.allRecipes[0]
@@ -152,7 +153,8 @@ struct Sunroom25DStageView: View {
                         petSpec: PetCatalog.pet(id: visitorID),
                         weather: coordinator.activeWeather,
                         visitCount: visits,
-                        greetedToday: coordinator.hasGreetedWindowVisitorToday
+                        greetedToday: coordinator.hasGreetedWindowVisitorToday,
+                        isPhotoMode: isPhotoMode
                     ) {
                         coordinator.greetWindowVisitor(petID: visitorID)
                     }
@@ -227,7 +229,7 @@ struct Sunroom25DStageView: View {
                                     )
 
                                     // Sunroom Hide-and-Seek playful peeking sparkle behind this furniture spot!
-                                    if !isDecoratingMode, !isFeatherWandMode,
+                                    if !isDecoratingMode, !isFeatherWandMode, !isPhotoMode,
                                        hidingSpotIndex == spot.spotIndex,
                                        let foundPet = hidingPetID {
                                         Button {
@@ -251,16 +253,19 @@ struct Sunroom25DStageView: View {
                                         .accessibilityLabel("發現躲貓貓的小靈獸")
                                     }
                                 }
-                                Text(isDecoratingMode ? "拖曳移動 · \(spot.spotName)" : (spot.hasLovedPatina ? "✦ \(spot.spotName)" : spot.spotName))
-                                    .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                                    .foregroundStyle(isDecoratingMode ? AppTheme.forestTeal : Color(hex: "#4A3628"))
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 2)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color(hex: "#FFFDF7").opacity(0.92))
-                                            .overlay(Capsule().stroke(isDecoratingMode ? AppTheme.pawStrollChain : AppTheme.timberWarm.opacity(0.45), lineWidth: isDecoratingMode ? 1.3 : 0.9))
-                                    )
+                                let hideLabelInDecorate = isDecoratingMode && uv.y > 0.68 && selectedDecorateSpotIndex != spot.spotIndex && draggingSpotIndex != spot.spotIndex
+                                if !isPhotoMode && !hideLabelInDecorate {
+                                    Text(isDecoratingMode ? "拖曳移動 · \(spot.spotName)" : (spot.hasLovedPatina ? "✦ \(spot.spotName)" : spot.spotName))
+                                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                                        .foregroundStyle(isDecoratingMode ? AppTheme.forestTeal : Color(hex: "#4A3628"))
+                                        .padding(.horizontal, 7)
+                                        .padding(.vertical, 2)
+                                        .background(
+                                            Capsule()
+                                                .fill(Color(hex: "#FFFDF7").opacity(0.92))
+                                                .overlay(Capsule().stroke(isDecoratingMode ? AppTheme.pawStrollChain : AppTheme.timberWarm.opacity(0.45), lineWidth: isDecoratingMode ? 1.3 : 0.9))
+                                        )
+                                }
                             }
                             .scaleEffect(scale * (draggingSpotIndex == spot.spotIndex ? 1.08 : 1.0))
                             .position(x: pt.x, y: pt.y + 8 * scale)
@@ -361,11 +366,12 @@ struct Sunroom25DStageView: View {
 
                         // Physical Interactive Tea & Biscuit Tray right on the foreground floor (Swirl to Brew!)
                         if !isDecoratingMode && !isFeatherWandMode {
-                            let teaUV = CGPoint(x: 0.80, y: 0.80)
+                            let teaUV = CGPoint(x: 0.74, y: 0.80)
                             let teaPt = floorPoint(uv: teaUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
                             let teaScale = depthScale(for: teaUV.y)
                             InWorldTeaStationView(
                                 recipe: activeTeaRecipe,
+                                isPhotoMode: isPhotoMode,
                                 onCycleRecipe: { onCycleTeaRecipe?() },
                                 onBrewCompleted: { brewed in
                                     onBrewTeaInWorld?(brewed)
@@ -376,10 +382,10 @@ struct Sunroom25DStageView: View {
                             .zIndex(Double(teaUV.y * 1000.0) + 18)
 
                             // Physical Origami Craft Stool by the sunny left window (Tap to Fold in-world!)
-                            let origUV = CGPoint(x: 0.14, y: 0.44)
+                            let origUV = CGPoint(x: 0.22, y: 0.46)
                             let origPt = floorPoint(uv: origUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
                             let origScale = depthScale(for: origUV.y)
-                            InWorldOrigamiTableView {
+                            InWorldOrigamiTableView(isPhotoMode: isPhotoMode) {
                                 onTapOrigamiTable?()
                             }
                             .scaleEffect(origScale)
@@ -387,7 +393,7 @@ struct Sunroom25DStageView: View {
                             .zIndex(Double(origUV.y * 1000.0) + 10)
 
                             // Physical Porch Adventure Satchel near the right doorway (Direct Solo Errands!)
-                            let doorUV = CGPoint(x: 0.90, y: 0.45)
+                            let doorUV = CGPoint(x: 0.78, y: 0.46)
                             let doorPt = floorPoint(uv: doorUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
                             let doorScale = depthScale(for: doorUV.y)
                             if coordinator.isFeatureUnlocked(.errands) {
@@ -395,6 +401,7 @@ struct Sunroom25DStageView: View {
                                     activeErrand: coordinator.indoorState.activeErrand,
                                     now: now,
                                     coinBalance: coordinator.ledger.coinBalance,
+                                    isPhotoMode: isPhotoMode,
                                     onSendSupply: { pack in onSendErrandSupply?(pack) },
                                     onCollectReturned: { onCollectErrandInWorld?() }
                                 )
@@ -404,7 +411,8 @@ struct Sunroom25DStageView: View {
                             }
 
                             // Direct In-World Mystical Courtship Nesting Heart (♂ × ♀) when an eligible pair shares the room!
-                            if coordinator.isFeatureUnlocked(.nesting),
+                            if !isPhotoMode,
+                               coordinator.isFeatureUnlocked(.nesting),
                                let pair = coordinator.eligibleNestingPairs.first,
                                coordinator.indoorState.offsprings.filter({ $0.growthStage != .grown }).count < 2 {
                                 let nestUV = CGPoint(x: 0.50, y: 0.43)
@@ -501,7 +509,7 @@ struct Sunroom25DStageView: View {
                             }()
 
                             VStack(spacing: 0) {
-                                if let ready = petMentorship {
+                                if !isPhotoMode, let ready = petMentorship {
                                     CutePlushButton(
                                         title: "記下傳承",
                                         tone: .butterHoney,
@@ -511,7 +519,7 @@ struct Sunroom25DStageView: View {
                                         icon: { Image(systemName: "sparkles").font(.system(size: 10, weight: .bold)) },
                                         action: { onCompleteMentorship(ready) }
                                     )
-                                } else if actor.petID == skitHostPetID, let partner = skitPartnerPetID {
+                                } else if !isPhotoMode, actor.petID == skitHostPetID, let partner = skitPartnerPetID {
                                     Button {
                                         onTriggerSkit?(partner, actor.petID)
                                     } label: {
@@ -530,8 +538,9 @@ struct Sunroom25DStageView: View {
                                     }
                                     .buttonStyle(TactileGameButtonStyle(pressScale: 0.92, pressOffsetY: 1))
                                 } else if let bubble = actor.speechBubble {
+                                    let bubbleOffsetX: CGFloat = pt.x < 175 ? 36 : (pt.x > stageW - 175 ? -36 : 0)
                                     SunroomPetSpeechBubble(text: bubble)
-                                        .offset(y: 6)
+                                        .offset(x: bubbleOffsetX, y: 6)
                                 }
 
                                 Button {
@@ -1267,23 +1276,26 @@ private struct SunroomWindowVisitorView: View {
     let weather: WeatherMode
     let visitCount: Int
     var greetedToday: Bool = false
+    var isPhotoMode: Bool = false
     let onGreet: () -> Void
 
     var body: some View {
         Button(action: onGreet) {
             VStack(spacing: 2) {
-                HStack(spacing: 3) {
-                    Image(systemName: greetedToday ? "moon.zzz.fill" : "hand.wave.fill")
-                        .font(.system(size: 9.5, weight: .bold))
-                    Text(greetedToday ? "明天再來 \(visitCount)/3" : "窗外揮手 \(visitCount)/3")
-                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                if !isPhotoMode {
+                    HStack(spacing: 3) {
+                        Image(systemName: greetedToday ? "moon.zzz.fill" : "hand.wave.fill")
+                            .font(.system(size: 9.5, weight: .bold))
+                        Text(greetedToday ? "明天再來 \(visitCount)/3" : "窗外揮手 \(visitCount)/3")
+                            .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                    }
+                    .foregroundStyle(Color(hex: "#2F2A26"))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3.5)
+                    .background(Color(hex: "#FFFDF8").opacity(0.94), in: Capsule())
+                    .overlay(Capsule().stroke(Color(hex: "#D9A441"), lineWidth: 1))
+                    .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 3, y: 1)
                 }
-                .foregroundStyle(Color(hex: "#2F2A26"))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3.5)
-                .background(Color(hex: "#FFFDF8").opacity(0.94), in: Capsule())
-                .overlay(Capsule().stroke(Color(hex: "#D9A441"), lineWidth: 1))
-                .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 3, y: 1)
 
                 ProceduralPetRigView(
                     pet: petSpec,

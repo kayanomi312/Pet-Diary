@@ -486,6 +486,9 @@ struct SunroomPetSpeechBubble: View {
             Text(text)
                 .font(AppTheme.handwritten(11))
                 .foregroundStyle(AppTheme.deepPineInk)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 168)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(
@@ -572,10 +575,17 @@ struct SpeciesFolkloreBadgeView: View {
 
     var body: some View {
         let tint = Color(hex: kind.badgeHex)
+        let badgeText: String = {
+            guard showFullName else { return kind.folkloreCategoryTag }
+            if kind.rawValue.hasPrefix(kind.folkloreCategoryTag) {
+                return kind.rawValue
+            }
+            return "\(kind.folkloreCategoryTag) · \(kind.rawValue)"
+        }()
         HStack(spacing: 4) {
             Image(systemName: kind.badgeSymbol)
                 .font(.system(size: 10.5, weight: .bold))
-            Text(showFullName ? "\(kind.folkloreCategoryTag) · \(kind.rawValue)" : kind.folkloreCategoryTag)
+            Text(badgeText)
                 .font(AppTheme.diegeticLabel(10.5))
         }
         .foregroundStyle(kind.isMagical ? Color(hex: "#FFFDF7") : AppTheme.deepPineInk)

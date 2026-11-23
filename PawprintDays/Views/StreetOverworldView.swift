@@ -2,6 +2,7 @@ import SwiftUI
 import MapKit
 
 struct StreetOverworldView: View {
+    @Environment(\.openURL) private var openURL
     @Bindable var coordinator: GameCoordinator
     @State private var cameraPosition: MapCameraPosition
     @State private var selectedFarAnchor: AnchorSiteRecord? = nil
@@ -76,6 +77,7 @@ struct StreetOverworldView: View {
                                 selectedFarAnchor = anchor
                             }
                         }
+                        .zIndex((state == .inRange || state == .strollChain) ? 2 : 1)
                     }
                 }
             }
@@ -101,6 +103,8 @@ struct StreetOverworldView: View {
                             Text(CivilCalendarHelper.displayDate(from: coordinator.currentLocalDateISO))
                                 .font(.system(size: 12.5, weight: .bold, design: .rounded))
                                 .foregroundStyle(Color(hex: "#2F2A26"))
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
                             Text("·")
                                 .foregroundStyle(Color(hex: "#B5A590"))
                             HStack(spacing: 3) {
@@ -117,8 +121,14 @@ struct StreetOverworldView: View {
                     Spacer(minLength: 4)
 
                     // Compact live GPS indicator / quick fix pill
+                    let authStatus = coordinator.locationService.authorizationStatus
+                    let isLocationDenied = (authStatus == .denied || authStatus == .restricted)
                     Button {
                         HapticsEngine.shared.playBrushStrokeTick()
+                        if isLocationDenied, let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                            openURL(settingsURL)
+                            return
+                        }
                         coordinator.locationService.requestFreshAccurateFix()
                         withAnimation(.easeInOut(duration: 0.5)) {
                             cameraPosition = .region(
@@ -130,8 +140,9 @@ struct StreetOverworldView: View {
                             )
                         }
                     } label: {
-                        let quality = coordinator.locationService.gpsSignalQuality
+                        let quality: GPSSignalQuality = isLocationDenied ? .denied : coordinator.locationService.gpsSignalQuality
                         let gpsLabel: String = {
+                            if isLocationDenied { return "定位未開" }
                             if coordinator.locationService.isReducedAccuracy { return "開精準" }
                             if let acc = coordinator.locationService.gpsAccuracyMeters, !coordinator.locationService.useSimulatedPosition {
                                 return "±\(Int(acc))m"
@@ -145,11 +156,14 @@ struct StreetOverworldView: View {
                                     .frame(width: 7, height: 7)
                                 Text(gpsLabel)
                                     .font(.system(size: 11.5, weight: .bold, design: .rounded))
-                                    .foregroundStyle(Color(hex: "#3A312B"))
+                                    .foregroundStyle(isLocationDenied ? Color(hex: "#B5482B") : Color(hex: "#3A312B"))
+                                    .lineLimit(1)
+                                    .fixedSize(horizontal: true, vertical: false)
                             }
                         }
                     }
                     .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1))
+                    .accessibilityLabel(isLocationDenied ? "定位未開啟，點擊前往設定" : "定位訊號狀態")
 
                     // Compact coin balance pill
                     Button {
@@ -205,16 +219,12 @@ struct StreetOverworldView: View {
                                     .lineLimit(1)
                             }
                             Spacer(minLength: 4)
-                            WoodPlaqueButton(
-                                title: "回到家了",
-                                systemImage: "flag.checkered",
-                                tone: .terracotta,
-                                fontSize: 11.5,
-                                horizontalPadding: 10,
-                                verticalPadding: 6
-                            ) {
-                                _ = coordinator.endStrollSession()
-                            }
+                            Text(stroll.companionPetID.map { "\(PetCatalog.pet(id: $0).name)同行" } ?? "自由漫步")
+                                .font(AppTheme.diegeticLabel(11))
+                                .foregroundStyle(AppTheme.forestTeal)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 5)
+                                .background(AppTheme.forestTeal.opacity(0.10), in: Capsule())
                         }
                     }
                     .padding(.horizontal, 16)
@@ -290,8 +300,11 @@ struct StreetOverworldView: View {
                     .padding(.top, 4)
                 }
 
-                // 下一步小目標提示（新手第一位朋友、散步任務、育兒、羈絆與特別訪客）
-                if coordinator.activeQuietRevisit == nil, coordinator.newlyUnpackedCurio == nil,
+                // 下一步小目標提示（新手第一位朋友、散步任務、育兒、羈絆與特別訪客；避免與暫時紙條重疊洗版）
+                if coordinator.activeQuietRevisit == nil,
+                   coordinator.newlyUnpackedCurio == nil,
+                   coordinator.transientWhisper == nil,
+                   !coordinator.showOnboardingPaperSlip,
                    let hint = coordinator.nextGoalHint {
                     HStack(spacing: 8) {
                         Image(systemName: hint.icon)
@@ -303,15 +316,31 @@ struct StreetOverworldView: View {
                             .lineLimit(3)
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
-                        if coordinator.isStreetLocationUnavailable,
-                           let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-                            Link(destination: settingsURL) {
-                                Text("開啟設定")
-                                    .font(AppTheme.diegeticLabel(11))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 9)
-                                    .padding(.vertical, 5)
-                                    .background(AppTheme.forestTeal, in: Capsule())
+                        if coordinator.isStreetLocationUnavailable {
+                            VStack(spacing: 5) {
+                                if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                                    Link(destination: settingsURL) {
+                                        Text("開啟設定")
+                                            .font(AppTheme.diegeticLabel(11))
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 9)
+                                            .padding(.vertical, 5)
+                                            .background(AppTheme.forestTeal, in: Capsule())
+                                    }
+                                }
+                                Button {
+                                    CozySoundEngine.shared.playPaperFlip()
+                                    coordinator.solveHomeRoomNow()
+                                    coordinator.currentScreen = .home
+                                } label: {
+                                    Text("前往陽光室")
+                                        .font(AppTheme.diegeticLabel(11))
+                                        .foregroundStyle(AppTheme.forestTeal)
+                                        .padding(.horizontal, 9)
+                                        .padding(.vertical, 5)
+                                        .background(AppTheme.forestTeal.opacity(0.12), in: Capsule())
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -321,7 +350,7 @@ struct StreetOverworldView: View {
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 1.1))
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
-                    .accessibilityElement(children: .combine)
+                    .accessibilityElement(children: coordinator.isStreetLocationUnavailable ? .contain : .combine)
                 }
 
                 // 口袋拾遺開箱卡片（每 1,400 步觸發）
@@ -842,7 +871,8 @@ private struct PawAnchorStampView: View {
                     Text("\(label) · \(distanceM)m")
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(Color(hex: "#2F2A26"))
-                        .fixedSize()
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     if familiarityStars > 0 {
                         Text(String(repeating: "★", count: familiarityStars))
                             .font(.system(size: 9))
@@ -851,6 +881,7 @@ private struct PawAnchorStampView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
+                .frame(maxWidth: 152)
                 .background(
                     Capsule(style: .continuous)
                         .fill(Color(hex: "#FFFDF8").opacity(0.95))
@@ -908,13 +939,24 @@ private struct AccessibleNearbyListSheet: View {
                     ForEach(coordinator.visibleAnchors, id: \.siteID) { anchor in
                         let dist = Int(coordinator.distanceMeters(to: anchor))
                         let state = coordinator.pawState(for: anchor)
+                        let check = coordinator.proximityCheck(for: anchor)
+                        let statusSubtitle: String = {
+                            if state == .strollChain { return "金色漫步連鎖！" }
+                            switch check {
+                            case .eligible: return "已在 75m 範圍內"
+                            case .alreadyMetToday: return "今日已打招呼"
+                            case .staleFix, .poorAccuracy: return "定位確認中…"
+                            case .movingTooFast: return "移動速度較快"
+                            case .tooFar: return "需再走近一些"
+                            }
+                        }()
                         StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.timberWarm, paddingAmount: 12) {
                             HStack(spacing: 10) {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(anchor.customLabel)
                                         .font(AppTheme.serifTitle(16))
                                         .foregroundStyle(AppTheme.deepPineInk)
-                                    Text("\(dist) 公尺 · \(state == .strollChain ? "金色漫步連鎖！" : state == .inRange ? "已在 75m 範圍內" : state == .metToday ? "今日已打招呼" : "需再走近一些")")
+                                    Text("\(dist) 公尺 · \(statusSubtitle)")
                                         .font(AppTheme.serifBody(12.5))
                                         .foregroundStyle(AppTheme.softInk)
                                 }

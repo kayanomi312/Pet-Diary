@@ -27,21 +27,33 @@ enum AppTheme {
     static let rainySlate = Color(hex: "#6F8592")
     static let duskAmber = Color(hex: "#D69F5E")
 
-    // Storybook Typography (scales with Dynamic Type up to AX3)
+    // Storybook Typography (scales dynamically with Dynamic Type)
     static func serifTitle(_ size: CGFloat = 22) -> Font {
-        .system(size: size, weight: .semibold, design: .serif)
+        .system(textStyle(for: size), design: .serif).weight(.semibold)
     }
 
     static func serifBody(_ size: CGFloat = 16) -> Font {
-        .system(size: size, weight: .regular, design: .serif)
+        .system(textStyle(for: size), design: .serif)
     }
 
     static func handwritten(_ size: CGFloat = 16) -> Font {
-        .system(size: size, weight: .regular, design: .serif).italic()
+        .system(textStyle(for: size), design: .serif).italic()
     }
 
     static func diegeticLabel(_ size: CGFloat = 13) -> Font {
-        .system(size: size, weight: .semibold, design: .rounded)
+        .system(textStyle(for: size), design: .rounded).weight(.semibold)
+    }
+
+    private static func textStyle(for size: CGFloat) -> Font.TextStyle {
+        switch size {
+        case 24...: return .title
+        case 20..<24: return .title2
+        case 17..<20: return .title3
+        case 14.5..<17: return .subheadline
+        case 12.5..<14.5: return .footnote
+        case 11.2..<12.5: return .caption
+        default: return .caption2
+        }
     }
 }
 

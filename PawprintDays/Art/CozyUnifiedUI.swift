@@ -262,7 +262,7 @@ struct CozyPopoverMenuCard: View {
                 }
             }
         }
-        .frame(width: 214)
+        .frame(width: 244)
         .padding(.vertical, 4)
         .background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)

@@ -105,6 +105,8 @@ struct TactileCareView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Color(hex: "#FFF7EC"), in: Capsule())
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("今日照護進度 \(min(3, brushStrokeCount)) / 3")
                     }
 
                     HStack(spacing: 6) {
@@ -114,8 +116,9 @@ struct TactileCareView: View {
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(Color(hex: petSpec.gender.badgeHex), in: Capsule())
+                            .accessibilityHidden(true)
                         SpeciesFolkloreBadgeView(kind: petSpec.kind)
-                        Text("\(resident?.milestoneTitle ?? "初次相遇") · 相伴 \(resident?.sharedDaysCount ?? 1) 天")
+                        Text(resident?.relationshipStatusLabel ?? "陽光室室友 · 第 1 天")
                             .font(.system(size: 11.5, weight: .medium, design: .rounded))
                             .foregroundStyle(AppTheme.softInk)
                     }
@@ -295,10 +298,14 @@ struct TactileCareView: View {
                 Text(activePlayAction == .cozyNap
                      ? "\(petSpec.name)蓋著小被子發出甜甜的呼嚕聲…"
                      : "輕點頭頂、抓下巴、戳肚皮或滑動梳毛來陪伴\(petSpec.name)")
-                    .font(.system(size: 12.5, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color(hex: "#6B5E53"))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppTheme.deepPineInk)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(AppTheme.warmPaper.opacity(0.88), in: Capsule())
+                    .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.30), lineWidth: 0.8))
+                    .padding(.horizontal, 20)
                     .padding(.bottom, 10)
 
                 // MARK: Clean Unified Warm-Linen Bottom Care Tray (2 Tidy Tabs: 互動陪玩 / 換上衣飾)
@@ -323,7 +330,7 @@ struct TactileCareView: View {
 
                     if activeTrayTab == 0 {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 10) {
+                            HStack(spacing: 8) {
                                 careToyChip(title: petSpec.kind.isCatFamily ? "逗貓棒" : "滾布球", kind: .teaserWand, active: activePlayAction == .pounceHop) {
                                     HapticsEngine.shared.playDogBallRoll()
                                     CozySoundEngine.shared.playBrushSwish()
@@ -384,7 +391,7 @@ struct TactileCareView: View {
                                     )
                                 }
                             }
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 14)
                         }
                     } else {
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -439,7 +446,7 @@ struct TactileCareView: View {
                                     )
                                 }
                             }
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 14)
                         }
                     }
                 }

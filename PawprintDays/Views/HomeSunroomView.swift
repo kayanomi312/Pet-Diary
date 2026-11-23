@@ -57,6 +57,7 @@ struct HomeSunroomView: View {
                 isDecoratingMode: isDecoratingMode,
                 selectedDecorateSpotIndex: selectedDecorateSpotIndex,
                 isFeatherWandMode: isFeatherWandMode,
+                isPhotoMode: coordinator.isSunroomPhotoMode,
                 hidingSpotIndex: hidingSpotIndex,
                 hidingPetID: hidingPetID,
                 activeTeaRecipe: activeTeaRecipe,
@@ -78,14 +79,9 @@ struct HomeSunroomView: View {
                     }
                 },
                 onTapSpot: { spot in
+                    guard isDecoratingMode else { return }
                     HapticsEngine.shared.playBrushStrokeTick()
                     selectedDecorateSpotIndex = spot.spotIndex
-                    if !isDecoratingMode {
-                        CozySoundEngine.shared.playPaperFlip()
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
-                            isDecoratingMode = true
-                        }
-                    }
                 },
                 onCompleteMentorship: { intention in
                     CozySoundEngine.shared.playCompassChime()
@@ -631,9 +627,7 @@ private struct PetBookmarkJumpDrawer: View {
                                             .background(Color(hex: spec.gender.badgeHex), in: Capsule())
                                         SpeciesFolkloreBadgeView(kind: spec.kind)
                                     }
-                                    Text(res.inviteState == .unmet
-                                         ? "尚未遇見 · 靜候街角奇遇或窗邊揮手"
-                                         : "\(res.milestoneTitle) · 相伴 \(res.sharedDaysCount) 天")
+                                    Text(res.relationshipStatusLabel)
                                         .font(AppTheme.serifBody(12.5))
                                         .foregroundStyle(AppTheme.softInk)
                                 }
@@ -660,7 +654,8 @@ private struct PetBookmarkJumpDrawer: View {
                 .padding(16)
             }
             .background(AppTheme.parchmentTray)
-            .navigationTitle("布書籤 · \(PetCatalog.allPets.count) 位奇幻鄰居名冊")
+            .navigationTitle("奇幻鄰居名冊 (\(PetCatalog.allPets.count))")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("完成") { dismiss() }
