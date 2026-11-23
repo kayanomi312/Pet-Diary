@@ -1,6 +1,8 @@
 # 足印日記 隱私權政策 · Pawprint Days Privacy Policy
 
-_Draft · last updated 2026-11-23 · host this page at a public URL and enter it in App Store Connect → App Information → Privacy Policy URL._
+<!-- Published by .github/workflows/privacy-pages.yml to https://kayanomi312.github.io/Pet-Diary/privacy/ — enter that URL in App Store Connect → App Information → Privacy Policy URL. The build fails while the support-email placeholder below is still present. -->
+
+最後更新 Last updated：2026-11-23
 
 ## 繁體中文
 
