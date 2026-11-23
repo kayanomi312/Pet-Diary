@@ -32,6 +32,7 @@ final class SunroomRoamingEngine {
         var poseTransition: CelPoseTransition?
         var waitingForWalkPose = false
         var poseStartedAt: Date = .distantPast
+        var direction: CelLocomotion?
 
         var targetPose: CelPose {
             switch behavior {
@@ -44,12 +45,27 @@ final class SunroomRoamingEngine {
         mutating func beginWalk(from: CGPoint, to: CGPoint, at now: Date, duration: Double,
                                 arrivalSpotIndex: Int? = nil, facingRight: Bool? = nil) {
             let previousPose = poseForInterruption(at: now)
-            let transition = CelPoseTransition(from: previousPose, to: .walk, at: now) {
+            let nextFacing = facingRight ?? (to.x > from.x)
+            let direction = CelLocomotion(dx: to.x - from.x, dy: to.y - from.y, facingRight: nextFacing) {
+                CelLibrary.authored(for: petID, bank: $0) != nil
+            }
+            let turnBank: String?
+            if direction.isSideOn, self.facingRight != nextFacing {
+                let hasRightWalk = CelLibrary.authored(for: petID, bank: "wr") != nil
+                let hasRightTurn = CelLibrary.authored(for: petID, bank: "tr") != nil
+                turnBank = if nextFacing && hasRightTurn { "tr" }
+                else if nextFacing && hasRightWalk { nil }
+                else { "tn" }
+            } else {
+                turnBank = nil
+            }
+            let transition = CelPoseTransition(from: previousPose, to: .walk, at: now, turnBank: turnBank) {
                 CelLibrary.authored(for: petID, bank: $0)
             }
             poseTransition = transition
             waitingForWalkPose = !transition.players.isEmpty
-            self.facingRight = facingRight ?? (to.x > from.x)
+            self.facingRight = nextFacing
+            self.direction = direction
             behavior = .walking(from: from, to: to, startedAt: transition.arrivesAt,
                                 duration: duration, arrivalSpotIndex: arrivalSpotIndex)
             poseStartedAt = transition.arrivesAt

@@ -69,6 +69,8 @@ struct ProceduralPetRigView: View {
     var stageDate: Date? = nil
     var poseTransition: CelPoseTransition? = nil
     var poseStartedAt: Date? = nil
+    var locomotion: CelLocomotion? = nil
+    var facingRight = false
     var previewFrame: String? = nil
     var previewNeck: [Double]? = nil
 
@@ -155,7 +157,7 @@ struct ProceduralPetRigView: View {
             assetName: playback.player.clip.asset(prefix: assetPrefix, frame: playback.frame),
             isSleeping: activeBank == "s",
             isExcited: ["e", "g", "j", "h", "p"].contains(activeBank),
-            isWalkingDust: activeBank == "w",
+            isWalkingDust: ["w", "wr", "wf", "wb"].contains(activeBank),
             playback: playback
         )
     }
@@ -183,7 +185,7 @@ struct ProceduralPetRigView: View {
         // 1. Active explicit playful interactions (highest priority)
         switch playfulAction {
         case .walking:
-            if let authored = authoredFrame("w", elapsed: poseElapsed) { return authored }
+            if let authored = authoredFrame(locomotion?.bank ?? "w", elapsed: poseElapsed) { return authored }
             // Relaxed, natural 16-frame stroll cycle (`w1`..`w16`) at 9.0fps (~1.78s per unhurried stride)
             let walkFPS = 9.0
             let subtleCadence = -CGFloat(abs(sin(tPet * walkFPS * .pi / 8.0))) * minDim * 0.008
@@ -347,6 +349,9 @@ struct ProceduralPetRigView: View {
             let minDim = min(w, h)
             let state = resolveCelFrameState(time: time, minDim: minDim)
             let frameAssetName = state.assetName
+            let activeBank = state.playback?.player.clip.bank
+            let hasRightWalk = CelLibrary.authored(for: pet.id, bank: "wr") != nil
+            let mirror = facingRight && !hasRightWalk && !(["wr", "wf", "wb", "tr"].contains(activeBank ?? ""))
             let shadowShrink = max(0.76, 1.0 + (state.hopOffsetY / max(1, minDim)) * 1.4)
 
             let rimGlowColor: Color = {
@@ -444,6 +449,8 @@ struct ProceduralPetRigView: View {
                 }
             }
             .frame(width: w, height: h)
+            .scaleEffect(x: mirror ? -1 : 1, y: 1)
+            .animation(hasRightWalk || ["wf", "wb", "tn", "tr"].contains(activeBank ?? "") ? nil : .easeInOut(duration: 0.16), value: mirror)
         }
     }
 }

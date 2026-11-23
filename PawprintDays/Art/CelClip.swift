@@ -164,7 +164,7 @@ struct CelPoseTransition: Sendable {
     let players: [CelClipPlayer]
 
     init(from source: CelPose, to target: CelPose, at start: Date,
-         lookup: (String) -> CelClipPlayer?) {
+         turnBank: String? = nil, lookup: (String) -> CelClipPlayer?) {
         self.source = source
         self.target = target
         startsAt = start
@@ -179,7 +179,7 @@ struct CelPoseTransition: Sendable {
         case (.sleep, .walk): banks = ["wk", "tu"]
         default: banks = []
         }
-        players = banks.compactMap(lookup).filter { $0.clip.loop == .once }
+        players = (banks + (turnBank.map { [$0] } ?? [])).compactMap(lookup).filter { $0.clip.loop == .once }
     }
 
     var arrivesAt: Date {
@@ -200,4 +200,23 @@ struct CelPoseTransition: Sendable {
     func onArrival(at date: Date, perform: (Date) -> Void) {
         if date >= arrivesAt { perform(arrivesAt) }
     }
+}
+
+struct CelLocomotion: Equatable, Sendable {
+    let bank: String
+    let facingRight: Bool
+
+    init(dx: Double, dy: Double, facingRight: Bool, hasBank: (String) -> Bool) {
+        self.facingRight = facingRight
+        let depthBank = dy > 0 ? "wf" : "wb"
+        if abs(dy) > abs(dx) * 1.15, hasBank(depthBank) {
+            bank = depthBank
+        } else if facingRight, hasBank("wr") {
+            bank = "wr"
+        } else {
+            bank = "w"
+        }
+    }
+
+    var isSideOn: Bool { bank == "w" || bank == "wr" }
 }

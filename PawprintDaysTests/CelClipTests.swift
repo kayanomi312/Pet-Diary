@@ -60,4 +60,13 @@ final class CelClipTests: XCTestCase {
         XCTAssertEqual(legacy.arrivesAt, start)
         XCTAssertNil(legacy.playback(at: start))
     }
+
+    func testLocomotionSelectsDepthAndRightBanksWithSideFallback() {
+        let banks: Set<String> = ["wr", "wf", "wb"]
+        XCTAssertEqual(CelLocomotion(dx: 0.1, dy: 0.5, facingRight: true, hasBank: banks.contains).bank, "wf")
+        XCTAssertEqual(CelLocomotion(dx: 0, dy: -0.5, facingRight: false, hasBank: banks.contains).bank, "wb")
+        XCTAssertEqual(CelLocomotion(dx: 0.4, dy: 0.1, facingRight: true, hasBank: banks.contains).bank, "wr")
+        XCTAssertEqual(CelLocomotion(dx: 0.1, dy: 0.5, facingRight: true) { $0 == "wr" }.bank, "wr")
+        XCTAssertEqual(CelLocomotion(dx: -0.4, dy: 0.05, facingRight: false) { _ in false }.bank, "w")
+    }
 }
