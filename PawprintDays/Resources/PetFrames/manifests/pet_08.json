@@ -78,10 +78,29 @@
       "loop" : "once",
       "next" : "idle"
     },
+    "turn" : {
+      "bank" : "tn",
+      "fps" : 12,
+      "frames" : 5,
+      "loop" : "once",
+      "next" : "walk"
+    },
     "walk" : {
       "bank" : "w",
       "fps" : 9,
       "frames" : 16,
+      "loop" : "loop"
+    },
+    "walk_right" : {
+      "bank" : "wr",
+      "events" : {
+        "footContact" : [
+          1,
+          7
+        ]
+      },
+      "fps" : 12,
+      "frames" : 12,
       "loop" : "loop"
     }
   },
