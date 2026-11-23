@@ -598,11 +598,11 @@ struct Sunroom25DStageView: View {
                                             actionTriggerDate: actor.tapExcitedUntil.addingTimeInterval(-1.2),
                                             stageDate: now,
                                             poseTransition: actor.poseTransition,
-                                            poseStartedAt: bouncingPetID == actor.petID ? nil : actor.poseStartedAt
+                                            poseStartedAt: bouncingPetID == actor.petID ? nil : actor.poseStartedAt,
+                                            locomotion: actor.direction,
+                                            facingRight: actor.facingRight
                                         )
                                         .frame(width: 118, height: 118)
-                                        .scaleEffect(x: actor.facingRight ? -1.0 : 1.0, y: 1.0)
-                                        .animation(.easeInOut(duration: 0.16), value: actor.facingRight)
 
                                         // Foreground cardboard front-wall occlusion rim when a cat tucks INSIDE the bakery box!
                                         if isInBox {

@@ -44,3 +44,8 @@ ignored `art-src/previews/pet_XX/` directory. The default shows adjacent
 drawings at 30% opacity, with the registration guides on top. Add
 `--black` to inspect edges against black or `--clean` to hide neighboring
 drawings. GIFs follow manifest timing, ping-pong order, and holds.
+
+Locomotion banks are `w` (left), `wr` (right), `wf` (toward camera), and
+`wb` (away). Author `tn` to end facing left and `tr` to end facing right.
+Pets with a `wr` clip use the authored right-facing art. Without directional
+banks the app keeps the legacy side-walk behavior.
