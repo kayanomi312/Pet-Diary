@@ -87,7 +87,7 @@ struct PawprintDaysApp: App {
         // Last resort: an in-memory container over every model type, without the versioned schema
         // wrapper. (A container missing model types would only crash later, inside GameCoordinator.)
         let fallback = try! ModelContainer(
-            for: Schema(PawprintSchemaV2.models),
+            for: Schema(PawprintPersistence.currentVersionedSchema.models),
             configurations: [ModelConfiguration(isStoredInMemoryOnly: true)]
         )
         return (fallback, nil)

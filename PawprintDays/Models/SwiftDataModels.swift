@@ -507,7 +507,9 @@ enum PawprintSchemaV2: VersionedSchema {
 /// SwiftData falls back to an *inferred* lightweight migration: added optional/defaulted properties just
 /// appear, and removed entities or attributes are silently dropped with their data. Only rows that can't be
 /// migrated at all (e.g. a new mandatory attribute without a default) make the open fail. The frozen-fixture
-/// test is what catches an un-versioned model edit, so never "fix" that test by regenerating the fixture.
+/// tests catch an un-versioned model edit: `testV2SchemaStillMatchesFrozenFixtureVersionHashes` compares
+/// per-entity version hashes (so even an added optional property fails), and the reopen test checks the data.
+/// Never "fix" either test by regenerating the fixture.
 enum PawprintMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [PawprintSchemaV2.self]
@@ -576,12 +578,17 @@ extension PawprintPersistence {
     /// True when any error in the chain is a Core Data model-version / migration error:
     /// 134020 (incompatible schema), 134100–134199 (version hash, migration, missing source or
     /// mapping model) and 134500–134599 (staged migration, e.g. unknown model version).
+    /// 134180 (`NSSQLiteError`) sits inside that range but means I/O, disk-full or corruption, so it
+    /// is excluded and reported as a plain store-open failure.
     static func isMigrationFailure(_ error: Error) -> Bool {
         errorChain(error).contains { ns in
-            guard ns.domain == NSCocoaErrorDomain else { return false }
+            guard ns.domain == NSCocoaErrorDomain, ns.code != sqliteErrorCode else { return false }
             return ns.code == 134_020 || (134_100...134_199).contains(ns.code) || (134_500...134_599).contains(ns.code)
         }
     }
+
+    /// `NSSQLiteError` from CoreDataErrors.h (not exported to Swift without importing Core Data).
+    static let sqliteErrorCode = 134_180
 
     /// Core Data puts its explanation under `"reason"`, not `NSLocalizedFailureReasonErrorKey`.
     static func failureReason(of error: NSError) -> String? {
