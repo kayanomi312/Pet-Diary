@@ -69,7 +69,7 @@ struct Sunroom25DStageView: View {
                         )
                     }
                 }
-                .offset(x: effectivePan * 0.35)
+                .offset(x: effectivePan * (reduceMotion ? 1 : 0.35))
 
                 // MARK: Layer 1B — True 1-Point Perspective 2.5D Cedar Floorboard Plane, Baseboard & Rug (0.88x Parallax)
                 PerspectiveCedarFloorCanvas(
@@ -79,22 +79,22 @@ struct Sunroom25DStageView: View {
                     verandaUnlocked: coordinator.ledger.verandaUnlocked
                 )
                 .frame(width: stageW, height: viewH)
-                .offset(x: effectivePan * 0.88)
+                .offset(x: effectivePan * (reduceMotion ? 1 : 0.88))
 
                 // MARK: Layer 1C — Volumetric Sunbeams, Calendar Seasonal Window Ambiance & Tappable Curio Shelf (0.55x Parallax)
                 if !reduceMotion {
                     SunroomAtmosphereParticlesView(weather: coordinator.activeWeather)
-                        .offset(x: effectivePan * 0.55)
+                        .offset(x: effectivePan * (reduceMotion ? 1 : 0.55))
 
                     SeasonalWindowAmbianceOverlay(date: coordinator.currentSimulatedDate)
                         .frame(width: stageW, height: viewH)
-                        .offset(x: effectivePan * 0.58)
+                        .offset(x: effectivePan * (reduceMotion ? 1 : 0.58))
                         .allowsHitTesting(false)
 
                     if coordinator.activeWeather == .dusk {
                         DuskFireflyMotesOverlay()
                             .frame(width: stageW, height: viewH)
-                            .offset(x: effectivePan * 0.70)
+                            .offset(x: effectivePan * (reduceMotion ? 1 : 0.70))
                             .allowsHitTesting(false)
                     }
                 }
@@ -109,7 +109,7 @@ struct Sunroom25DStageView: View {
                         }
                     )
                     .position(x: stageW * 0.50, y: floorHorizonY - 26)
-                    .offset(x: effectivePan * 0.60)
+                    .offset(x: effectivePan * (reduceMotion ? 1 : 0.60))
                 }
 
                 // Hanging Window Beam Decor: Swipeable Edo Glass Wind Chime + Crafted Origamis!
@@ -119,7 +119,7 @@ struct Sunroom25DStageView: View {
                     onRingChime: {
                         coordinator.ringSunroomWindChime()
                         roaming.emitFloatingBurst(at: CGPoint(x: 0.48, y: 0.16), text: "♪ 叮噹清響", colorHex: "#4A7A76")
-                        withAnimation(.spring(response: 0.25, dampingFraction: 0.35)) {
+                        withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) {
                             windChimeRingPulse = true
                         }
                         Task { @MainActor in
@@ -129,7 +129,7 @@ struct Sunroom25DStageView: View {
                     }
                 )
                 .position(x: stageW * 0.50, y: max(116, floorHorizonY - 126))
-                .offset(x: effectivePan * 0.50)
+                .offset(x: effectivePan * (reduceMotion ? 1 : 0.50))
 
                 // Pinned Watercolor Diary Postcard mounted with Washi Tape on the back left wall
                 if let pinnedID = coordinator.indoorState.pinnedPostcardEncounterID,
@@ -142,7 +142,7 @@ struct Sunroom25DStageView: View {
                         coordinator.showWhisper("牆上的珍藏明信片：\(enc.narrativeLine)")
                     }
                     .position(x: stageW * 0.24, y: floorHorizonY - 76)
-                    .offset(x: effectivePan * 0.44)
+                    .offset(x: effectivePan * (reduceMotion ? 1 : 0.44))
                 }
 
                 // Shy Undiscovered Mystical Companion peeking outside the Sunroom Window!
@@ -157,11 +157,11 @@ struct Sunroom25DStageView: View {
                         coordinator.greetWindowVisitor(petID: visitorID)
                     }
                     .position(x: stageW * 0.76, y: floorHorizonY - 46)
-                    .offset(x: effectivePan * 0.52)
+                    .offset(x: effectivePan * (reduceMotion ? 1 : 0.52))
                 }
 
                 // MARK: Layer 2 — Interactive 2.5D Depth-Sorted Floor Stage (Furniture + Free-Roaming Pets)
-                TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { timeline in
+                TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 60.0, reduceMotion: reduceMotion))) { timeline in
                     let now = timeline.date
                     ZStack {
                         // Tap anywhere on the 2.5D wooden floor to call the nearest pet over!
@@ -182,7 +182,7 @@ struct Sunroom25DStageView: View {
                         // Golden foreshortened floor tap ripples
                         ForEach(roaming.floorRipples) { ripple in
                             let age = max(0, now.timeIntervalSince(ripple.createdAt))
-                            let p = min(1.0, age / 1.1)
+                            let p = reduceMotion ? 0.0 : min(1.0, age / 1.1)
                             let pt = floorPoint(uv: ripple.position, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
                             let scale = depthScale(for: ripple.position.y)
                             ZStack {
@@ -293,7 +293,7 @@ struct Sunroom25DStageView: View {
                         }
 
                         // Live Interactive Rolling Stitched Cloth Ball across the 2.5D floor!
-                        if let ball = roaming.rollingBall, let ballUV = ball.position(at: now) {
+                        if !reduceMotion, let ball = roaming.rollingBall, let ballUV = ball.position(at: now) {
                             let bPt = floorPoint(uv: ballUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
                             let bScale = depthScale(for: ballUV.y)
                             let spinDeg = now.timeIntervalSince(ball.startedAt) * 260.0
@@ -479,7 +479,7 @@ struct Sunroom25DStageView: View {
                         ForEach(Array(roaming.actors.values), id: \.petID) { actor in
                             let spec = PetCatalog.pet(id: actor.petID)
                             let resident = coordinator.resident(for: actor.petID)
-                            let liveUV = actor.interpolatedPosition(at: now)
+                            let liveUV = reduceMotion ? actor.position : actor.interpolatedPosition(at: now)
                             let pt = floorPoint(uv: liveUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
                             let scale = depthScale(for: liveUV.y)
                             let petMentorship = coordinator.teachingIntentions.first {
@@ -500,123 +500,129 @@ struct Sunroom25DStageView: View {
                                 }
                             }()
 
-                            VStack(spacing: 0) {
-                                if let ready = petMentorship {
-                                    CutePlushButton(
-                                        title: "記下傳承",
-                                        tone: .butterHoney,
-                                        fontSize: 10,
-                                        horizontalPadding: 8,
-                                        verticalPadding: 4,
-                                        icon: { Image(systemName: "sparkles").font(.system(size: 10, weight: .bold)) },
-                                        action: { onCompleteMentorship(ready) }
-                                    )
-                                } else if actor.petID == skitHostPetID, let partner = skitPartnerPetID {
-                                    Button {
-                                        onTriggerSkit?(partner, actor.petID)
-                                    } label: {
-                                        HStack(spacing: 3) {
-                                            Image(systemName: "sparkles")
-                                                .font(.system(size: 9.5, weight: .bold))
-                                            Text("室友小劇場")
-                                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                        }
-                                        .foregroundStyle(Color(hex: "#5A3D16"))
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color(hex: "#FFF4D6"), in: Capsule())
-                                        .overlay(Capsule().stroke(Color(hex: "#D9A441"), lineWidth: 1.1))
-                                        .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 3, y: 1.5)
-                                    }
-                                    .buttonStyle(TactileGameButtonStyle(pressScale: 0.92, pressOffsetY: 1))
-                                } else if let bubble = actor.speechBubble {
-                                    SunroomPetSpeechBubble(text: bubble)
-                                        .offset(y: 6)
-                                }
-
-                                Button {
-                                    if !isDecoratingMode && !isFeatherWandMode { onTapPet(actor.petID) }
-                                } label: {
-                                    ZStack {
-                                        // Directional Window-Lit Ground Shadow (shifts opposite sunbeam angle!)
-                                        let shadowShiftX: CGFloat = {
-                                            switch coordinator.activeWeather {
-                                            case .clearMorning: return 11.0
-                                            case .dusk: return 16.0
-                                            case .postRain: return 8.0
-                                            case .lightRain, .overcast: return 0.0
+                            ZStack {
+                                VStack(spacing: 0) {
+                                    if let ready = petMentorship {
+                                        CutePlushButton(
+                                            title: "記下傳承",
+                                            tone: .butterHoney,
+                                            fontSize: 10,
+                                            horizontalPadding: 8,
+                                            verticalPadding: 4,
+                                            icon: { Image(systemName: "sparkles").font(.system(size: 10, weight: .bold)) },
+                                            action: { onCompleteMentorship(ready) }
+                                        )
+                                    } else if actor.petID == skitHostPetID, let partner = skitPartnerPetID {
+                                        Button {
+                                            onTriggerSkit?(partner, actor.petID)
+                                        } label: {
+                                            HStack(spacing: 3) {
+                                                Image(systemName: "sparkles")
+                                                    .font(.system(size: 9.5, weight: .bold))
+                                                Text("室友小劇場")
+                                                    .font(.system(size: 10, weight: .bold, design: .rounded))
                                             }
-                                        }()
-                                        Ellipse()
-                                            .fill(
-                                                RadialGradient(
-                                                    colors: [
-                                                        AppTheme.deepPineInk.opacity(coordinator.activeWeather.isRainy ? 0.14 : 0.22),
-                                                        .clear
-                                                    ],
-                                                    center: .center,
-                                                    startRadius: 4,
-                                                    endRadius: 42
-                                                )
-                                            )
-                                            .frame(width: 80, height: 20)
-                                            .offset(x: shadowShiftX, y: 46)
-                                            .allowsHitTesting(false)
+                                            .foregroundStyle(Color(hex: "#5A3D16"))
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color(hex: "#FFF4D6"), in: Capsule())
+                                            .overlay(Capsule().stroke(Color(hex: "#D9A441"), lineWidth: 1.1))
+                                            .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 3, y: 1.5)
+                                        }
+                                        .buttonStyle(TactileGameButtonStyle(pressScale: 0.92, pressOffsetY: 1))
+                                    } else if let bubble = actor.speechBubble {
+                                        SunroomPetSpeechBubble(text: bubble)
+                                            .offset(y: 6)
+                                    }
 
-                                        // Warm golden hearth-glow pool beneath napping DragonCat (pet.03)!
-                                        if spec.kind == .dragonCat && actor.isNapping {
+                                    Button {
+                                        if !isDecoratingMode && !isFeatherWandMode { onTapPet(actor.petID) }
+                                    } label: {
+                                        ZStack {
+                                            // Directional Window-Lit Ground Shadow (shifts opposite sunbeam angle!)
+                                            let shadowShiftX: CGFloat = {
+                                                switch coordinator.activeWeather {
+                                                case .clearMorning: return 11.0
+                                                case .dusk: return 16.0
+                                                case .postRain: return 8.0
+                                                case .lightRain, .overcast: return 0.0
+                                                }
+                                            }()
                                             Ellipse()
                                                 .fill(
                                                     RadialGradient(
-                                                        colors: [Color(hex: "#F5B864").opacity(0.36), .clear],
+                                                        colors: [
+                                                            AppTheme.deepPineInk.opacity(coordinator.activeWeather.isRainy ? 0.14 : 0.22),
+                                                            .clear
+                                                        ],
                                                         center: .center,
-                                                        startRadius: 8,
-                                                        endRadius: 58
+                                                        startRadius: 4,
+                                                        endRadius: 42
                                                     )
                                                 )
-                                                .frame(width: 112, height: 34)
-                                                .offset(y: 44)
+                                                .frame(width: 80, height: 20)
+                                                .offset(x: shadowShiftX, y: 46)
                                                 .allowsHitTesting(false)
-                                        }
 
-                                        // Species-specific magical room aura (Dragon hearth embers, Spirit cloud puffs, Antler forest leaves!)
-                                        if !reduceMotion {
-                                            SpeciesRoomMagicAuraCanvas(petKind: spec.kind, weather: coordinator.activeWeather, time: now.timeIntervalSinceReferenceDate)
-                                                .frame(width: 126, height: 126)
-                                                .allowsHitTesting(false)
-                                        }
+                                            // Warm golden hearth-glow pool beneath napping DragonCat (pet.03)!
+                                            if spec.kind == .dragonCat && actor.isNapping {
+                                                Ellipse()
+                                                    .fill(
+                                                        RadialGradient(
+                                                            colors: [Color(hex: "#F5B864").opacity(0.36), .clear],
+                                                            center: .center,
+                                                            startRadius: 8,
+                                                            endRadius: 58
+                                                        )
+                                                    )
+                                                    .frame(width: 112, height: 34)
+                                                    .offset(y: 44)
+                                                    .allowsHitTesting(false)
+                                            }
 
-                                        ProceduralPetRigView(
-                                            pet: spec,
-                                            outfitID: resident?.activeOutfitID,
-                                            pose: actor.isNapping ? .resting : .notice,
-                                            weatherMode: coordinator.activeWeather,
-                                            isHappySquint: isExcited || isInBox || ({ if case .greetingFriend = actor.behavior { return true }; return false }()),
-                                            mentorshipParticle: petMentorship.flatMap { HabitFamily(rawValue: $0.habitFamilyID) },
-                                            tapBounceScale: bouncingPetID == actor.petID ? 1.0 : 0.0,
-                                            playfulAction: petAction,
-                                            actionTriggerDate: actor.tapExcitedUntil.addingTimeInterval(-1.2),
-                                            stageDate: now,
-                                            poseTransition: actor.poseTransition,
-                                            poseStartedAt: bouncingPetID == actor.petID ? nil : actor.poseStartedAt,
-                                            locomotion: actor.direction,
-                                            facingRight: actor.facingRight
-                                        )
-                                        .frame(width: 118, height: 118)
+                                            // Species-specific magical room aura (Dragon hearth embers, Spirit cloud puffs, Antler forest leaves!)
+                                            if !reduceMotion {
+                                                SpeciesRoomMagicAuraCanvas(petKind: spec.kind, weather: coordinator.activeWeather, time: now.timeIntervalSinceReferenceDate)
+                                                    .frame(width: 126, height: 126)
+                                                    .allowsHitTesting(false)
+                                            }
 
-                                        // Foreground cardboard front-wall occlusion rim when a cat tucks INSIDE the bakery box!
-                                        if isInBox {
-                                            BakeryBoxForegroundRimView()
-                                                .offset(y: 36)
-                                                .allowsHitTesting(false)
+                                            ProceduralPetRigView(
+                                                pet: spec,
+                                                outfitID: resident?.activeOutfitID,
+                                                pose: actor.isNapping ? .resting : .notice,
+                                                weatherMode: coordinator.activeWeather,
+                                                isHappySquint: isExcited || isInBox || ({ if case .greetingFriend = actor.behavior { return true }; return false }()),
+                                                mentorshipParticle: petMentorship.flatMap { HabitFamily(rawValue: $0.habitFamilyID) },
+                                                tapBounceScale: bouncingPetID == actor.petID ? 1.0 : 0.0,
+                                                playfulAction: petAction,
+                                                actionTriggerDate: actor.tapExcitedUntil.addingTimeInterval(-1.2),
+                                                stageDate: now,
+                                                poseTransition: actor.poseTransition,
+                                                poseStartedAt: bouncingPetID == actor.petID ? nil : actor.poseStartedAt,
+                                                locomotion: actor.direction,
+                                                facingRight: actor.facingRight,
+                                                presentationScale: scale * (isInBox ? 0.86 : 1.0)
+                                            )
+                                            .frame(width: 118, height: 118)
+
+                                            // Foreground cardboard front-wall occlusion rim when a cat tucks INSIDE the bakery box!
+                                            if isInBox {
+                                                BakeryBoxForegroundRimView()
+                                                    .offset(y: 36)
+                                                    .allowsHitTesting(false)
+                                            }
                                         }
                                     }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("\(coordinator.displayName(for: actor.petID))，點擊互動照護")
                                 }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("\(coordinator.displayName(for: actor.petID))，點擊互動照護")
+                                .scaleEffect(scale * (isInBox ? 0.86 : 1.0))
+                                .position(x: pt.x, y: pt.y - (isInBox ? 32 : 44) * scale)
+                                .id(reduceMotion ? "\(liveUV.x),\(liveUV.y)" : actor.petID)
+                                .transition(.opacity)
                             }
-                            .scaleEffect(scale * (isInBox ? 0.86 : 1.0))
-                            .position(x: pt.x, y: pt.y - (isInBox ? 32 : 44) * scale)
+                            .animation(reduceMotion ? AppTheme.Motion.reduced : nil, value: liveUV)
                             .zIndex(Double(liveUV.y * 1000.0))
                         }
 
@@ -654,7 +660,7 @@ struct Sunroom25DStageView: View {
                                 )
                                 .zIndex(1900)
 
-                            if let wandPt = wandScreenPoint {
+                            if let wandPt = wandScreenPoint, !reduceMotion {
                                 FeatherWandRibbonOverlay(tipPoint: wandPt, time: now.timeIntervalSinceReferenceDate)
                                     .allowsHitTesting(false)
                                     .zIndex(2000)
@@ -717,7 +723,7 @@ struct Sunroom25DStageView: View {
                 // MARK: Layer 3 — Foreground Out-of-Focus Botanical & Timber Depth Frame (1.32x Parallax!)
                 ForegroundBotanicalParallaxOverlay(weather: coordinator.activeWeather)
                     .frame(width: viewW + 260, height: viewH)
-                    .offset(x: effectivePan * 1.32)
+                    .offset(x: effectivePan * (reduceMotion ? 1 : 1.32))
                     .allowsHitTesting(false)
             }
             .frame(width: viewW, height: viewH)
@@ -1041,9 +1047,10 @@ private struct SpeciesRoomMagicAuraCanvas: View {
 
 /// Gentle glowing amber dusk fireflies / lantern motes drifting slowly through the 2.5D Sunroom at twilight!
 private struct DuskFireflyMotesOverlay: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
+        TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 24.0, reduceMotion: reduceMotion))) { timeline in
+            let t = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
             Canvas { ctx, size in
                 for idx in 0..<10 {
                     let seed = Double(idx) * 1.73
@@ -1071,6 +1078,7 @@ private struct DuskFireflyMotesOverlay: View {
 /// Calendar-driven subtle seasonal ambiance outside the Sunroom window (zero FOMO, pure living charm!):
 /// Spring sakura petals, Summer warm fireflies, Autumn golden ginkgo leaves, Winter cozy frosted windowpanes.
 private struct SeasonalWindowAmbianceOverlay: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let date: Date
 
     private var season: Int {
@@ -1084,8 +1092,8 @@ private struct SeasonalWindowAmbianceOverlay: View {
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
+        TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 20.0, reduceMotion: reduceMotion))) { timeline in
+            let t = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
             Canvas { ctx, size in
                 switch season {
                 case 0: // Spring sakura petals drifting gently across window light

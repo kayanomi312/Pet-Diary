@@ -3,6 +3,7 @@ import SwiftUI
 /// 統一溫潤繪本主路由：四大核心分頁（街區／陽光室／日記／小舖）共用底部懸浮暖棉紙導覽列，
 /// 進入街角相遇劇場、近距離照護或陽光室賞景模式時自動收起，讓視野純淨無干擾！
 struct RootStageView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var coordinator: GameCoordinator
 
     #if DEBUG
@@ -67,7 +68,7 @@ struct RootStageView: View {
                         coordinator.currentScreen = target
                     }
                 )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
             }
         }
         #if DEBUG

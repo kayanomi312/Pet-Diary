@@ -3,6 +3,7 @@ import CoreLocation
 
 /// 溫潤日式手繪繪本「新手互動教學引導」（4 頁完整圖解，自動於首次開啟出現，也可於設定隨時重看）
 struct CozyOnboardingTutorialView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var coordinator: GameCoordinator
     @State private var currentPage: Int = 0
     @State private var requestedLocation: Bool = false
@@ -58,7 +59,7 @@ struct CozyOnboardingTutorialView: View {
                     diaryAndPermissionsPage.tag(3)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.spring(response: 0.35, dampingFraction: 0.82), value: currentPage)
+                .animation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion), value: currentPage)
 
                 // Bottom Progress Dots + Unified Action Bar
                 VStack(spacing: 14) {
@@ -67,7 +68,7 @@ struct CozyOnboardingTutorialView: View {
                             Capsule(style: .continuous)
                                 .fill(idx == currentPage ? AppTheme.forestTeal : Color(hex: "#CBBAA0").opacity(0.55))
                                 .frame(width: idx == currentPage ? 22 : 7, height: 7)
-                                .animation(.spring(response: 0.28, dampingFraction: 0.78), value: currentPage)
+                                .animation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion), value: currentPage)
                         }
                     }
 

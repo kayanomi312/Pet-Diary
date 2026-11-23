@@ -28,6 +28,7 @@
 		4ADCB51C815697E0AAB599C2 /* PawprintSharedActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44819E4445781D509B8BAC53 /* PawprintSharedActivity.swift */; };
 		4C5A2CDC1017220D0F44DA8B /* DiarySnapshotBaker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F2454D976BB67C83BE9F36 /* DiarySnapshotBaker.swift */; };
 		541DE44C842987CE7AC096F4 /* Stage1VerificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BB82F737C708433848BA4E4 /* Stage1VerificationTests.swift */; };
+		558EF8B8951A8B564C8486B1 /* CelFrameImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2E8F2B605B2C8BCD1FE7CE1 /* CelFrameImageCache.swift */; };
 		5615223262C0BE9353F20324 /* cat_purr.ahap in Resources */ = {isa = PBXBuildFile; fileRef = 8FA68C348F168F5266C8FF2B /* cat_purr.ahap */; };
 		578BC54F831104EB75548792 /* HomeSunroomView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1BB69ACCDDB09346B6CD70E /* HomeSunroomView.swift */; };
 		65D8877789A213B463755FB7 /* AnimationGalleryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0F2F7E3C3CDE85FBD2E2BFE /* AnimationGalleryView.swift */; };
@@ -142,6 +143,7 @@
 		95711078B296384E1C6AD9A3 /* StepCoinLedgerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCoinLedgerEngine.swift; sourceTree = "<group>"; };
 		9C568E5706C32C149A0CC402 /* HapticsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticsEngine.swift; sourceTree = "<group>"; };
 		A0F2F7E3C3CDE85FBD2E2BFE /* AnimationGalleryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationGalleryView.swift; sourceTree = "<group>"; };
+		A2E8F2B605B2C8BCD1FE7CE1 /* CelFrameImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelFrameImageCache.swift; sourceTree = "<group>"; };
 		A37DA5888EB9B52CFF84855E /* PawprintAppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PawprintAppIntents.swift; sourceTree = "<group>"; };
 		A5396DC8F62A51EA4DBF5FA0 /* CurioCubbiesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurioCubbiesView.swift; sourceTree = "<group>"; };
 		A93CFFA2DFDC1657DFAD6BE0 /* GameCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCoordinator.swift; sourceTree = "<group>"; };
@@ -230,6 +232,7 @@
 			isa = PBXGroup;
 			children = (
 				298FCD0EE8F0FAE692B68EB0 /* CelClip.swift */,
+				A2E8F2B605B2C8BCD1FE7CE1 /* CelFrameImageCache.swift */,
 				B4A13283725832011B999E96 /* CozyUnifiedUI.swift */,
 				F8E7501CACD547594CF9F3CB /* CuteKawaiiIcons.swift */,
 				071983DCB25BE655FF909410 /* DiegeticProps.swift */,
@@ -475,6 +478,7 @@
 				65D8877789A213B463755FB7 /* AnimationGalleryView.swift in Sources */,
 				D61598D9F86F05DED885F12B /* AppTheme.swift in Sources */,
 				E53C8AF27625B072E9D3808E /* CelClip.swift in Sources */,
+				558EF8B8951A8B564C8486B1 /* CelFrameImageCache.swift in Sources */,
 				791C6F02F784C61FDA0FD869 /* CozyOnboardingTutorialView.swift in Sources */,
 				6D76B7FB85BE4EA9C46B3F63 /* CozySoundEngine.swift in Sources */,
 				0B4D4E3AF991E4D6E9B5113D /* CozyUnifiedUI.swift in Sources */,

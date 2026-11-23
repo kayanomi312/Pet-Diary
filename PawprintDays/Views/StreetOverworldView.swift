@@ -2,6 +2,7 @@ import SwiftUI
 import MapKit
 
 struct StreetOverworldView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var coordinator: GameCoordinator
     @State private var cameraPosition: MapCameraPosition
     @State private var selectedFarAnchor: AnchorSiteRecord? = nil
@@ -219,7 +220,7 @@ struct StreetOverworldView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
                 }
 
                 if coordinator.showOnboardingPaperSlip {
@@ -234,7 +235,7 @@ struct StreetOverworldView: View {
                     )
                     .padding(.horizontal, 16)
                     .padding(.top, 6)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
                 }
 
                 if coordinator.locationService.isTravelingTooFastForPaws {
@@ -354,7 +355,7 @@ struct StreetOverworldView: View {
                     .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 8, y: 4)
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
                 }
 
                 Spacer()
@@ -424,7 +425,7 @@ struct StreetOverworldView: View {
                     .shadow(color: AppTheme.deepPineInk.opacity(0.20), radius: 10, y: 4)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 8)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                 }
 
                 if let far = selectedFarAnchor {
@@ -553,7 +554,7 @@ struct StreetOverworldView: View {
                                 accessibilityLabelText: "街區更多工具"
                             ) {
                                 CozySoundEngine.shared.playPaperFlip()
-                                withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
+                                withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
                                     showStreetToolsPopover.toggle()
                                 }
                             }
@@ -621,7 +622,7 @@ struct StreetOverworldView: View {
                     .padding(.trailing, 20)
                     .padding(.bottom, 140)
                 }
-                .transition(.scale(scale: 0.92, anchor: .bottomTrailing).combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : .scale(scale: 0.92, anchor: .bottomTrailing).combined(with: .opacity))
             }
         }
         .sheet(isPresented: $coordinator.showAccessibleNearbyList) {
@@ -670,6 +671,7 @@ struct StreetOverworldView: View {
 }
 
 private struct PlayerLanternMapPinView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var walkingCompanion: PetSpec? = nil
     var headingDegrees: Double? = nil
     @State private var pulse = false
@@ -735,7 +737,7 @@ private struct PlayerLanternMapPinView: View {
             }
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
                 pulse = true
             }
         }
@@ -743,6 +745,7 @@ private struct PlayerLanternMapPinView: View {
 }
 
 private struct PawAnchorStampView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let label: String
     let state: PawState
     let distanceM: Int
@@ -863,10 +866,10 @@ private struct PawAnchorStampView: View {
         .buttonStyle(TactileGameButtonStyle(pressScale: 0.90, pressOffsetY: 2))
         .onAppear {
             if state == .inRange || state == .strollChain {
-                withAnimation(.easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 1.8).repeatForever(autoreverses: false)) {
                     ripple = true
                 }
-                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                withAnimation(reduceMotion ? nil : .easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
                     bob = true
                 }
             }
@@ -974,6 +977,7 @@ private struct AccessibleNearbyListSheet: View {
 
 /// 溫暖 3 步驟首次見面繪本導覽卡（介紹《貓與龍》奇幻街角世界觀、雙層無壓力散步與 100% 本機隱私）
 private struct CozyWelcomeOnboardingCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let onAllowLocation: () -> Void
     let onDismissLater: () -> Void
     @State private var step: Int = 0
@@ -1044,7 +1048,7 @@ private struct CozyWelcomeOnboardingCard: View {
                             icon: { Image(systemName: "arrow.right").font(.system(size: 11, weight: .bold)) },
                             action: {
                                 CozySoundEngine.shared.playPaperFlip()
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                                     step += 1
                                 }
                             }

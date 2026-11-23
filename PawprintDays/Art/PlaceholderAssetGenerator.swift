@@ -7,35 +7,6 @@ enum PetRigPose: String, Sendable {
     case resting
 }
 
-/// 608 格高流暢度手繪逐格水彩精靈動畫快取（限制 40 MB 解碼記憶體上限，避免長時間遊玩佔用過高 RAM）
-final class CelFrameImageCache: @unchecked Sendable {
-    static let shared = CelFrameImageCache()
-    private let cache = NSCache<NSString, UIImage>()
-
-    private init() {
-        cache.countLimit = 240
-        cache.totalCostLimit = 40 * 1024 * 1024 // 40 MB strict decoded memory budget
-    }
-
-    func image(named name: String) -> UIImage? {
-        let key = name as NSString
-        if let cached = cache.object(forKey: key) {
-            return cached
-        }
-        let loaded: UIImage?
-        if let url = Bundle.main.url(forResource: name, withExtension: "heic", subdirectory: "PetFrames"),
-           let fromFile = UIImage(contentsOfFile: url.path) {
-            loaded = fromFile
-        } else {
-            loaded = UIImage(named: name)
-        }
-        guard let loaded else { return nil }
-        let bytes = Int(loaded.size.width * loaded.scale * loaded.size.height * loaded.scale * 4)
-        cache.setObject(loaded, forKey: key, cost: max(1, bytes))
-        return loaded
-    }
-}
-
 /// Public animation intents used by encounters, care and the Sunroom.
 enum PetPlayfulAction: Equatable, Sendable {
     case idle
@@ -63,6 +34,7 @@ struct ProceduralPetRigView: View {
     var isStaticSnapshot: Bool = false
     var tapBounceScale: CGFloat = 0.0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.displayScale) private var displayScale
     var playfulAction: PetPlayfulAction = .idle
     var actionTriggerDate: Date = .distantPast
 
@@ -71,6 +43,7 @@ struct ProceduralPetRigView: View {
     var poseStartedAt: Date? = nil
     var locomotion: CelLocomotion? = nil
     var facingRight = false
+    var presentationScale: CGFloat = 1
     var previewFrame: String? = nil
     var previewNeck: [Double]? = nil
 
@@ -83,7 +56,7 @@ struct ProceduralPetRigView: View {
             } else if let stageDate {
                 celAnimationStack(time: stageDate.timeIntervalSinceReferenceDate)
             } else {
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+                TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 30.0, reduceMotion: reduceMotion))) { timeline in
                     celAnimationStack(time: timeline.date.timeIntervalSinceReferenceDate)
                 }
             }
@@ -177,6 +150,7 @@ struct ProceduralPetRigView: View {
             return CelFrameState(assetName: celName(staticIdx), isSleeping: staticIdx == 6, isExcited: isHappySquint)
         }
 
+        if reduceMotion { return CelFrameState(assetName: celName(1)) }
         if let playback = poseTransition?.playback(at: Date(timeIntervalSinceReferenceDate: time)) {
             return frameState(for: playback)
         }
@@ -357,6 +331,27 @@ struct ProceduralPetRigView: View {
         }
     }
 
+    private func preloadPlan(state: CelFrameState, date: Date, pixels: CGFloat) -> CelClipPreloader.Plan? {
+        guard !isStaticSnapshot, !reduceMotion else { return nil }
+        let suffix = state.assetName.dropFirst(assetPrefix.count + 1)
+        let bank = String(suffix.prefix { $0.isLetter })
+        let current = state.playback?.player ?? CelLibrary.player(for: pet.id, bank: bank)
+        var upcoming: [CelClipPlayer] = []
+        if let poseTransition, date < poseTransition.arrivesAt {
+            upcoming += poseTransition.players
+            let targetBank: String = switch poseTransition.target {
+            case .walk: locomotion?.bank ?? "w"
+            case .sleep: "s"
+            case .idle, .startle: "i"
+            }
+            if let target = CelLibrary.player(for: pet.id, bank: targetBank) { upcoming.append(target) }
+        } else if let next = current?.clip.next, let target = CelLibrary.player(for: pet.id, named: next) {
+            upcoming.append(target)
+        }
+        return CelClipPreloader.Plan(prefix: assetPrefix, pixels: CelFrameImageCache.Key.bucket(for: pixels),
+                                     current: current?.clip, upcoming: upcoming.map(\.clip))
+    }
+
     @ViewBuilder
     private func celAnimationStack(time: Double) -> some View {
         GeometryReader { geo in
@@ -365,6 +360,7 @@ struct ProceduralPetRigView: View {
             let minDim = min(w, h)
             let state = resolveCelFrameState(time: time, minDim: minDim)
             let frameAssetName = state.assetName
+            let displayPixels = minDim * displayScale * presentationScale
             let playback = state.playback
             let recentDust = playback?.player.events(after: (playback?.elapsed ?? 0) - 0.42,
                                                      through: playback?.elapsed ?? 0)
@@ -428,16 +424,8 @@ struct ProceduralPetRigView: View {
 
                 // Pure Hand-Drawn Cel Frame (ZERO distortion, ZERO squeezing, ZERO fake facial overlays!)
                 ZStack {
-                    if let uiImage = CelFrameImageCache.shared.image(named: frameAssetName)
-                        ?? CelFrameImageCache.shared.image(named: assetPrefix) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .scaledToFit()
-                    } else {
-                        Circle()
-                            .fill(Color(hex: pet.primaryCoatHex))
-                            .frame(width: minDim * 0.5, height: minDim * 0.5)
-                    }
+                    CelFrameImage(name: frameAssetName, fallbackName: celName(1),
+                                  displayPixels: displayPixels, fallbackColor: Color(hex: pet.primaryCoatHex))
 
                     // Wardrobe accessory bound cleanly to sitting/standing poses (f1..f5); hidden on curled nap (f6)
                     if !state.isSleeping, let outfitID, let item = ShopCatalog.item(id: outfitID) {
@@ -463,7 +451,7 @@ struct ProceduralPetRigView: View {
                 .offset(x: state.hopOffsetX, y: state.hopOffsetY)
 
                 // Ambient happy hearts / golden stars / peaceful sleeping Zzz motes
-                if state.isExcited || state.isSleeping || mentorshipParticle != nil {
+                if !reduceMotion, state.isExcited || state.isSleeping || mentorshipParticle != nil {
                     StorybookParticleMotesCanvas(
                         time: isStaticSnapshot ? 0.8 : time,
                         habit: mentorshipParticle,
@@ -474,6 +462,8 @@ struct ProceduralPetRigView: View {
                 }
             }
             .frame(width: w, height: h)
+            .modifier(CelClipPreloader(plan: preloadPlan(state: state,
+                date: Date(timeIntervalSinceReferenceDate: time), pixels: displayPixels)))
             .onChange(of: playback, initial: true) { previous, current in
                 guard !isStaticSnapshot, !reduceMotion, let current, current.player.clip.events != nil else { return }
                 let earlier: Double
@@ -487,7 +477,7 @@ struct ProceduralPetRigView: View {
                 }
             }
             .scaleEffect(x: mirror ? -1 : 1, y: 1)
-            .animation(hasRightWalk || ["wf", "wb", "tn", "tr"].contains(activeBank ?? "") ? nil : .easeInOut(duration: 0.16), value: mirror)
+            .animation(reduceMotion || hasRightWalk || ["wf", "wb", "tn", "tr"].contains(activeBank ?? "") ? nil : .easeInOut(duration: 0.16), value: mirror)
         }
     }
 }

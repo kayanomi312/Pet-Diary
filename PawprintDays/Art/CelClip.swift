@@ -152,7 +152,7 @@ enum CelLibrary {
         var visited: Set<String> = []
         while current.clip.loop == .once && time >= current.duration {
             guard let next = current.clip.next, visited.insert(next).inserted,
-                  let following = authoredPlayers[prefix(for: petID)]?[next] ?? legacyPlayers[next] else { return nil }
+                  let following = Self.player(for: petID, named: next) else { return nil }
             time -= current.duration
             current = following
         }
@@ -161,8 +161,15 @@ enum CelLibrary {
 
     static func manifest(for petID: String) -> CelManifest? { manifests[prefix(for: petID)] }
 
-    static func frameURL(_ name: String) -> URL? {
-        Bundle.main.url(forResource: name, withExtension: "heic", subdirectory: "PetFrames")
+    private static let frameURLs: [String: URL] = {
+        let urls = Bundle.main.urls(forResourcesWithExtension: "heic", subdirectory: "PetFrames") ?? []
+        return Dictionary(uniqueKeysWithValues: urls.map { ($0.deletingPathExtension().lastPathComponent, $0) })
+    }()
+
+    static func frameURL(_ name: String) -> URL? { frameURLs[name] }
+
+    static func player(for petID: String, named name: String) -> CelClipPlayer? {
+        authoredPlayers[prefix(for: petID)]?[name] ?? legacyPlayers[name]
     }
 
     private static let legacyPlayers = legacy.mapValues(CelClipPlayer.init)
@@ -245,4 +252,22 @@ struct CelLocomotion: Equatable, Sendable {
     }
 
     var isSideOn: Bool { bank == "w" || bank == "wr" }
+}
+
+/// Distance in normalized room coordinates traveled in one full authored cycle.
+struct CelStride: Sendable {
+    let lengthUV: Double
+    let cycleDuration: Double
+
+    init?(lengthUV: Double?, player: CelClipPlayer?) {
+        guard let lengthUV, lengthUV.isFinite, lengthUV > 0,
+              let player, player.clip.loop != .once, player.duration.isFinite else { return nil }
+        self.lengthUV = lengthUV
+        cycleDuration = player.duration
+    }
+
+    func duration(forDistance distance: Double) -> Double? {
+        let time = distance / lengthUV * cycleDuration
+        return time.isFinite && time > 0 ? time : nil
+    }
 }
