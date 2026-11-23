@@ -39,6 +39,13 @@
       "frames" : 8,
       "loop" : "pingpong"
     },
+    "turn" : {
+      "bank" : "tn",
+      "fps" : 12,
+      "frames" : 5,
+      "loop" : "once",
+      "next" : "walk"
+    },
     "walk" : {
       "bank" : "w",
       "fps" : 9,
@@ -51,6 +58,18 @@
         "5" : 3,
         "6" : 2
       },
+      "loop" : "loop"
+    },
+    "walk_right" : {
+      "bank" : "wr",
+      "events" : {
+        "footContact" : [
+          1,
+          7
+        ]
+      },
+      "fps" : 12,
+      "frames" : 12,
       "loop" : "loop"
     }
   },
