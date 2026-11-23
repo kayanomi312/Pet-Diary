@@ -1201,65 +1201,38 @@ struct CeramicTeapotCornerButton: View {
     }
 }
 
-// MARK: - 5. Ambient Sunroom Volumetric Sunbeams, Dust Motes & Window Rain Beads
-struct SunroomAtmosphereParticlesView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+// MARK: - 5. Sunroom window light, dust, rain and curtain folds
+struct SunroomAmbientLayers: View {
     let weather: WeatherMode
+    let date: Date
+    let reduceMotion: Bool
+
+    private var atmosphere: (rain: Float, light: Float, dusk: Float) {
+        switch weather {
+        case .clearMorning: return (0, 1, 0)
+        case .overcast: return (0, 0.28, 0)
+        case .lightRain: return (1, 0.12, 0)
+        case .postRain: return (0.38, 0.57, 0)
+        case .dusk: return (0, 0.64, 1)
+        }
+    }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 24.0, reduceMotion: reduceMotion))) { timeline in
-            let t = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
-            Canvas { ctx, size in
-                let w = size.width, h = size.height
-                if weather.isRainy {
-                    // Cool rainy window wash + glass rain streaks
-                    for idx in 0..<22 {
-                        let rx = w * (0.08 + CGFloat((idx * 37) % 84) / 100.0)
-                        let phase = (t * 0.36 + Double(idx) * 0.19).truncatingRemainder(dividingBy: 1.0)
-                        let ry = h * 0.10 + CGFloat(phase) * h * 0.38
-                        var drop = Path()
-                        drop.move(to: CGPoint(x: rx, y: ry))
-                        drop.addLine(to: CGPoint(x: rx - 2.5, y: ry + 14))
-                        ctx.stroke(drop, with: .color(AppTheme.warmPaper.opacity(0.48 * sin(phase * .pi))), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))
-                    }
-                } else {
-                    // Soft pulsing diagonal volumetric sunbeams slanting from top-left window
-                    let rayPulse = 0.14 + sin(t * 0.55) * 0.04
-                    let rayColor = weather == .dusk ? Color(hex: "#FFD99B") : Color(hex: "#FFFCE8")
-                    for beamIdx in 0..<2 {
-                        let shift = CGFloat(beamIdx) * w * 0.24
-                        var ray = Path()
-                        ray.move(to: CGPoint(x: w * 0.04 + shift, y: 0))
-                        ray.addLine(to: CGPoint(x: w * 0.28 + shift, y: 0))
-                        ray.addLine(to: CGPoint(x: w * 0.62 + shift, y: h * 0.72))
-                        ray.addLine(to: CGPoint(x: w * 0.30 + shift, y: h * 0.72))
-                        ray.closeSubpath()
-                        ctx.fill(
-                            ray,
-                            with: .linearGradient(
-                                Gradient(colors: [rayColor.opacity(rayPulse), rayColor.opacity(rayPulse * 0.35), .clear]),
-                                startPoint: CGPoint(x: w * 0.18 + shift, y: 0),
-                                endPoint: CGPoint(x: w * 0.45 + shift, y: h * 0.72)
-                            )
-                        )
-                    }
-
-                    // Warm sunlit floating dust motes & soft bokeh dancing slowly in sunbeams
-                    for idx in 0..<18 {
-                        let phase = (t * 0.13 + Double(idx) * 0.21).truncatingRemainder(dividingBy: 1.0)
-                        let x = w * (0.12 + CGFloat((idx * 29) % 76) / 100.0) + CGFloat(sin(t * 0.7 + Double(idx))) * 15
-                        let y = h * 0.14 + CGFloat(phase) * h * 0.50
-                        let r: CGFloat = (idx % 4 == 0) ? 4.2 : (2.0 + CGFloat(idx % 3) * 0.8)
-                        let alpha = (idx % 4 == 0 ? 0.28 : 0.62) * sin(phase * .pi)
-                        ctx.fill(
-                            Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
-                            with: .color(Color(hex: "#FFF8DC").opacity(alpha))
-                        )
-                    }
-                }
-            }
+        let time = reduceMotion ? 0 : date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 10_000)
+        let weather = atmosphere
+        ZStack {
+            Rectangle()
+                .fill(.white)
+                .colorEffect(ShaderLibrary.sunroomAmbient(
+                    .boundingRect, .float(time), .float(weather.rain), .float(weather.light), .float(weather.dusk)
+                ))
+                .id(self.weather)
+                .transition(.opacity)
         }
+        .animation(reduceMotion ? AppTheme.Motion.reduced : .easeInOut(duration: AppTheme.Motion.relaxed),
+                   value: self.weather)
         .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

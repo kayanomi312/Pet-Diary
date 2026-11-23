@@ -48,14 +48,14 @@ final class CelFrameImageCache {
         return entry.image
     }
 
-    func image(_ key: Key, priority: TaskPriority = .userInitiated) async -> UIImage? {
+    func image(_ key: Key) async -> UIImage? {
         if let image = cached(key) { return image }
         guard let url = CelLibrary.frameURL(key.name) else { return nil }
         let task: Task<CGImage?, Never>
         if let pending = requests[key] {
             task = pending
         } else {
-            task = Task.detached(priority: priority) { Self.decode(url, pixels: key.pixels) }
+            task = Task.detached(priority: .userInitiated) { Self.decode(url, pixels: key.pixels) }
             requests[key] = task
         }
         let decoded = await task.value
@@ -90,11 +90,14 @@ final class CelFrameImageCache {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary) else {
             return nil
         }
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let width = properties?[kCGImagePropertyPixelWidth] as? Int ?? pixels
+        let height = properties?[kCGImagePropertyPixelHeight] as? Int ?? pixels
         let options = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
             kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceThumbnailMaxPixelSize: pixels
+            kCGImageSourceThumbnailMaxPixelSize: min(pixels, max(width, height))
         ] as CFDictionary
         return CGImageSourceCreateThumbnailAtIndex(source, 0, options)
     }
@@ -164,7 +167,7 @@ struct CelClipPreloader: ViewModifier {
                 cache.setPins(frames, for: pinOwner)
                 for frame in frames {
                     guard !Task.isCancelled else { return }
-                    _ = await cache.image(frame, priority: .utility)
+                    _ = await cache.image(frame)
                 }
             }
             .onDisappear { CelFrameImageCache.shared.releasePins(for: pinOwner) }
