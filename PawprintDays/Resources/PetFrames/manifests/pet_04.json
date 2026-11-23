@@ -33,6 +33,22 @@
       "frames" : 8,
       "loop" : "loop"
     },
+    "signature" : {
+      "bank" : "x",
+      "events" : {
+        "wingShade" : [
+          5
+        ]
+      },
+      "fps" : 10,
+      "frames" : 10,
+      "holds" : {
+        "5" : 3,
+        "10" : 2
+      },
+      "loop" : "once",
+      "next" : "idle"
+    },
     "sleep" : {
       "bank" : "s",
       "fps" : 3.2000000000000002,
