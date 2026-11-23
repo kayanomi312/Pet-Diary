@@ -2,6 +2,7 @@ import SwiftUI
 
 /// 陽光室空間家園（精繪台灣日式木造陽光室、斜射日光束、窗台盆栽、5→8 互動位置、歲月痕跡補丁）
 struct HomeSunroomView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var coordinator: GameCoordinator
     @State private var panOffset: CGFloat = 0
     @State private var draggedOffset: CGFloat = 0
@@ -68,7 +69,7 @@ struct HomeSunroomView: View {
                     } else {
                         CozySoundEngine.shared.playPetChirp()
                     }
-                    withAnimation(.spring(response: 0.22, dampingFraction: 0.45)) {
+                    withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) {
                         bouncingPetID = petID
                     }
                     Task { @MainActor in
@@ -82,7 +83,7 @@ struct HomeSunroomView: View {
                     selectedDecorateSpotIndex = spot.spotIndex
                     if !isDecoratingMode {
                         CozySoundEngine.shared.playPaperFlip()
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                        withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                             isDecoratingMode = true
                         }
                     }
@@ -102,12 +103,12 @@ struct HomeSunroomView: View {
                     coordinator.showWhisper("窗台珍藏「\(spec.name)」(\(entry.placeLabel))：\(spec.journalNote)")
                 },
                 onTapOffspring: { child in
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                    withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                         selectedOffspringID = (selectedOffspringID == child.id) ? nil : child.id
                     }
                 },
                 onFoundHidingPet: { foundID, spotUV in
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.6)) {
+                    withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) {
                         hidingSpotIndex = nil
                         hidingPetID = nil
                         bouncingPetID = foundID
@@ -130,7 +131,7 @@ struct HomeSunroomView: View {
                         bubbleA: "嘿～一起玩嗎♪",
                         bubbleB: "好呀好呀♡"
                     )
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.80)) {
+                    withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                         activeSkitOverlay = skit
                     }
                 },
@@ -150,7 +151,7 @@ struct HomeSunroomView: View {
                 onTapOrigamiTable: {
                     HapticsEngine.shared.playBrushStrokeTick()
                     CozySoundEngine.shared.playPaperFlip()
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.80)) {
+                    withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                         showOrigamiFoldMat = true
                         selectedOffspringID = nil
                     }
@@ -165,7 +166,7 @@ struct HomeSunroomView: View {
                 onCollectErrandInWorld: {
                     if let postcard = coordinator.collectReturnedErrand() {
                         roamingEngine.welcomePetBackInDoor(petID: postcard.petID, coins: postcard.coinsEarned)
-                        withAnimation(.spring(response: 0.32, dampingFraction: 0.80)) {
+                        withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                             returnedErrandToast = postcard
                         }
                     }
@@ -179,7 +180,7 @@ struct HomeSunroomView: View {
                             bubbleB: "暖暖的好期待✦",
                             heartBurst: true
                         )
-                        withAnimation(.spring(response: 0.32, dampingFraction: 0.80)) {
+                        withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                             selectedOffspringID = baby.id
                         }
                     }
@@ -193,7 +194,7 @@ struct HomeSunroomView: View {
                     }
                     .onEnded { value in
                         guard !isDecoratingMode && !isFeatherWandMode && !showOrigamiFoldMat else { return }
-                        withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                        withAnimation(AppTheme.Motion.resolved(.gentle, reduceMotion: reduceMotion)) {
                             panOffset = max(-maxPan, min(maxPan, panOffset + value.translation.width * 0.55))
                             draggedOffset = 0
                         }
@@ -247,7 +248,7 @@ struct HomeSunroomView: View {
                         Button {
                             HapticsEngine.shared.playBrushStrokeTick()
                             CozySoundEngine.shared.playPaperFlip()
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.80)) {
+                            withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
                                 showWishStickySlip.toggle()
                             }
                         } label: {
@@ -337,7 +338,7 @@ struct HomeSunroomView: View {
                             )
                         }
                         .padding(.horizontal, 16)
-                        .transition(.scale(scale: 0.92, anchor: .topTrailing).combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .scale(scale: 0.92, anchor: .topTrailing).combined(with: .opacity))
                     }
 
                     if let ready = readyMentorships.first {
@@ -374,7 +375,7 @@ struct HomeSunroomView: View {
                         )
                         .padding(.horizontal, 20)
                         .padding(.bottom, 92)
-                        .transition(.scale(scale: 0.90).combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .scale(scale: 0.90).combined(with: .opacity))
                     } else if let child = selectedOffspring {
                         // Lightweight In-World Floating Radial Care Card for tapped Egg / Hybrid Hatchling!
                         InWorldOffspringFloatingCard(
@@ -404,7 +405,7 @@ struct HomeSunroomView: View {
                         )
                         .padding(.horizontal, 18)
                         .padding(.bottom, 92)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                     } else if let toast = returnedErrandToast {
                         // Physical Floating Watercolor Postcard Toast on Solo Errand Return!
                         InWorldErrandPostcardToast(
@@ -415,7 +416,7 @@ struct HomeSunroomView: View {
                         }
                         .padding(.horizontal, 18)
                         .padding(.bottom, 92)
-                        .transition(.scale(scale: 0.92).combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .scale(scale: 0.92).combined(with: .opacity))
                     } else if isDecoratingMode {
                         // Live Inline Bottom Furniture Carousel (Swap props live while dragging on the 2.5D floor!)
                         InWorldFurnitureCarouselBar(
@@ -427,13 +428,13 @@ struct HomeSunroomView: View {
                             },
                             onDone: {
                                 CozySoundEngine.shared.playPaperFlip()
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                                withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                                     isDecoratingMode = false
                                 }
                             }
                         )
                         .padding(.bottom, 86)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                     } else if isFeatherWandMode {
                         HStack(spacing: 10) {
                             CozyGlassPill(horizontalPadding: 12, verticalPadding: 9) {
@@ -453,7 +454,7 @@ struct HomeSunroomView: View {
                                 style: .sage
                             ) {
                                 CozySoundEngine.shared.playPaperFlip()
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                                withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                                     isFeatherWandMode = false
                                 }
                             }
@@ -466,7 +467,7 @@ struct HomeSunroomView: View {
                                 Button {
                                     HapticsEngine.shared.playPawRangeCue()
                                     CozySoundEngine.shared.playBrushSwish()
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                                    withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                                         isFeatherWandMode = true
                                     }
                                     coordinator.showWhisper("在木地板上滑動手指揮舞羽毛逗貓棒，室友會飛奔過來撲抓！")
@@ -505,7 +506,7 @@ struct HomeSunroomView: View {
 
                             Button {
                                 CozySoundEngine.shared.playPaperFlip()
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                                withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                                     isDecoratingMode = true
                                 }
                                 coordinator.showWhisper("直接拖曳家具移動位置，或在下方點選即時換裝！")
@@ -538,7 +539,7 @@ struct HomeSunroomView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 94)
                 }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
                 .zIndex(30)
             }
         }

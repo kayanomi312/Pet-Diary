@@ -56,7 +56,7 @@ struct ProceduralPetRigView: View {
             } else if let stageDate {
                 celAnimationStack(time: stageDate.timeIntervalSinceReferenceDate)
             } else {
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+                TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 30.0, reduceMotion: reduceMotion))) { timeline in
                     celAnimationStack(time: timeline.date.timeIntervalSinceReferenceDate)
                 }
             }
@@ -150,6 +150,7 @@ struct ProceduralPetRigView: View {
             return CelFrameState(assetName: celName(staticIdx), isSleeping: staticIdx == 6, isExcited: isHappySquint)
         }
 
+        if reduceMotion { return CelFrameState(assetName: celName(1)) }
         if let playback = poseTransition?.playback(at: Date(timeIntervalSinceReferenceDate: time)) {
             return frameState(for: playback)
         }
@@ -450,7 +451,7 @@ struct ProceduralPetRigView: View {
                 .offset(x: state.hopOffsetX, y: state.hopOffsetY)
 
                 // Ambient happy hearts / golden stars / peaceful sleeping Zzz motes
-                if state.isExcited || state.isSleeping || mentorshipParticle != nil {
+                if !reduceMotion, state.isExcited || state.isSleeping || mentorshipParticle != nil {
                     StorybookParticleMotesCanvas(
                         time: isStaticSnapshot ? 0.8 : time,
                         habit: mentorshipParticle,
@@ -476,7 +477,7 @@ struct ProceduralPetRigView: View {
                 }
             }
             .scaleEffect(x: mirror ? -1 : 1, y: 1)
-            .animation(hasRightWalk || ["wf", "wb", "tn", "tr"].contains(activeBank ?? "") ? nil : .easeInOut(duration: 0.16), value: mirror)
+            .animation(reduceMotion || hasRightWalk || ["wf", "wb", "tn", "tr"].contains(activeBank ?? "") ? nil : .easeInOut(duration: 0.16), value: mirror)
         }
     }
 }

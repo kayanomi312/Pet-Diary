@@ -2,6 +2,7 @@
 import SwiftUI
 
 struct AnimationGalleryView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     enum Backdrop: String, CaseIterable {
         case sunroom = "Sunroom floor"
         case street = "Street"
@@ -38,7 +39,7 @@ struct AnimationGalleryView: View {
                 }
                 if let clip = clips[clipName] {
                     let player = CelClipPlayer(clip)
-                    TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !isPlaying)) { timeline in
+                    TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 30, reduceMotion: reduceMotion), paused: !isPlaying)) { timeline in
                         let elapsed = playhead + max(0, timeline.date.timeIntervalSince(started)) * speed
                         let index = isPlaying ? player.step(at: elapsed) : min(step, player.order.count - 1)
                         preview(player: player, index: index, elapsed: isPlaying ? elapsed : player.startTime(of: index))
