@@ -1,56 +1,57 @@
 {
-  "clips": {
-    "happy": {
-      "bank": "h",
-      "fps": 7,
-      "frames": 10,
-      "loop": "loop"
+  "clips" : {
+    "happy" : {
+      "bank" : "h",
+      "fps" : 7,
+      "frames" : 10,
+      "loop" : "loop"
     },
-    "idle": {
-      "bank": "i",
-      "events": {
-        "blink": [
+    "idle" : {
+      "bank" : "i",
+      "events" : {
+        "blink" : [
           14
         ]
       },
-      "fps": 8,
-      "frames": 16,
-      "holds": {
-        "14": 3,
-        "7": 3
+      "fps" : 8,
+      "frames" : 16,
+      "holds" : {
+        "7" : 3,
+        "14" : 3
       },
-      "loop": "loop"
+      "loop" : "loop"
     },
-    "mouth": {
-      "bank": "m",
-      "fps": 7.5,
-      "frames": 8,
-      "loop": "loop"
+    "mouth" : {
+      "bank" : "m",
+      "fps" : 7.5,
+      "frames" : 8,
+      "loop" : "loop"
     },
-    "play": {
-      "bank": "p",
-      "fps": 8.5,
-      "frames": 8,
-      "loop": "loop"
+    "play" : {
+      "bank" : "p",
+      "fps" : 8.5,
+      "frames" : 8,
+      "loop" : "loop"
     },
-    "sleep": {
-      "bank": "s",
-      "fps": 3.2,
-      "frames": 8,
-      "loop": "pingpong"
+    "sleep" : {
+      "bank" : "s",
+      "fps" : 3.2000000000000002,
+      "frames" : 8,
+      "loop" : "pingpong"
     },
-    "walk": {
-      "bank": "w",
-      "fps": 9,
-      "frames": 3,
-      "holds": {
-        "1": 6,
-        "2": 5,
-        "3": 5
+    "walk" : {
+      "bank" : "w",
+      "events" : {
+        "footContact" : [
+          1,
+          7
+        ]
       },
-      "loop": "loop"
+      "fps" : 12,
+      "frames" : 12,
+      "loop" : "loop"
     }
   },
-  "pet": "pet_04",
-  "spec": 2
+  "pet" : "pet_04",
+  "spec" : 2
 }
