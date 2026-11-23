@@ -69,6 +69,8 @@ struct ProceduralPetRigView: View {
     var stageDate: Date? = nil
     var poseTransition: CelPoseTransition? = nil
     var poseStartedAt: Date? = nil
+    var locomotion: CelLocomotion? = nil
+    var facingRight = false
     var previewFrame: String? = nil
     var previewNeck: [Double]? = nil
 
@@ -144,9 +146,12 @@ struct ProceduralPetRigView: View {
     }
 
     private func authoredFrame(_ bank: String, elapsed: Double) -> CelFrameState? {
-        guard let player = CelLibrary.authored(for: pet.id, bank: bank),
-              let playback = CelLibrary.playback(for: pet.id, starting: player, elapsed: elapsed) else { return nil }
-        return frameState(for: playback)
+        guard let player = CelLibrary.authored(for: pet.id, bank: bank) else { return nil }
+        if let playback = CelLibrary.playback(for: pet.id, starting: player, elapsed: elapsed) {
+            return frameState(for: playback)
+        }
+        guard let idle = CelLibrary.player(for: pet.id, bank: "i") else { return nil }
+        return frameState(for: CelPlayback(player: idle, elapsed: max(0, elapsed - player.duration)))
     }
 
     private func frameState(for playback: CelPlayback) -> CelFrameState {
@@ -155,7 +160,7 @@ struct ProceduralPetRigView: View {
             assetName: playback.player.clip.asset(prefix: assetPrefix, frame: playback.frame),
             isSleeping: activeBank == "s",
             isExcited: ["e", "g", "j", "h", "p"].contains(activeBank),
-            isWalkingDust: activeBank == "w",
+            isWalkingDust: ["w", "wr", "wf", "wb"].contains(activeBank),
             playback: playback
         )
     }
@@ -183,7 +188,7 @@ struct ProceduralPetRigView: View {
         // 1. Active explicit playful interactions (highest priority)
         switch playfulAction {
         case .walking:
-            if let authored = authoredFrame("w", elapsed: poseElapsed) { return authored }
+            if let authored = authoredFrame(locomotion?.bank ?? "w", elapsed: poseElapsed) { return authored }
             // Relaxed, natural 16-frame stroll cycle (`w1`..`w16`) at 9.0fps (~1.78s per unhurried stride)
             let walkFPS = 9.0
             let subtleCadence = -CGFloat(abs(sin(tPet * walkFPS * .pi / 8.0))) * minDim * 0.008
@@ -339,6 +344,19 @@ struct ProceduralPetRigView: View {
         return CelFrameState(assetName: bankFrame("i", time: tPet))
     }
 
+    private func respond(to event: String) {
+        switch event {
+        case "footContact", "land":
+            CozySoundEngine.shared.playPawTap()
+            HapticsEngine.shared.playBrushStrokeTick()
+        case "chew":
+            CozySoundEngine.shared.playCelChew()
+            HapticsEngine.shared.playBrushStrokeTick()
+        default:
+            break
+        }
+    }
+
     @ViewBuilder
     private func celAnimationStack(time: Double) -> some View {
         GeometryReader { geo in
@@ -347,6 +365,13 @@ struct ProceduralPetRigView: View {
             let minDim = min(w, h)
             let state = resolveCelFrameState(time: time, minDim: minDim)
             let frameAssetName = state.assetName
+            let playback = state.playback
+            let recentDust = playback?.player.events(after: (playback?.elapsed ?? 0) - 0.42,
+                                                     through: playback?.elapsed ?? 0)
+                .filter { $0.name == "footContact" || $0.name == "land" } ?? []
+            let activeBank = state.playback?.player.clip.bank
+            let hasRightWalk = CelLibrary.authored(for: pet.id, bank: "wr") != nil
+            let mirror = facingRight && !hasRightWalk && !(["wr", "wf", "wb", "tr"].contains(activeBank ?? ""))
             let shadowShrink = max(0.76, 1.0 + (state.hopOffsetY / max(1, minDim)) * 1.4)
 
             let rimGlowColor: Color = {
@@ -391,9 +416,14 @@ struct ProceduralPetRigView: View {
                     .offset(x: state.hopOffsetX * 0.7, y: minDim * 0.41)
 
                 // Soft trailing paw-step dust puffs while walking across the 2.5D cedar floor!
-                if state.isWalkingDust && !isStaticSnapshot {
-                    WalkingPawDustCanvas(time: time)
-                        .allowsHitTesting(false)
+                if !isStaticSnapshot, !reduceMotion {
+                    if let playback, !recentDust.isEmpty {
+                        WalkingPawDustCanvas(time: time, contactAges: recentDust.map { playback.elapsed - $0.time })
+                            .allowsHitTesting(false)
+                    } else if state.isWalkingDust, playback?.player.clip.events?["footContact"] == nil {
+                        WalkingPawDustCanvas(time: time)
+                            .allowsHitTesting(false)
+                    }
                 }
 
                 // Pure Hand-Drawn Cel Frame (ZERO distortion, ZERO squeezing, ZERO fake facial overlays!)
@@ -444,6 +474,20 @@ struct ProceduralPetRigView: View {
                 }
             }
             .frame(width: w, height: h)
+            .onChange(of: playback, initial: true) { previous, current in
+                guard !isStaticSnapshot, !reduceMotion, let current, current.player.clip.events != nil else { return }
+                let earlier: Double
+                if let previous, previous.player == current.player, current.elapsed >= previous.elapsed {
+                    earlier = max(previous.elapsed, current.elapsed - 0.12)
+                } else {
+                    earlier = current.elapsed <= 0.12 ? -0.001 : current.elapsed - 0.12
+                }
+                for marker in current.player.events(after: earlier, through: current.elapsed) {
+                    respond(to: marker.name)
+                }
+            }
+            .scaleEffect(x: mirror ? -1 : 1, y: 1)
+            .animation(hasRightWalk || ["wf", "wb", "tn", "tr"].contains(activeBank ?? "") ? nil : .easeInOut(duration: 0.16), value: mirror)
         }
     }
 }
@@ -646,14 +690,16 @@ struct PaperGrainShaderModifier: ViewModifier {
 /// Soft pastel floor dust puffs kicking up behind a walking pet's back paws
 private struct WalkingPawDustCanvas: View {
     let time: Double
+    var contactAges: [Double]? = nil
 
     var body: some View {
         Canvas { ctx, size in
             let w = size.width
             let h = size.height
             let minDim = min(w, h)
-            for idx in 0..<3 {
-                let phase = (time * 0.85 + Double(idx) * 0.33).truncatingRemainder(dividingBy: 1.0)
+            let phases = contactAges?.map { min(1, max(0, $0 / 0.42)) }
+                ?? (0..<3).map { (time * 0.85 + Double($0) * 0.33).truncatingRemainder(dividingBy: 1.0) }
+            for phase in phases {
                 let px = w * 0.66 + CGFloat(phase) * minDim * 0.15
                 let py = h * 0.87 - CGFloat(phase) * minDim * 0.045
                 let r = minDim * (0.015 + CGFloat(phase) * 0.018)

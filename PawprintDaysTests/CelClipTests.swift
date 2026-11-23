@@ -60,4 +60,22 @@ final class CelClipTests: XCTestCase {
         XCTAssertEqual(legacy.arrivesAt, start)
         XCTAssertNil(legacy.playback(at: start))
     }
+
+    func testLocomotionSelectsDepthAndRightBanksWithSideFallback() {
+        let banks: Set<String> = ["wr", "wf", "wb"]
+        XCTAssertEqual(CelLocomotion(dx: 0.1, dy: 0.5, facingRight: true, hasBank: banks.contains).bank, "wf")
+        XCTAssertEqual(CelLocomotion(dx: 0, dy: -0.5, facingRight: false, hasBank: banks.contains).bank, "wb")
+        XCTAssertEqual(CelLocomotion(dx: 0.4, dy: 0.1, facingRight: true, hasBank: banks.contains).bank, "wr")
+        XCTAssertEqual(CelLocomotion(dx: 0.1, dy: 0.5, facingRight: true) { $0 == "wr" }.bank, "wr")
+        XCTAssertEqual(CelLocomotion(dx: -0.4, dy: 0.05, facingRight: false) { _ in false }.bank, "w")
+    }
+
+    func testEventsFireOnEntryAcrossHoldsAndLoopBoundaries() {
+        let clip = CelClip(bank: "w", frames: 3, fps: 4, loop: .loop, holds: [1: 2],
+                           events: ["footContact": [1, 3]])
+        let player = CelClipPlayer(clip)
+        XCTAssertEqual(player.events(after: -0.01, through: 0.5).map(\.time), [0])
+        XCTAssertEqual(player.events(after: 0.5, through: 1.05).map(\.time), [0.75, 1])
+        XCTAssertEqual(player.events(after: 1, through: 1.25), [])
+    }
 }
