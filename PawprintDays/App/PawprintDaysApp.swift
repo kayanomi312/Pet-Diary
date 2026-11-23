@@ -20,43 +20,16 @@ struct PawprintDaysApp: App {
 
     private static let persistenceLog = Logger(subsystem: "com.pawprintdays.app", category: "persistence")
 
-    // MARK: - Development-only clean reset
-    #if DEBUG
-    private static let cleanReleaseResetKey = "pawprintdays.releaseCleanReset.v1_mystical"
-
-    /// Wipes the store (and the UserDefaults that mirror it) once per install.
-    ///
-    /// This was added for the mystical-companion rework so development devices holding pre-rework
-    /// data started clean. It is compiled **only into Debug builds**: Release (TestFlight / App Store)
-    /// builds must never delete a player's diary. Any future change to the stored model shape goes
-    /// through `PawprintMigrationPlan` instead of a wipe. It also never runs under XCTest, on device
-    /// or simulator, so tests cannot clobber a developer's store.
-    private static func performOneTimeDevelopmentResetIfNeeded(storeURL: URL) {
-        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil { return }
-        guard !UserDefaults.standard.bool(forKey: cleanReleaseResetKey) else { return }
-        let fm = FileManager.default
-        for suffix in ["", "-wal", "-shm"] {
-            let target = URL(fileURLWithPath: storeURL.path + suffix)
-            if fm.fileExists(atPath: target.path) {
-                try? fm.removeItem(at: target)
-            }
-        }
-        UserDefaults.standard.removeObject(forKey: "pawprintdays.activeStrollSession.v1")
-        UserDefaults.standard.removeObject(forKey: "pawprintdays.sunroom.customSpots.v1")
-        UserDefaults.standard.removeObject(forKey: "pawprintdays.tutorial.completed.v1")
-        UserDefaults.standard.set(true, forKey: cleanReleaseResetKey)
-        persistenceLog.notice("Debug build: performed one-time development store reset.")
-    }
-    #endif
+    // There is deliberately no "clean reset" wipe here. An earlier one-time reset
+    // (`pawprintdays.releaseCleanReset.v1_mystical`) deleted the store on first launch to clear
+    // pre-mystical-rework data; it was removed so no build can ever erase a player's diary.
+    // Changes to the stored model shape go through `PawprintMigrationPlan` instead.
 
     // MARK: - Resilient container
     private static func makeResilientContainer() -> (ModelContainer, String?) {
         let schema = PawprintPersistence.currentSchema
         let persistentConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         let storeURL = persistentConfig.url
-        #if DEBUG
-        performOneTimeDevelopmentResetIfNeeded(storeURL: storeURL)
-        #endif
 
         do {
             return (try PawprintPersistence.makeContainer(configuration: persistentConfig), nil)
