@@ -51,10 +51,15 @@ Source rules are in [StepCoinLedgerEngine.swift](../PawprintDays/Engine/StepCoin
 
 The itinerary assumes eight step samples per day with the starter buddy, repeating weather, one successful favorite greeting before walking, and the five new street invites in catalog order. Actual invitations depend on which pets are encountered. The indoor window route costs zero and takes three daily greetings per visitor. The run buys a thermos when the morning wallet allows it, alternates free bun errands with a flask and umbrella at the end of each week, and gifts same-day finds when a resident loves their weather. It keeps starter furniture in place with one occupied room solve per day, buys one scheduled weekly treat and at most one cheapest unowned item or trial outing per day, and pays for a patch once a starter placement reaches 25 uses. These are scenario assumptions. Fewer activities, different weather or step batches, and saving for a favorite item can change the dates. The run omits mobility credit, other stroll charms, offspring, mentorship, and repeat outing purchases.
 
-## Tuning candidates
+## Selected price target
+
+Set the rainy-season theme's `priceCoins` in `ShopCatalog.items` to **300 coins** for the next balance pass. The baseline tables and CSVs use the current 400-coin price. [PetCatalog.swift](../PawprintDays/Models/PetCatalog.swift)
+
+At 300 coins, the medium walker buys the theme on day 29 and ends day 30 with 97 coins. In a rerun with two daily wishes and two origami charm drops claimed per day, the medium walker buys it on day 30 and ends with 7 coins. The rest of the itinerary follows the baseline, including cheapest-first shopping. Use day 30 as a playtest target for the first room theme.
+
+## Other tuning candidates
 
 | Constant and file | Current → proposed | Why |
 |---|---|---|
 | `ShopCatalog.items` → `outfit.forager_satchel.priceCoins` in [PetCatalog.swift](../PawprintDays/Models/PetCatalog.swift) | 140 → 100 | In a one-change rerun, light buys it on day 10 instead of day 17. Medium and heavy each buy it two days earlier and gain two finds. Light never hits the cap, so its benefit is earlier ownership. |
-| `ShopCatalog.items` → `room.rainy_season.priceCoins` in [PetCatalog.swift](../PawprintDays/Models/PetCatalog.swift) | 400 → 350 | Medium reaches the theme on day 30 with 47 coins left in a one-change rerun. Heavy still buys it on day 21. |
 | `StrollSatchelCharm.priceCoins` → `.gingerThermos` in [GameTypes.swift](../PawprintDays/Models/GameTypes.swift) | 6 → 7 | Keep the full 9-coin refund and trim the net faucet from +3 to +2 per qualifying stroll (28 fewer coins at 28 uses). A qualifying short stroll goes from net −4 to −5. Consider that cost when deciding whether to tune the thermos. |
