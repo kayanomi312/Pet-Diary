@@ -411,6 +411,73 @@ func lint(_ banks: [Bank], legacy: Bool) throws {
     guard failures == 0 else { throw FrameError("\(failures) cel lint issues") }
 }
 
+func preview(_ banks: [Bank], onion: Bool, dark: Bool) throws {
+    let tile = 240
+    let output = URL(fileURLWithPath: "art-src/previews", isDirectory: true)
+    try files.createDirectory(at: output, withIntermediateDirectories: true)
+    let background = dark ? CGColor(gray: 0, alpha: 1) : CGColor(gray: 1, alpha: 1)
+
+    for bank in banks {
+        let images = try bank.urls.map { try Frame($0).image }
+        let entry = (try bank.readManifest()?["clips"] as? [String: [String: Any]])?
+            .values.first { $0["bank"] as? String == bank.name }
+        let fps = entry?["fps"] as? Double ?? defaults[bank.name]?.fps ?? 8
+        guard fps.isFinite, (0.01...120).contains(fps) else { throw FrameError("\(bank.label): invalid fps") }
+        let holds = entry?["holds"] as? [String: Int] ?? [:]
+        let loop = entry?["loop"] as? String ?? defaults[bank.name]?.loop ?? "once"
+        var order = Array(images.indices)
+        if loop == "pingpong", images.count > 2 {
+            order += images.indices.dropFirst().dropLast().reversed()
+        }
+        let columns = min(4, images.count)
+        let rows = (images.count + columns - 1) / columns
+        let sheet = try canvas(width: columns * tile, height: rows * tile)
+        let directory = output.appendingPathComponent(bank.pet, isDirectory: true)
+        try files.createDirectory(at: directory, withIntermediateDirectories: true)
+        let suffix = (dark ? "_black" : "") + (onion ? "" : "_clean")
+        let gif = directory.appendingPathComponent("\(bank.name)\(suffix).gif")
+        guard let destination = CGImageDestinationCreateWithURL(gif as CFURL, UTType.gif.identifier as CFString,
+                                                                 order.count, nil)
+        else { throw FrameError("Cannot create \(gif.path)") }
+        if loop != "once" {
+            CGImageDestinationSetProperties(destination, [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]] as CFDictionary)
+        }
+        for (step, index) in order.enumerated() {
+            let tileCanvas = try canvas(width: tile, height: tile)
+            let bounds = CGRect(x: 0, y: 0, width: tile, height: tile)
+            tileCanvas.interpolationQuality = .high
+            tileCanvas.setFillColor(background)
+            tileCanvas.fill(bounds)
+            if onion {
+                tileCanvas.setAlpha(0.3)
+                if step > 0 || loop != "once" {
+                    tileCanvas.draw(images[order[(step + order.count - 1) % order.count]], in: bounds)
+                }
+                if step + 1 < order.count || loop != "once" {
+                    tileCanvas.draw(images[order[(step + 1) % order.count]], in: bounds)
+                }
+                tileCanvas.setAlpha(1)
+            }
+            tileCanvas.draw(images[index], in: bounds)
+            drawGuides(in: tileCanvas, rect: bounds)
+            let tileImage = tileCanvas.makeImage()!
+            if step < images.count {
+                let rect = CGRect(x: (index % columns) * tile, y: (rows - 1 - index / columns) * tile,
+                                  width: tile, height: tile)
+                sheet.draw(tileImage, in: rect)
+            }
+            let delay = Double(max(1, holds[String(index + 1)] ?? 1)) / fps
+            let properties = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: delay,
+                                                              kCGImagePropertyGIFUnclampedDelayTime: delay]]
+            CGImageDestinationAddImage(destination, tileImage, properties as CFDictionary)
+        }
+        guard CGImageDestinationFinalize(destination) else { throw FrameError("Cannot write \(gif.path)") }
+        let sheetURL = directory.appendingPathComponent("\(bank.name)\(suffix).png")
+        try writeImage(sheet.makeImage()!, format: .png, to: sheetURL)
+        print("art-src/previews/\(bank.pet)/\(bank.name)\(suffix).{png,gif}")
+    }
+}
+
 do {
     let args = Array(CommandLine.arguments.dropFirst())
     switch args.first {
@@ -428,6 +495,19 @@ do {
         } else {
             try lint(source, legacy: false)
         }
+    case "--preview":
+        let options = args.dropFirst()
+        let selectors = options.filter { !$0.hasPrefix("--") }
+        let flags = Set(options.filter { $0.hasPrefix("--") })
+        guard selectors.count <= 2, flags.isSubset(of: ["--black", "--clean"]) else {
+            throw FrameError("Usage: tools/frames/preview [pet_XX [bank]] [--black] [--clean]")
+        }
+        let pet = selectors.first
+        let bank = selectors.dropFirst().first
+        let source = try sourceBanks(pet: pet, bank: bank)
+        let selected = source.isEmpty ? try legacyBanks(pet: pet, bank: bank) : source
+        guard !selected.isEmpty else { throw FrameError("No frames matched") }
+        try preview(selected, onion: !flags.contains("--clean"), dark: flags.contains("--black"))
     case "--guide":
         try guide()
     default:

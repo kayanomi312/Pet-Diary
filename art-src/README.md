@@ -38,3 +38,9 @@ reports measurements for the corresponding legacy HEICs. Use
 The halo check is a fringe heuristic. The idle head-height check uses the
 broad central silhouette as a proxy. Verify both against the guide on the
 rendered sheet, especially for ears, horns and intentional changes in pose.
+
+Preview writes a contact sheet and timed GIF per selected bank under the
+ignored `art-src/previews/pet_XX/` directory. The default shows adjacent
+drawings at 30% opacity, with the registration guides on top. Add
+`--black` to inspect edges against black or `--clean` to hide neighboring
+drawings. GIFs follow manifest timing, ping-pong order, and holds.
