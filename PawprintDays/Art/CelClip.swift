@@ -271,3 +271,14 @@ struct CelStride: Sendable {
         return time.isFinite && time > 0 ? time : nil
     }
 }
+
+/// Only the loose end moves. The attachment remains at the current clip's socket.
+struct CelOutfitMotion {
+    static func sway(during playback: CelPlayback) -> CGPoint {
+        let player = playback.player
+        let lag = 2.5 / player.clip.fps
+        let phase = (playback.elapsed - lag) / player.duration * 2 * Double.pi
+        let settle = min(1, max(0, playback.elapsed / lag))
+        return CGPoint(x: sin(phase) * 0.018 * settle, y: cos(phase) * 0.008 * settle)
+    }
+}
