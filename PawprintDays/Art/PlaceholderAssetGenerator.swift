@@ -8,7 +8,7 @@ enum PetRigPose: String, Sendable {
 }
 
 /// 608 格高流暢度手繪逐格水彩精靈動畫快取（限制 40 MB 解碼記憶體上限，避免長時間遊玩佔用過高 RAM）
-private final class CelFrameImageCache: @unchecked Sendable {
+final class CelFrameImageCache: @unchecked Sendable {
     static let shared = CelFrameImageCache()
     private let cache = NSCache<NSString, UIImage>()
 
@@ -73,6 +73,9 @@ struct ProceduralPetRigView: View {
     var playfulAction: PetPlayfulAction = .idle
     var actionTriggerDate: Date = .distantPast
 
+    var previewFrame: String? = nil
+    var previewNeck: [Double]? = nil
+
     private var assetPrefix: String {
         pet.id.replacingOccurrences(of: ".", with: "_") // "pet.01" -> "pet_01"
     }
@@ -104,6 +107,9 @@ struct ProceduralPetRigView: View {
 
     /// Calibrated neck anchor `(u, v, neckWidthFraction)` for the new 512x512 baseline-aligned cel frames.
     private var calibratedNeckAnchor: (u: CGFloat, v: CGFloat, width: CGFloat) {
+        if let neck = previewNeck, neck.count == 3 {
+            return (neck[0], neck[1], neck[2])
+        }
         switch pet.id {
         case "pet.01": return (0.43, 0.50, 0.22) // 芝麻
         case "pet.02": return (0.41, 0.49, 0.20) // 杜松（黑曜惡魔貓）
@@ -136,6 +142,7 @@ struct ProceduralPetRigView: View {
 
     /// Selects the exact high-framerate cel frame (76 calm, natural frames per pet) for every moment.
     private func resolveCelFrameState(time: Double, minDim: CGFloat) -> CelFrameState {
+        if let previewFrame { return CelFrameState(assetName: previewFrame) }
         if isStaticSnapshot {
             let staticIdx: Int
             switch pose {
