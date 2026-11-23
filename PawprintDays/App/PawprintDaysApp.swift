@@ -51,7 +51,19 @@ struct PawprintDaysApp: App {
                 do {
                     try fm.moveItem(at: src, to: dst)
                 } catch {
-                    persistenceLog.error("Could not archive \(src.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                    persistenceLog.error("Could not archive \(src.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .private)")
+                }
+            }
+            // `@Attribute(.externalStorage)` blobs (walk photos, baked postcards) live in the
+            // `.<store name>_SUPPORT` sibling folder; move it alongside so the archive stays complete.
+            let storeDir = storeURL.deletingLastPathComponent()
+            let supportSrc = storeDir.appendingPathComponent(".\(storeURL.deletingPathExtension().lastPathComponent)_SUPPORT")
+            let supportDst = storeDir.appendingPathComponent(".\(backupBase.deletingPathExtension().lastPathComponent)_SUPPORT")
+            if fm.fileExists(atPath: supportSrc.path) {
+                do {
+                    try fm.moveItem(at: supportSrc, to: supportDst)
+                } catch {
+                    persistenceLog.error("Could not archive external-storage folder: \(error.localizedDescription, privacy: .private)")
                 }
             }
             persistenceLog.error("Archived unreadable store to \(backupBase.lastPathComponent, privacy: .public); starting with an empty diary.")
@@ -70,41 +82,36 @@ struct PawprintDaysApp: App {
             let memoryContainer = try ModelContainer(for: schema, configurations: [memoryConfig])
             return (memoryContainer, "目前以暫存模式開啟日記，請確認裝置儲存空間。")
         } catch {
-            persistenceLog.fault("In-memory fallback container failed: \(String(describing: error), privacy: .public)")
+            persistenceLog.fault("In-memory fallback container failed: \(String(describing: error), privacy: .private)")
         }
-        let fallback = try! ModelContainer(for: DiaryDayRecord.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        // Last resort: an in-memory container over every model type, without the versioned schema
+        // wrapper. (A container missing model types would only crash later, inside GameCoordinator.)
+        let fallback = try! ModelContainer(
+            for: Schema(PawprintSchemaV2.models),
+            configurations: [ModelConfiguration(isStoredInMemoryOnly: true)]
+        )
         return (fallback, nil)
     }
 
     /// Logs a store-open failure with enough detail to tell a schema migration failure apart from
-    /// I/O or corruption problems. Domain/code/reason are public (they hold no player data); the
-    /// full error dump stays private because Core Data validation errors can echo diary text.
+    /// I/O or corruption problems.
+    ///
+    /// The kind, schema version and every `domain#code` in the error chain are public (no player data).
+    /// Descriptions and reasons stay private: Core Data / SQLite text can include file paths, attribute
+    /// names or values echoed from the diary.
     private static func logStoreOpenFailure(_ error: Error, storeURL: URL, attempt: String) {
-        let nsError = error as NSError
-        let kind = isMigrationFailure(nsError) ? "schema migration failure" : "store open failure"
+        let chain = PawprintPersistence.errorChain(error)
+        let kind = PawprintPersistence.isMigrationFailure(error) ? "schema migration failure" : "store open failure"
         let schemaVersion = String(describing: PawprintPersistence.currentVersionedSchema.versionIdentifier)
-        let reason = nsError.localizedFailureReason ?? "-"
-        var underlyingSummary = "-"
-        if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? NSError {
-            underlyingSummary = "\(underlying.domain)#\(underlying.code) \(underlying.localizedDescription)"
-        }
+        let codes = chain.map { "\($0.domain)#\($0.code)" }.joined(separator: " > ")
+        let details = chain.map { ns in
+            "\(ns.domain)#\(ns.code): \(ns.localizedDescription) | reason: \(PawprintPersistence.failureReason(of: ns) ?? "-")"
+        }.joined(separator: " > ")
         persistenceLog.error("""
             [\(attempt, privacy: .public)] \(kind, privacy: .public) opening \(storeURL.lastPathComponent, privacy: .public) \
-            (target schema \(schemaVersion, privacy: .public)): \(nsError.domain, privacy: .public)#\(nsError.code, privacy: .public) \
-            \(nsError.localizedDescription, privacy: .public) | reason: \(reason, privacy: .public) | underlying: \(underlyingSummary, privacy: .public)
+            (target schema \(schemaVersion, privacy: .public)): \(codes, privacy: .public) | \(details, privacy: .private)
             """)
         persistenceLog.debug("Full store-open error: \(String(reflecting: error), privacy: .private)")
-    }
-
-    /// Core Data reports model-version / migration problems in the 134100–134199 Cocoa error range
-    /// (e.g. 134100 incompatible version hash, 134110 migration error, 134130 missing source model).
-    private static func isMigrationFailure(_ error: NSError) -> Bool {
-        let migrationRange = 134_100...134_199
-        if error.domain == NSCocoaErrorDomain, migrationRange.contains(error.code) { return true }
-        if let underlying = error.userInfo[NSUnderlyingErrorKey] as? NSError {
-            return isMigrationFailure(underlying)
-        }
-        return false
     }
 
     var body: some Scene {

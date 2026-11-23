@@ -493,10 +493,21 @@ enum PawprintSchemaV2: VersionedSchema {
 ///    `@Attribute(originalName:)`), or `.custom(...)` with `willMigrate`/`didMigrate` closures
 ///    for data back-fills and unique-constraint changes.
 /// 4. **Bump `PawprintPersistence.currentVersionedSchema`** to `PawprintSchemaV3.self`.
-/// 5. **Extend `SchemaMigrationTests`** with a V2-store → V3 case asserting the transformed data.
+/// 5. **Move the V2 test helpers onto the frozen types.** In `SchemaMigrationTests`, point `V2Sample.populate`,
+///    `V2Sample.assertIntact` and `writeLegacyV2Store` at `PawprintSchemaV2.*` (they insert/fetch the live
+///    top-level classes today, which will be V3 after step 2). Keep `Fixtures/PawprintV2.store` as is: it is
+///    the frozen V2 store and becomes the input of the new V2 → V3 test. Never regenerate it.
+/// 6. **Add a V2 → V3 test** asserting the transformed data, and check in a frozen `PawprintV3.store` the
+///    same way once V3 ships.
 ///
 /// Two schemas with identical model shapes produce identical version checksums and make
 /// SwiftData reject the plan, so do not add an empty V3 "placeholder" before it has real changes.
+///
+/// ⚠️ Forgetting a version is not a loud failure. If the on-disk store matches no schema in this plan,
+/// SwiftData falls back to an *inferred* lightweight migration: added optional/defaulted properties just
+/// appear, and removed entities or attributes are silently dropped with their data. Only rows that can't be
+/// migrated at all (e.g. a new mandatory attribute without a default) make the open fail. The frozen-fixture
+/// test is what catches an un-versioned model edit, so never "fix" that test by regenerating the fixture.
 enum PawprintMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [PawprintSchemaV2.self]
@@ -525,5 +536,55 @@ enum PawprintPersistence {
             migrationPlan: PawprintMigrationPlan.self,
             configurations: [configuration]
         )
+    }
+}
+
+// MARK: - Store-open failure diagnostics
+extension PawprintPersistence {
+    /// Flattens an error into every NSError it carries, outermost first.
+    ///
+    /// SwiftData wraps Core Data failures in `SwiftDataError` (domain `SwiftData.SwiftDataError`, code 1)
+    /// whose bridged `userInfo` is empty: the real `CocoaError` sits in a private stored property.
+    /// So besides the usual `NSUnderlyingErrorKey` / Core Data's `NSDetailedErrors` / multiple-underlying keys,
+    /// this walks the error value's stored properties with `Mirror` to reach it.
+    static func errorChain(_ error: Error) -> [NSError] {
+        var chain: [NSError] = []
+        var seen = Set<String>()
+        collect(error, depth: 0, into: &chain, seen: &seen)
+        return chain
+    }
+
+    private static func collect(_ error: Error, depth: Int, into chain: inout [NSError], seen: inout Set<String>) {
+        guard depth < 8 else { return }
+        let nsError = error as NSError
+        let key = "\(nsError.domain)#\(nsError.code)#\(ObjectIdentifier(nsError).hashValue)"
+        guard seen.insert(key).inserted else { return }
+        chain.append(nsError)
+
+        var nested: [Error] = []
+        if let underlying = nsError.userInfo[NSUnderlyingErrorKey] as? Error { nested.append(underlying) }
+        if let detailed = nsError.userInfo["NSDetailedErrors"] as? [Error] { nested.append(contentsOf: detailed) }
+        if let multiple = nsError.userInfo[NSMultipleUnderlyingErrorsKey] as? [Error] { nested.append(contentsOf: multiple) }
+        for child in Mirror(reflecting: error).children {
+            if let inner = child.value as? Error { nested.append(inner) }
+        }
+        for inner in nested {
+            collect(inner, depth: depth + 1, into: &chain, seen: &seen)
+        }
+    }
+
+    /// True when any error in the chain is a Core Data model-version / migration error:
+    /// 134020 (incompatible schema), 134100–134199 (version hash, migration, missing source or
+    /// mapping model) and 134500–134599 (staged migration, e.g. unknown model version).
+    static func isMigrationFailure(_ error: Error) -> Bool {
+        errorChain(error).contains { ns in
+            guard ns.domain == NSCocoaErrorDomain else { return false }
+            return ns.code == 134_020 || (134_100...134_199).contains(ns.code) || (134_500...134_599).contains(ns.code)
+        }
+    }
+
+    /// Core Data puts its explanation under `"reason"`, not `NSLocalizedFailureReasonErrorKey`.
+    static func failureReason(of error: NSError) -> String? {
+        error.localizedFailureReason ?? (error.userInfo["reason"] as? String)
     }
 }
