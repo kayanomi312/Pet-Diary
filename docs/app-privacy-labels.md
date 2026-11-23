@@ -53,6 +53,10 @@ Re-run the audit (`grep -rnE "UserDefaults|creationDate|modificationDate|systemU
 - `NSMotionUsageDescription` — pedometer → step coins; no health data uploaded.
 - Local notifications (opt-in, added by task 2.2) need no usage-description string; the system permission prompt is requested at runtime.
 
-## Privacy policy notes
+## Privacy policy
+
+Draft policy text (zh-Hant + EN, including the Open-Meteo disclosure) is in `docs/privacy-policy.md`; it still needs hosting at a public URL and a support email.
+
+### Notes
 
 Apple requires a privacy policy URL. Suggested content: the app stores everything locally (SwiftData + UserDefaults), exports (PDF/backup) are created only when the player taps export and are shared through the system share sheet, nothing is sent to us. Live weather sends location rounded to ~1.1 km to Open-Meteo (open-meteo.com) and nothing else; MapKit lookups go to Apple under Apple's privacy terms. Disclose Open-Meteo as a third-party service in the policy.
