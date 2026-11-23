@@ -419,7 +419,7 @@ private struct MonthSpreadGridView: View {
 
                     Spacer()
 
-                    Text("\(displayedYear)年\(displayedMonth)月")
+                    Text("\(String(displayedYear))年\(displayedMonth)月")
                         .font(AppTheme.serifTitle(20))
                         .foregroundStyle(AppTheme.deepPineInk)
 

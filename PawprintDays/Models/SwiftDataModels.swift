@@ -277,6 +277,16 @@ final class PetResidentState {
         default: return "尚未遇見"
         }
     }
+
+    var relationshipStatusLabel: String {
+        if inviteState == .unmet {
+            return "尚未遇見 · 靜候街角奇遇或窗邊揮手"
+        }
+        if milestoneTier == 0 && sharedDaysCount == 0 {
+            return "陽光室室友 · 第 1 天"
+        }
+        return "\(milestoneTitle) · 相伴 \(sharedDaysCount) 天"
+    }
 }
 
 // MARK: - 5. HomeSpotPlacement

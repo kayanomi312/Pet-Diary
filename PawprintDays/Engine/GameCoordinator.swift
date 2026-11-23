@@ -651,6 +651,18 @@ final class GameCoordinator {
     }
 
     // MARK: - Street Anchors, Stroll Chains & Familiar Corners
+    func proximityCheck(for anchor: AnchorSiteRecord) -> AnchorProximityCheck {
+        let evaluationNow = locationService.useSimulatedPosition
+            ? locationService.currentLocation.timestamp
+            : Date()
+        return AnchorRotationEngine.evaluateProximity(
+            anchor: anchor,
+            userLocation: locationService.currentLocation,
+            now: evaluationNow,
+            currentLocalDateISO: currentLocalDateISO
+        )
+    }
+
     func pawState(for anchor: AnchorSiteRecord) -> PawState {
         if anchor.lastVisitedLocalDate == currentLocalDateISO {
             return .metToday
@@ -658,13 +670,7 @@ final class GameCoordinator {
         if activeStrollChainTargetID == anchor.siteID {
             return .strollChain
         }
-        let check = AnchorRotationEngine.evaluateProximity(
-            anchor: anchor,
-            userLocation: locationService.currentLocation,
-            now: Date(),
-            currentLocalDateISO: currentLocalDateISO
-        )
-        if case .eligible = check {
+        if case .eligible = proximityCheck(for: anchor) {
             return .inRange
         }
         return .distant
