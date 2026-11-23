@@ -23,7 +23,7 @@
 
 **變更**：若政策有變，我們會更新本頁日期並於 App 更新說明中告知。
 
-**聯絡我們**：<填入支援電子郵件>
+**聯絡我們**：pawprintdays@proton.me
 
 ## English
 
@@ -44,4 +44,4 @@ So the weather in your Sunroom matches the real world, the app sends **coordinat
 
 **Changes:** if this policy changes we will update the date above and mention it in the app's release notes.
 
-**Contact:** <insert support email>
+**Contact:** pawprintdays@proton.me

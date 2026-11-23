@@ -55,7 +55,7 @@ Re-run the audit (`grep -rnE "UserDefaults|creationDate|modificationDate|systemU
 
 ## Privacy policy
 
-Draft policy text (zh-Hant + EN, including the Open-Meteo disclosure) is in `docs/privacy-policy.md`; it is published by `.github/workflows/privacy-pages.yml` to `https://kayanomi312.github.io/Pet-Diary/privacy/` (see "Enabling hosting" in that workflow's header notes in `docs/privacy-policy.md`). Replace the support-email placeholder first; the build refuses to publish while it is present.
+Draft policy text (zh-Hant + EN, including the Open-Meteo disclosure) is in `docs/privacy-policy.md`; it is published by `.github/workflows/privacy-pages.yml` to `https://kayanomi312.github.io/Pet-Diary/privacy/` (see "Enabling hosting" in that workflow's header notes in `docs/privacy-policy.md`). The build refuses to publish if a support-email placeholder ever reappears.
 
 ### Notes
 
@@ -63,7 +63,7 @@ Apple requires a privacy policy URL. Suggested content: the app stores everythin
 
 ### Enabling hosting (one-time)
 
-1. Replace `<insert support email>` / `<填入支援電子郵件>` in `docs/privacy-policy.md`.
+1. ~~Replace the support-email placeholder~~ — done (`pawprintdays@proton.me`).
 2. Merge to `main` and push (the remote has no branches yet).
 3. Repo → Settings → Pages → Source: **GitHub Actions** (or `gh api -X POST repos/kayanomi312/Pet-Diary/pages -f build_type=workflow`).
 4. Run the "Publish privacy policy" workflow (or push a change to the policy). Enter `https://kayanomi312.github.io/Pet-Diary/privacy/` as the Privacy Policy URL in App Store Connect.
