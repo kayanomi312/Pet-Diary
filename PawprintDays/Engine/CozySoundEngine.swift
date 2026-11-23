@@ -239,6 +239,13 @@ final class CozySoundEngine {
         player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
     }
 
+    func playCelChew() {
+        guard let (player, format) = ensureRunning(),
+              let buffer = synthesizeFilteredNoise(format: format, duration: 0.08, cutoffAlpha: 0.16, gain: 0.09)
+        else { return }
+        player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
+    }
+
     /// Soft velvet grooming brush / towel-dry swish
     func playBrushSwish() {
         guard let (player, fmt) = ensureRunning(),

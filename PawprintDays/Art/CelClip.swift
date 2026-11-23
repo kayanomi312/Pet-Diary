@@ -31,20 +31,32 @@ struct CelClip: Decodable, Equatable, Sendable {
 }
 
 /// Converts seconds to drawing indices, without repeating the endpoints on ping-pong.
-struct CelClipPlayer: Sendable {
+struct CelClipPlayer: Equatable, Sendable {
+    struct Marker: Equatable, Sendable {
+        let name: String
+        let time: Double
+    }
+
     let clip: CelClip
     let order: [Int]
     private let ends: [Int]
+    private let markers: [Marker]
 
     init(_ clip: CelClip) {
         self.clip = clip
         let forward = Array(1...max(1, clip.frames))
         order = clip.loop == .pingpong ? forward + forward.dropFirst().dropLast().reversed() : forward
         var tick = 0
+        var timedEvents: [Marker] = []
+        let eventNames = clip.events?.keys.sorted() ?? []
         ends = order.map { drawing in
+            for name in eventNames where clip.events?[name]?.contains(drawing) == true {
+                timedEvents.append(Marker(name: name, time: Double(tick) / clip.fps))
+            }
             tick += max(1, min(120, clip.holds?[drawing] ?? 1))
             return tick
         }
+        markers = timedEvents
     }
 
     var duration: Double { Double(ends.last ?? 1) / clip.fps }
@@ -55,6 +67,20 @@ struct CelClipPlayer: Sendable {
         let local = clip.loop == .once ? elapsed : elapsed.truncatingRemainder(dividingBy: duration)
         let tick = local * clip.fps
         return ends.firstIndex { Double($0) > tick + 1e-9 } ?? 0
+    }
+
+    func events(after earlier: Double, through later: Double) -> [Marker] {
+        guard !markers.isEmpty, earlier.isFinite, later.isFinite, later >= 0, earlier < later else { return [] }
+        let firstCycle = clip.loop == .once ? 0 : floor(max(0, earlier) / duration)
+        let lastCycle = clip.loop == .once ? 0 : floor(later / duration)
+        guard lastCycle - firstCycle <= 120 else { return [] }
+        return (0...Int(lastCycle - firstCycle)).flatMap { cycle -> [Marker] in
+            let offset = (firstCycle + Double(cycle)) * duration
+            return markers.compactMap { marker in
+                let time = offset + marker.time
+                return time > earlier && time <= later ? Marker(name: marker.name, time: time) : nil
+            }
+        }
     }
 
     func startTime(of step: Int) -> Double {
@@ -71,7 +97,7 @@ struct CelClipPlayer: Sendable {
     }
 }
 
-struct CelPlayback: Sendable {
+struct CelPlayback: Equatable, Sendable {
     let player: CelClipPlayer
     let elapsed: Double
 
