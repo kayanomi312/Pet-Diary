@@ -10,6 +10,7 @@ struct AnimationGalleryView: View {
     }
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.displayScale) private var displayScale
     @State private var petID = PetCatalog.allPets[0].id
     @State private var clipName = "idle"
     @State private var backdrop = Backdrop.sunroom
@@ -140,9 +141,10 @@ struct AnimationGalleryView: View {
             ZStack {
                 if onion {
                     ForEach([-1, 1], id: \.self) { offset in
-                        if let frame = player.neighbor(of: index, offset: offset),
-                           let image = CelFrameImageCache.shared.image(named: player.clip.asset(prefix: prefix, frame: frame)) {
-                            Image(uiImage: image).resizable().scaledToFit().opacity(0.3)
+                        if let frame = player.neighbor(of: index, offset: offset) {
+                            CelFrameImage(name: player.clip.asset(prefix: prefix, frame: frame), fallbackName: nil,
+                                          displayPixels: 215 * displayScale)
+                                .opacity(0.3)
                         }
                     }
                 }

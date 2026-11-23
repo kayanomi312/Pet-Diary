@@ -152,7 +152,7 @@ enum CelLibrary {
         var visited: Set<String> = []
         while current.clip.loop == .once && time >= current.duration {
             guard let next = current.clip.next, visited.insert(next).inserted,
-                  let following = authoredPlayers[prefix(for: petID)]?[next] ?? legacyPlayers[next] else { return nil }
+                  let following = Self.player(for: petID, named: next) else { return nil }
             time -= current.duration
             current = following
         }
@@ -161,8 +161,15 @@ enum CelLibrary {
 
     static func manifest(for petID: String) -> CelManifest? { manifests[prefix(for: petID)] }
 
-    static func frameURL(_ name: String) -> URL? {
-        Bundle.main.url(forResource: name, withExtension: "heic", subdirectory: "PetFrames")
+    private static let frameURLs: [String: URL] = {
+        let urls = Bundle.main.urls(forResourcesWithExtension: "heic", subdirectory: "PetFrames") ?? []
+        return Dictionary(uniqueKeysWithValues: urls.map { ($0.deletingPathExtension().lastPathComponent, $0) })
+    }()
+
+    static func frameURL(_ name: String) -> URL? { frameURLs[name] }
+
+    static func player(for petID: String, named name: String) -> CelClipPlayer? {
+        authoredPlayers[prefix(for: petID)]?[name] ?? legacyPlayers[name]
     }
 
     private static let legacyPlayers = legacy.mapValues(CelClipPlayer.init)

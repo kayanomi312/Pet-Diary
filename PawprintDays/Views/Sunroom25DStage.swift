@@ -600,7 +600,8 @@ struct Sunroom25DStageView: View {
                                             poseTransition: actor.poseTransition,
                                             poseStartedAt: bouncingPetID == actor.petID ? nil : actor.poseStartedAt,
                                             locomotion: actor.direction,
-                                            facingRight: actor.facingRight
+                                            facingRight: actor.facingRight,
+                                            presentationScale: scale * (isInBox ? 0.86 : 1.0)
                                         )
                                         .frame(width: 118, height: 118)
 

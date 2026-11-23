@@ -87,4 +87,15 @@ final class CelClipTests: XCTestCase {
         XCTAssertNil(stride.duration(forDistance: 0))
         XCTAssertNil(CelStride(lengthUV: nil, player: CelClipPlayer(clip)))
     }
+
+    @MainActor
+    func testBundledFrameDecodesAtRequestedDisplaySize() async throws {
+        let cache = CelFrameImageCache()
+        let key = CelFrameImageCache.Key(name: "pet_01_w1", displayPixels: 118)
+        let decoded = await cache.image(key)
+        let image = try XCTUnwrap(decoded?.cgImage)
+        XCTAssertLessThanOrEqual(max(image.width, image.height), 128)
+        XCTAssertEqual(cache.decodedBytes, image.bytesPerRow * image.height)
+        XCTAssertNotNil(cache.cached(key))
+    }
 }
