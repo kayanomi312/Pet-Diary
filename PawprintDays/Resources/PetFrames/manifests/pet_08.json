@@ -1,0 +1,42 @@
+{
+  "clips" : {
+    "happy" : {
+      "bank" : "h",
+      "fps" : 7,
+      "frames" : 10,
+      "loop" : "loop"
+    },
+    "idle" : {
+      "bank" : "i",
+      "fps" : 5.2000000000000002,
+      "frames" : 16,
+      "loop" : "loop"
+    },
+    "mouth" : {
+      "bank" : "m",
+      "fps" : 7.5,
+      "frames" : 8,
+      "loop" : "loop"
+    },
+    "play" : {
+      "bank" : "p",
+      "fps" : 8.5,
+      "frames" : 8,
+      "loop" : "loop"
+    },
+    "sleep" : {
+      "bank" : "s",
+      "fps" : 3.2000000000000002,
+      "frames" : 8,
+      "loop" : "pingpong"
+    },
+    "walk" : {
+      "bank" : "w",
+      "fps" : 9,
+      "frames" : 16,
+      "loop" : "loop"
+    }
+  },
+  "pet" : "pet_08",
+  "spec" : 2
+}
