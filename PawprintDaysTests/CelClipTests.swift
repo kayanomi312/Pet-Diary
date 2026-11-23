@@ -41,4 +41,23 @@ final class CelClipTests: XCTestCase {
         XCTAssertEqual(sample?.player.clip.bank, "w")
         XCTAssertEqual(sample?.frame, 3)
     }
+
+    func testTransitionsSkipUnavailableBanksAndSignalArrivalAfterAvailableClips() {
+        let start = Date(timeIntervalSinceReferenceDate: 100)
+        let wake = CelClipPlayer(CelClip(bank: "wk", frames: 4, fps: 4, loop: .once))
+        let stand = CelClipPlayer(CelClip(bank: "tu", frames: 2, fps: 4, loop: .once))
+        let route = CelPoseTransition(from: .sleep, to: .walk, at: start) { ["wk": wake, "tu": stand][$0] }
+        XCTAssertEqual(route.playback(at: start)?.player.clip.bank, "wk")
+        XCTAssertEqual(route.playback(at: start.addingTimeInterval(1))?.player.clip.bank, "tu")
+        XCTAssertNil(route.playback(at: route.arrivesAt))
+        var arrival: Date?
+        route.onArrival(at: start.addingTimeInterval(1.25)) { arrival = $0 }
+        XCTAssertNil(arrival)
+        route.onArrival(at: start.addingTimeInterval(1.75)) { arrival = $0 }
+        XCTAssertEqual(arrival, start.addingTimeInterval(1.5))
+
+        let legacy = CelPoseTransition(from: .idle, to: .walk, at: start) { _ in nil }
+        XCTAssertEqual(legacy.arrivesAt, start)
+        XCTAssertNil(legacy.playback(at: start))
+    }
 }

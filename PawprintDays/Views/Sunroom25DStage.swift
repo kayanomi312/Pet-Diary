@@ -595,7 +595,10 @@ struct Sunroom25DStageView: View {
                                             mentorshipParticle: petMentorship.flatMap { HabitFamily(rawValue: $0.habitFamilyID) },
                                             tapBounceScale: bouncingPetID == actor.petID ? 1.0 : 0.0,
                                             playfulAction: petAction,
-                                            actionTriggerDate: actor.tapExcitedUntil.addingTimeInterval(-1.2)
+                                            actionTriggerDate: actor.tapExcitedUntil.addingTimeInterval(-1.2),
+                                            stageDate: now,
+                                            poseTransition: actor.poseTransition,
+                                            poseStartedAt: bouncingPetID == actor.petID ? nil : actor.poseStartedAt
                                         )
                                         .frame(width: 118, height: 118)
                                         .scaleEffect(x: actor.facingRight ? -1.0 : 1.0, y: 1.0)

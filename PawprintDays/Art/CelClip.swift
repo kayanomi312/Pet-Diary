@@ -151,3 +151,53 @@ enum CelLibrary {
         "keyframes": CelClip(bank: "f", frames: 6, fps: 3, loop: .once)
     ]
 }
+
+enum CelPose: Equatable, Sendable {
+    case idle, walk, sleep, startle
+}
+
+/// A short sequence of available one-shots between stable poses.
+struct CelPoseTransition: Sendable {
+    let source: CelPose
+    let target: CelPose
+    let startsAt: Date
+    let players: [CelClipPlayer]
+
+    init(from source: CelPose, to target: CelPose, at start: Date,
+         lookup: (String) -> CelClipPlayer?) {
+        self.source = source
+        self.target = target
+        startsAt = start
+        let banks: [String]
+        switch (source, target) {
+        case (_, .startle): banks = ["r"]
+        case (.idle, .walk), (.startle, .walk): banks = ["tu"]
+        case (.walk, .idle): banks = ["td"]
+        case (.sleep, .idle): banks = ["wk"]
+        case (.idle, .sleep), (.startle, .sleep): banks = ["ld"]
+        case (.walk, .sleep): banks = ["td", "ld"]
+        case (.sleep, .walk): banks = ["wk", "tu"]
+        default: banks = []
+        }
+        players = banks.compactMap(lookup).filter { $0.clip.loop == .once }
+    }
+
+    var arrivesAt: Date {
+        startsAt.addingTimeInterval(players.reduce(0) { $0 + $1.duration })
+    }
+
+    func playback(at date: Date) -> CelPlayback? {
+        var elapsed = max(0, date.timeIntervalSince(startsAt))
+        for player in players {
+            if elapsed < player.duration {
+                return CelPlayback(player: player, elapsed: elapsed)
+            }
+            elapsed -= player.duration
+        }
+        return nil
+    }
+
+    func onArrival(at date: Date, perform: (Date) -> Void) {
+        if date >= arrivesAt { perform(arrivesAt) }
+    }
+}
