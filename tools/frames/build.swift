@@ -1,4 +1,5 @@
 import CoreGraphics
+import CryptoKit
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
@@ -64,6 +65,7 @@ struct Frame {
 
     func registrationIssue() -> String? {
         let box = bounds
+        guard !box.isNull else { return "no opaque subject" }
         guard abs(Int(box.maxY) - 1 - 690) > 3 else { return nil }
         return "alpha baseline y=\(Int(box.maxY) - 1), expected 690 ±3 for grounded frames"
     }
@@ -178,7 +180,10 @@ func build(_ banks: [Bank]) throws {
                 let output = staging.appendingPathComponent(name)
                 try writeImage(frame.image, format: .heic, to: output, options: [kCGImageDestinationLossyCompressionQuality: 0.8])
                 let encoded = try Frame(output)
-                guard encoded.width == 768, encoded.height == 768, encoded.pixels[3] == frame.pixels[3] else {
+                guard encoded.width == 768, encoded.height == 768, encoded.pixels[3] == frame.pixels[3],
+                      encoded.image.alphaInfo != .none,
+                      encoded.image.alphaInfo != .noneSkipFirst,
+                      encoded.image.alphaInfo != .noneSkipLast else {
                     throw FrameError("\(name): HEIC dimensions or transparency changed during encoding")
                 }
                 staged.append((output, URL(fileURLWithPath: "\(bundlePath)/\(name)")))
@@ -230,9 +235,199 @@ func guide() throws {
     try writeImage(context.makeImage()!, format: .png, to: URL(fileURLWithPath: "art-src/templates/guide_768.png"))
 }
 
+func legacyBanks(pet: String?, bank: String?) throws -> [Bank] {
+    let urls = try files.contentsOfDirectory(at: URL(fileURLWithPath: bundlePath),
+                                            includingPropertiesForKeys: nil)
+    let pattern = try NSRegularExpression(pattern: "^(pet_0[1-8])_([a-z]+)([0-9]+)\\.heic$")
+    var groups: [String: [(Int, URL)]] = [:]
+    for url in urls {
+        let name = url.lastPathComponent
+        guard let match = pattern.firstMatch(in: name, range: NSRange(name.startIndex..., in: name)),
+              let petRange = Range(match.range(at: 1), in: name),
+              let bankRange = Range(match.range(at: 2), in: name),
+              let indexRange = Range(match.range(at: 3), in: name),
+              let index = Int(name[indexRange]) else { continue }
+        let id = String(name[petRange])
+        let code = String(name[bankRange])
+        guard (pet == nil || pet == id), (bank == nil || bank == code) else { continue }
+        groups["\(id)/\(code)", default: []].append((index, url))
+    }
+    return groups.keys.sorted().map { key in
+        let parts = key.split(separator: "/")
+        return Bank(pet: String(parts[0]), name: String(parts[1]),
+                    urls: groups[key]!.sorted { $0.0 < $1.0 }.map(\.1))
+    }
+}
+
+extension Frame {
+    var hasLikelyMatte: Bool {
+        var fringeSamples = 0
+        var whiteFringe = 0
+        var blackFringe = 0
+        for y in 1..<(height - 1) {
+            for x in 1..<(width - 1) {
+                let i = (y * width + x) * 4
+                let alpha = Int(pixels[i + 3])
+                guard (20...110).contains(alpha) else { continue }
+                for offset in [-4, 4, -width * 4, width * 4] {
+                    let inner = i + offset
+                    guard pixels[inner + 3] >= 245 else { continue }
+                    fringeSamples += 1
+                    let edge = (0..<3).map { Int(pixels[i + $0]) * 255 / alpha }
+                    let core = (0..<3).map { Int(pixels[inner + $0]) }
+                    if edge.min()! > 230, core.min()! < 165 { whiteFringe += 1 }
+                    if edge.max()! < 25, core.max()! > 95 { blackFringe += 1 }
+                    break
+                }
+            }
+        }
+        return max(whiteFringe, blackFringe) > max(18, fringeSamples / 3)
+    }
+
+    // A broad central row filters narrow ear/horn tips. Inspect the true anatomy on the contact sheet.
+    var broadSilhouetteTop: Int? {
+        let box = bounds
+        guard !box.isNull else { return nil }
+        let left = Int(box.minX + box.width * 0.2)
+        let right = Int(box.maxX - box.width * 0.2)
+        let span = max(1, Int(box.width * 0.15))
+        for y in Int(box.minY)..<Int(box.maxY) {
+            var opaque = 0
+            for x in left..<right where pixels[4 * (y * width + x) + 3] >= 128 {
+                opaque += 1
+            }
+            if opaque >= span { return y }
+        }
+        return nil
+    }
+}
+
+func frameDifference(_ first: Frame, _ second: Frame) -> Double {
+    guard first.pixels.count == second.pixels.count else { return .infinity }
+    var sum = 0
+    for i in stride(from: 0, to: first.pixels.count, by: 16) {
+        for channel in 0..<4 {
+            sum += abs(Int(first.pixels[i + channel]) - Int(second.pixels[i + channel]))
+        }
+    }
+    return Double(sum) / Double(first.pixels.count)
+}
+
+func validateManifest(_ manifest: [String: Any], bank: Bank) throws -> [String: Any] {
+    let clips = manifest["clips"] as! [String: [String: Any]]
+    var bankNames: Set<String> = []
+    for (name, clip) in clips {
+        guard let code = clip["bank"] as? String,
+              code.range(of: "^[a-z]+$", options: .regularExpression) != nil,
+              bankNames.insert(code).inserted,
+              let count = clip["frames"] as? Int, (1...99).contains(count),
+              let fps = clip["fps"] as? Double, fps > 0, fps <= 120,
+              let loop = clip["loop"] as? String, ["loop", "once", "pingpong"].contains(loop)
+        else { throw FrameError("\(bank.pet): invalid manifest clip \(name)") }
+        if let rawHolds = clip["holds"] {
+            guard let holds = rawHolds as? [String: Int], holds.allSatisfy({
+                (1...count).contains(Int($0.key) ?? 0) && (1...120).contains($0.value)
+            }) else { throw FrameError("\(bank.pet)/\(name): holds out of range") }
+        }
+        if let rawEvents = clip["events"] {
+            guard let events = rawEvents as? [String: [Int]], events.values.allSatisfy({
+                Set($0).count == $0.count && $0.allSatisfy { (1...count).contains($0) }
+            }) else { throw FrameError("\(bank.pet)/\(name): event frames out of range or repeated") }
+        }
+        if let source = try sourceBanks(pet: bank.pet, bank: code).first {
+            try source.verifyCount(clip)
+        } else {
+            let actual = try legacyBanks(pet: bank.pet, bank: code).first?.urls.map(\.lastPathComponent) ?? []
+            let expected = (1...count).map { "\(bank.pet)_\(code)\($0).heic" }
+            guard actual == expected else { throw FrameError("\(bank.pet)/\(code): manifest expects \(count) consecutive frames, found \(actual.count) bundled files") }
+        }
+    }
+    guard let entry = clips.values.first(where: { $0["bank"] as? String == bank.name }) else {
+        throw FrameError("\(bank.label): add source bank to the manifest with tools/frames/build")
+    }
+    return entry
+}
+
+func lint(_ banks: [Bank], legacy: Bool) throws {
+    var failures = 0
+    for bank in banks {
+        let entry: [String: Any]
+        if legacy {
+            entry = [:]
+        } else {
+            guard let manifest = try bank.readManifest() else { throw FrameError("\(bank.label): missing manifest, run tools/frames/build") }
+            entry = try validateManifest(manifest, bank: bank)
+        }
+        let frames = try bank.urls.map(Frame.init)
+        let fileHashes = try bank.urls.map { Insecure.MD5.hash(data: try Data(contentsOf: $0)) }
+        let uniqueCount = Set(frames.map { Insecure.MD5.hash(data: Data($0.pixels)) }).count
+        let sizes = Set(frames.map { "\($0.width)×\($0.height)" }).sorted().joined(separator: ", ")
+        let baselines = frames.compactMap { frame in frame.bounds.isNull ? nil : Int(frame.bounds.maxY) - 1 }
+        let heights = frames.compactMap { frame in frame.bounds.isNull ? nil : Int(frame.bounds.height / CGFloat(frame.height) * 100) }
+        print("\(bank.label): \(uniqueCount)/\(frames.count) unique, \(sizes), baseline \(baselines.min() ?? 0)–\(baselines.max() ?? 0) px, bbox height \(heights.min() ?? 0)–\(heights.max() ?? 0)%")
+        let duplicateCount = frames.count - Set(fileHashes).count
+        if duplicateCount > 0 {
+            print("  \(duplicateCount) duplicate files (MD5)")
+        }
+        guard !legacy else { continue }
+
+        var issues: [String] = []
+        let grounded = ["i", "w", "wr", "wf", "wb", "h", "m", "p", "s"].contains(bank.name)
+        for frame in frames {
+            try frame.validateFormat()
+            if grounded, let issue = frame.registrationIssue() {
+                issues.append("\(frame.url.lastPathComponent): \(issue)")
+            }
+            if frame.hasLikelyMatte { issues.append("\(frame.url.lastPathComponent): possible alpha matte") }
+        }
+        if uniqueCount < frames.count { issues.append("duplicate drawings, encode holds in the manifest") }
+        if ["w", "wr", "wf", "wb", "i"].contains(bank.name), uniqueCount < 8 {
+            issues.append("at least 8 unique drawings required")
+        }
+        let idleSource = try sourceBanks(pet: bank.pet, bank: "i").first?.urls.first
+        let idleReference = try idleSource.flatMap { try Frame($0).broadSilhouetteTop }
+        if ["i", "w", "wr", "wf", "wb", "h", "m"].contains(bank.name), let reference = idleReference {
+            if bank.name == "i", abs(reference - 170) > 6 {
+                issues.append("broad head silhouette in i1 is at y=\(reference), expected 170 ±6")
+            }
+            let height = 690 - reference
+            for frame in frames {
+                if let head = frame.broadSilhouetteTop, Double(abs(head - reference)) > Double(height) * 0.03 {
+                    issues.append("\(frame.url.lastPathComponent): head height differs from i1 by more than 3%")
+                }
+            }
+        }
+        if entry["loop"] as? String == "loop", frames.count > 2,
+           let first = frames.first, let last = frames.last {
+            let internalDiff = zip(frames, frames.dropFirst()).map(frameDifference).reduce(0, +)
+            let average = internalDiff / Double(frames.count - 1)
+            let closure = frameDifference(last, first)
+            print(String(format: "  loop closure %.2f vs %.2f mean adjacent difference", closure, average))
+            if closure > average * 2.0 { issues.append("loop closure exceeds twice the mean adjacent difference") }
+        }
+        for issue in issues { print("  error: \(issue)") }
+        failures += issues.count
+    }
+    guard failures == 0 else { throw FrameError("\(failures) cel lint issues") }
+}
+
 do {
     let args = Array(CommandLine.arguments.dropFirst())
     switch args.first {
+    case "--lint", "--legacy":
+        let selectors = Array(args.dropFirst())
+        guard selectors.count <= 2 else { throw FrameError("Usage: tools/frames/lint [--legacy] [pet_XX [bank]]") }
+        let pet = selectors.first
+        let bank = selectors.dropFirst().first
+        let source = try sourceBanks(pet: pet, bank: bank)
+        if args.first == "--legacy" || source.isEmpty {
+            let legacy = try legacyBanks(pet: pet, bank: bank)
+            guard !legacy.isEmpty else { throw FrameError("No frames matched") }
+            print("Legacy bundle audit")
+            try lint(legacy, legacy: true)
+        } else {
+            try lint(source, legacy: false)
+        }
     case "--guide":
         try guide()
     default:

@@ -31,3 +31,10 @@ before rebuilding. Frame indices start at 1. A hold of 3 means the drawing
 occupies three frame intervals in total. Record holds in JSON and export each
 drawing once. `strideLengthUV` is distance in room UV per full cycle and can
 be provided per locomotion clip or as a pet-wide default.
+
+Lint checks source banks whose PNGs are present. With no matching sources it
+reports measurements for the corresponding legacy HEICs. Use
+`tools/frames/lint --legacy` to audit the committed bundle explicitly.
+The halo check is a fringe heuristic. The idle head-height check uses the
+broad central silhouette as a proxy. Verify both against the guide on the
+rendered sheet, especially for ears, horns and intentional changes in pose.

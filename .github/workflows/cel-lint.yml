@@ -1,0 +1,16 @@
+name: Cel frame lint
+
+on:
+  push:
+    paths: ['art-src/**', 'tools/frames/**', 'PawprintDays/Resources/PetFrames/**', '.github/workflows/cel-lint.yml']
+  pull_request:
+    paths: ['art-src/**', 'tools/frames/**', 'PawprintDays/Resources/PetFrames/**', '.github/workflows/cel-lint.yml']
+
+jobs:
+  lint:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - run: tools/frames/lint
