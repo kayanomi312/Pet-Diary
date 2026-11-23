@@ -44,6 +44,7 @@ struct ProceduralPetRigView: View {
     var locomotion: CelLocomotion? = nil
     var facingRight = false
     var presentationScale: CGFloat = 1
+    var onCelEvent: ((String, Date) -> Void)? = nil
     var previewFrame: String? = nil
     var previewNeck: [Double]? = nil
 
@@ -414,8 +415,10 @@ struct ProceduralPetRigView: View {
                 // Soft trailing paw-step dust puffs while walking across the 2.5D cedar floor!
                 if !isStaticSnapshot, !reduceMotion {
                     if let playback, !recentDust.isEmpty {
-                        WalkingPawDustCanvas(time: time, contactAges: recentDust.map { playback.elapsed - $0.time })
-                            .allowsHitTesting(false)
+                        if onCelEvent == nil || !SpriteFXLibrary.contains(.dust) {
+                            WalkingPawDustCanvas(time: time, contactAges: recentDust.map { playback.elapsed - $0.time })
+                                .allowsHitTesting(false)
+                        }
                     } else if state.isWalkingDust, playback?.player.clip.events?["footContact"] == nil {
                         WalkingPawDustCanvas(time: time)
                             .allowsHitTesting(false)
@@ -474,6 +477,8 @@ struct ProceduralPetRigView: View {
                 }
                 for marker in current.player.events(after: earlier, through: current.elapsed) {
                     respond(to: marker.name)
+                    let occurredAt = Date(timeIntervalSinceReferenceDate: time - (current.elapsed - marker.time))
+                    onCelEvent?(marker.name, occurredAt)
                 }
             }
             .scaleEffect(x: mirror ? -1 : 1, y: 1)
@@ -621,6 +626,10 @@ private struct StorybookParticleMotesCanvas: View {
                     let px = cx + minDim * 0.18 + CGFloat(sin(time * 0.8 + Double(idx))) * minDim * 0.026 + CGFloat(idx) * minDim * 0.024
                     let py = cy - CGFloat(phase) * minDim * 0.25
                     let alpha = sin(phase * .pi) * 0.85
+                    let rect = CGRect(x: px - minDim * 0.06, y: py - minDim * 0.06,
+                                      width: minDim * 0.12, height: minDim * 0.12)
+                    if SpriteFXLibrary.draw(.sleep, age: phase * SpriteFXKind.sleep.duration, in: rect,
+                                            context: ctx, opacity: alpha) { continue }
                     ctx.draw(
                         Text(letters[idx])
                             .font(.system(size: minDim * (0.065 + CGFloat(idx) * 0.015), weight: .bold, design: .rounded))
@@ -639,6 +648,11 @@ private struct StorybookParticleMotesCanvas: View {
                 let py = cy - CGFloat(phase) * minDim * 0.28
                 let s = minDim * 0.020 * (1.0 - CGFloat(phase) * 0.3)
                 let alpha = sin(phase * .pi) * (isHappy ? 0.85 : 0.65)
+
+                let sprite: SpriteFXKind = isHappy && idx % 2 == 0 ? .heart : .sparkle
+                let rect = CGRect(x: px - s * 2, y: py - s * 2, width: s * 4, height: s * 4)
+                if SpriteFXLibrary.draw(sprite, age: phase * sprite.duration, in: rect,
+                                        context: ctx, opacity: alpha) { continue }
 
                 if isHappy && idx % 2 == 0 {
                     var heart = Path()
@@ -694,10 +708,11 @@ private struct WalkingPawDustCanvas: View {
                 let py = h * 0.87 - CGFloat(phase) * minDim * 0.045
                 let r = minDim * (0.015 + CGFloat(phase) * 0.018)
                 let alpha = (1.0 - phase) * 0.38
-                ctx.fill(
-                    Path(ellipseIn: CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)),
-                    with: .color(Color(hex: "#FFF8EC").opacity(alpha))
-                )
+                let rect = CGRect(x: px - r, y: py - r, width: r * 2, height: r * 2)
+                if !SpriteFXLibrary.draw(.dust, age: phase * SpriteFXKind.dust.duration,
+                                         in: rect, context: ctx, opacity: alpha) {
+                    ctx.fill(Path(ellipseIn: rect), with: .color(Color(hex: "#FFF8EC").opacity(alpha)))
+                }
             }
         }
     }

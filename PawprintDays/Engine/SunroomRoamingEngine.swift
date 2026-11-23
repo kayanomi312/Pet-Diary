@@ -180,6 +180,7 @@ final class SunroomRoamingEngine {
 
     var actors: [String: RoamingPetActor] = [:]
     var floorRipples: [FloorTapRipple] = []
+    private(set) var spriteFX = SpriteFXPool()
     var floatingBursts: [FloatingSunroomBurst] = []
     var origamiDrops: [OrigamiCharmDrop] = []
     var rollingBall: RollingClothBall? = nil
@@ -461,12 +462,16 @@ final class SunroomRoamingEngine {
     }
 
     /// 玩家點擊陽光室 2.5D 地板任一處 → 喚來最近的室友輕快卻自然地走過來！
-    func callNearestPet(to roomUV: CGPoint, now: Date = Date()) {
+    func callNearestPet(to roomUV: CGPoint, now: Date = Date(), useSprite: Bool = true) {
         let clamped = CGPoint(
             x: max(0.09, min(0.91, roomUV.x)),
             y: max(0.16, min(0.86, roomUV.y))
         )
-        floorRipples.append(FloorTapRipple(position: clamped, createdAt: now))
+        if useSprite, SpriteFXLibrary.contains(.floorRipple) {
+            spriteFX.emit(.floorRipple, at: clamped, time: now)
+        } else {
+            floorRipples.append(FloorTapRipple(position: clamped, createdAt: now))
+        }
 
         guard let nearest = actors.values.min(by: {
             let p0 = $0.interpolatedPosition(at: now)
@@ -522,11 +527,18 @@ final class SunroomRoamingEngine {
 
     // MARK: - Direct In-World Live Animations (Zero-Menu Tactile Reactions!)
 
+    func emitCelDust(petID: String, at time: Date) {
+        guard SpriteFXLibrary.contains(.dust), let actor = actors[petID] else { return }
+        spriteFX.emit(.dust, at: actor.interpolatedPosition(at: time), time: time)
+    }
+
     func emitFloatingBurst(at roomUV: CGPoint, text: String, colorHex: String = "#C98D26", now: Date = Date()) {
         let clamped = CGPoint(
             x: max(0.08, min(0.92, roomUV.x)),
             y: max(0.10, min(0.88, roomUV.y))
         )
+        let sprite: SpriteFXKind = text.hasPrefix("+") ? .coin : text.hasPrefix("♡") ? .heart : .sparkle
+        if SpriteFXLibrary.contains(sprite) { spriteFX.emit(sprite, at: clamped, time: now) }
         floatingBursts.append(FloatingSunroomBurst(position: clamped, text: text, colorHex: colorHex, createdAt: now))
         if floatingBursts.count > 16 {
             floatingBursts.removeFirst(floatingBursts.count - 16)
