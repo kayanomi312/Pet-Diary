@@ -5,6 +5,10 @@ import SwiftUI
 struct RootStageView: View {
     @Bindable var coordinator: GameCoordinator
 
+    #if DEBUG
+    @State private var showsAnimationGallery = false
+    #endif
+
     private var showsFloatingDock: Bool {
         switch coordinator.currentScreen {
         case .street, .sketchbook, .curioCubbies:
@@ -66,6 +70,20 @@ struct RootStageView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        #if DEBUG
+        .overlay(alignment: .topTrailing) {
+            Menu {
+                Button("Animation Gallery") { showsAnimationGallery = true }
+            } label: {
+                Image(systemName: "ladybug")
+                    .padding(8)
+                    .background(.regularMaterial, in: Circle())
+                    .accessibilityLabel("Debug menu")
+            }
+            .padding(.trailing, 12)
+        }
+        .sheet(isPresented: $showsAnimationGallery) { AnimationGalleryView() }
+        #endif
         .animation(.easeInOut(duration: 0.24), value: coordinator.currentScreen)
         .fullScreenCover(isPresented: $coordinator.showInteractiveTutorial) {
             CozyOnboardingTutorialView(coordinator: coordinator)
