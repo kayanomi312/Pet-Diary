@@ -246,3 +246,21 @@ struct CelLocomotion: Equatable, Sendable {
 
     var isSideOn: Bool { bank == "w" || bank == "wr" }
 }
+
+/// Distance in normalized room coordinates traveled in one full authored cycle.
+struct CelStride: Sendable {
+    let lengthUV: Double
+    let cycleDuration: Double
+
+    init?(lengthUV: Double?, player: CelClipPlayer?) {
+        guard let lengthUV, lengthUV.isFinite, lengthUV > 0,
+              let player, player.clip.loop != .once, player.duration.isFinite else { return nil }
+        self.lengthUV = lengthUV
+        cycleDuration = player.duration
+    }
+
+    func duration(forDistance distance: Double) -> Double? {
+        let time = distance / lengthUV * cycleDuration
+        return time.isFinite && time > 0 ? time : nil
+    }
+}

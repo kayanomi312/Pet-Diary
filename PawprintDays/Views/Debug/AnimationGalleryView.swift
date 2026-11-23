@@ -40,7 +40,7 @@ struct AnimationGalleryView: View {
                     TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !isPlaying)) { timeline in
                         let elapsed = playhead + max(0, timeline.date.timeIntervalSince(started)) * speed
                         let index = isPlaying ? player.step(at: elapsed) : min(step, player.order.count - 1)
-                        preview(player: player, index: index)
+                        preview(player: player, index: index, elapsed: isPlaying ? elapsed : player.startTime(of: index))
                         Text("Drawing \(player.order[index]) of \(clip.frames)")
                             .font(.caption.monospacedDigit())
                     }
@@ -102,9 +102,12 @@ struct AnimationGalleryView: View {
         step = 0
     }
 
-    private func preview(player: CelClipPlayer, index: Int) -> some View {
+    private func preview(player: CelClipPlayer, index: Int, elapsed: Double) -> some View {
         let prefix = CelLibrary.prefix(for: petID)
-        let neck = player.clip.anchors?.neck ?? CelLibrary.manifest(for: petID)?.anchors?.neck
+        let manifest = CelLibrary.manifest(for: petID)
+        let neck = player.clip.anchors?.neck ?? manifest?.anchors?.neck
+        let strideLength = player.clip.strideLengthUV ?? manifest?.strideLengthUV
+        let gait = CelStride(lengthUV: strideLength, player: player)
         return ZStack {
             switch backdrop {
             case .sunroom:
@@ -112,11 +115,17 @@ struct AnimationGalleryView: View {
                 if player.clip.bank.hasPrefix("w") {
                     Canvas { context, size in
                         var grid = Path()
-                        for x in stride(from: 0.0, through: size.width, by: 16) {
+                        let sign = (player.clip.bank == "wr") != mirrored ? -1.0 : 1.0
+                        let travel = gait.map { elapsed / $0.cycleDuration * $0.lengthUV } ?? 0
+                        let xOffset = sign * (travel * size.width).truncatingRemainder(dividingBy: 16)
+                        let zOffset = (travel * size.height * 0.27).truncatingRemainder(dividingBy: 12)
+                        let depthWalk = ["wf", "wb"].contains(player.clip.bank)
+                        for x in stride(from: -16.0 + (depthWalk ? 0 : xOffset), through: size.width + 16, by: 16) {
                             grid.move(to: CGPoint(x: x, y: size.height * 0.72))
                             grid.addLine(to: CGPoint(x: x, y: size.height))
                         }
-                        for y in stride(from: size.height * 0.72, through: size.height, by: 12) {
+                        let yOffset = depthWalk ? zOffset * (player.clip.bank == "wf" ? -1 : 1) : 0
+                        for y in stride(from: size.height * 0.72 + yOffset, through: size.height + 12, by: 12) {
                             grid.move(to: CGPoint(x: 0, y: y))
                             grid.addLine(to: CGPoint(x: size.width, y: y))
                         }
