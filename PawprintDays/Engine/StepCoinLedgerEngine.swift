@@ -32,7 +32,8 @@ enum StepCoinLedgerEngine {
         companionPetID: String?,
         weather: WeatherMode,
         placeLabel: String,
-        localDateISO: String
+        localDateISO: String,
+        extraDailyCap: Int = 0
     ) -> StepIngestionResult {
         let bucket = Int64(floor(intervalStartUTC.timeIntervalSince1970 / 900.0))
         let clampedRaw = max(0, reportedSteps)
@@ -72,7 +73,8 @@ enum StepCoinLedgerEngine {
             companionPetID: companionPetID,
             weather: weather,
             placeLabel: placeLabel,
-            localDateISO: localDateISO
+            localDateISO: localDateISO,
+            extraDailyCap: extraDailyCap
         )
     }
 
@@ -86,7 +88,8 @@ enum StepCoinLedgerEngine {
         companionPetID: String?,
         weather: WeatherMode,
         placeLabel: String,
-        localDateISO: String
+        localDateISO: String,
+        extraDailyCap: Int = 0
     ) -> StepIngestionResult {
         let clampedDelta = max(0, deltaSteps)
         let bucket = Int64(floor(timestamp.timeIntervalSince1970 / 900.0))
@@ -114,7 +117,8 @@ enum StepCoinLedgerEngine {
             companionPetID: companionPetID,
             weather: weather,
             placeLabel: placeLabel,
-            localDateISO: localDateISO
+            localDateISO: localDateISO,
+            extraDailyCap: extraDailyCap
         )
     }
 
@@ -127,7 +131,8 @@ enum StepCoinLedgerEngine {
         companionPetID: String?,
         weather: WeatherMode,
         placeLabel: String,
-        localDateISO: String
+        localDateISO: String,
+        extraDailyCap: Int = 0
     ) -> StepIngestionResult {
         guard ledger.mobilityRollModeEnabled else {
             return StepIngestionResult(
@@ -162,7 +167,8 @@ enum StepCoinLedgerEngine {
             companionPetID: companionPetID,
             weather: weather,
             placeLabel: placeLabel,
-            localDateISO: localDateISO
+            localDateISO: localDateISO,
+            extraDailyCap: extraDailyCap
         )
     }
 
@@ -172,7 +178,8 @@ enum StepCoinLedgerEngine {
         companionPetID: String?,
         weather: WeatherMode,
         placeLabel: String,
-        localDateISO: String
+        localDateISO: String,
+        extraDailyCap: Int = 0
     ) -> StepIngestionResult {
         guard deltaSteps > 0 else {
             return StepIngestionResult(
@@ -203,7 +210,7 @@ enum StepCoinLedgerEngine {
 
             if findsEarned > 0 {
                 var existing = ledger.foragedCurios
-                let dailyCap = dailyPocketFindCap(for: ledger)
+                let dailyCap = dailyPocketFindCap(for: ledger) + max(0, extraDailyCap)
                 let todaysCount = existing.filter { $0.localDateISO == localDateISO }.count
                 let allowedCount = max(0, min(findsEarned, dailyCap - todaysCount))
 

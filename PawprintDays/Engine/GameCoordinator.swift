@@ -43,6 +43,8 @@ final class GameCoordinator {
     var newlyUnpackedCurio: ForagedCurioEntry? = nil
     var activeStroll: ActiveStrollSession? = nil
     var completedStrollSummary: CompletedStrollSummary? = nil
+    /// Favourite-greeting reward or hint from the latest street greeting, shown on the encounter screen.
+    var lastGreetingFeedback: String? = nil
 
     var anchors: [AnchorSiteRecord] = []
     var residents: [PetResidentState] = []
@@ -222,7 +224,8 @@ final class GameCoordinator {
             companionPetID: day.companionPetID,
             weather: activeWeather,
             placeLabel: placeLabel,
-            localDateISO: currentLocalDateISO
+            localDateISO: currentLocalDateISO,
+            extraDailyCap: strollExtraPocketFindCap
         )
         applyStepIngestionSideEffects(result: result, day: day, placeLabel: placeLabel)
         return result.newlyAcceptedSteps
@@ -245,7 +248,12 @@ final class GameCoordinator {
     }
 
     var dailyPocketFindCap: Int {
-        StepCoinLedgerEngine.dailyPocketFindCap(for: ledger)
+        StepCoinLedgerEngine.dailyPocketFindCap(for: ledger) + strollExtraPocketFindCap
+    }
+
+    /// The herb sachet raises today's pocket-find cap by one while its stroll is active.
+    var strollExtraPocketFindCap: Int {
+        activeStroll?.packedCharm == .forageSachet ? 1 : 0
     }
 
     var todaysPocketFindCount: Int {
@@ -307,6 +315,7 @@ final class GameCoordinator {
     private func wireLocationCallbacks() {
         locationService.onRealLocationMoved = { [weak self] location, lowSpeedMeters, dwellSeconds in
             guard let self else { return }
+            self.ensureDoorstepCornerIfNeeded(around: location)
             if self.ledger.mobilityRollModeEnabled && (lowSpeedMeters > 0 || dwellSeconds > 0) {
                 self.recordMobilityRollMovement(lowSpeedMeters: lowSpeedMeters, dwellSeconds: dwellSeconds)
             }
@@ -545,14 +554,8 @@ final class GameCoordinator {
         ledger.lastNeighborhoodLat = coordinate.latitude
         ledger.lastNeighborhoodLon = coordinate.longitude
 
-        // 若真實位置已離開羅東範例街區超過 1.5 公里，自動收起範例點，只留真實街角與私人熟悉街角
-        let luodongLoc = CLLocation(latitude: LocationService.defaultNeighborhoodOrigin.latitude, longitude: LocationService.defaultNeighborhoodOrigin.longitude)
-        let currentLoc = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        if currentLoc.distance(from: luodongLoc) > 1_500 && !discovered.isEmpty {
-            for anchor in anchors where anchor.siteID.hasPrefix("sys.luodong.") {
-                anchor.isHiddenByUser = true
-            }
-        }
+        // 若真實位置已離開羅東範例街區超過 1.5 公里，自動收起範例點，只留真實街角、家門口轉角與私人熟悉街角
+        hideSampleNeighborhoodCornersIfFar(from: coordinate)
 
         for (idx, item) in discovered.enumerated() {
             if !anchors.contains(where: { $0.siteID == item.siteID }) {
@@ -640,6 +643,7 @@ final class GameCoordinator {
         if result.newlyAcceptedSteps > 0 {
             day.acceptedSteps += result.newlyAcceptedSteps
             advanceMentorshipSteps(by: result.newlyAcceptedSteps)
+            advanceWalkQuest(by: result.newlyAcceptedSteps)
             try? modelContext.save()
             reloadAll()
         }
@@ -685,6 +689,7 @@ final class GameCoordinator {
 
         switch check {
         case .eligible:
+            let special = applySpecialVisitorIfEligible(anchor: anchor)
             let offeredPetID = AnchorRotationEngine.resolveAndPersistOfferedPetID(
                 anchor: anchor,
                 residents: residents,
@@ -697,6 +702,9 @@ final class GameCoordinator {
             HapticsEngine.shared.playPawRangeCue()
             CozySoundEngine.shared.playCompassChime()
             currentScreen = .encounter(siteID: anchor.siteID, petID: offeredPetID, companionStreetPetID: distinctGuide)
+            if let special {
+                showWhisper(special.arrivalLine)
+            }
         case .tooFar(let distanceM, _):
             showWhisper("請走近至 75 公尺內再打招呼（目前相距 \(Int(distanceM)) 公尺）。")
         case .poorAccuracy:
@@ -873,6 +881,7 @@ final class GameCoordinator {
         if let existing = encounters.first(where: { $0.siteDayKey == siteDayKey }) {
             return existing
         }
+        let isFirstGreetingWithPetToday = !encounters.contains { $0.petID == petID && $0.localDateISO == dateISO }
 
         var resolvedSecondaryPetID = companionStreetPetID
         // 若正帶著「手工野餐麵包袋」出門散步，街角會悄悄吸引另一位已入住的奇幻夥伴來串門子！
@@ -1019,6 +1028,10 @@ final class GameCoordinator {
         reloadAll()
         markDailyWishCompleted(.streetGreeting)
         nurtureAllGrowingOffspring(axis: .brave, bonusSteps: 0)
+        applyGreetingPreferenceOutcome(petID: petID, gesture: gesture, isFirstGreetingToday: isFirstGreetingWithPetToday)
+        if offeredChainTargetID == nil && companionStreetPetID == nil && pet.inviteState == .invitedHome {
+            offerWalkQuestIfAppropriate(petID: petID)
+        }
         return log
     }
 
@@ -1073,6 +1086,9 @@ final class GameCoordinator {
         return true
     }
 
+    /// A thermos stroll of at least this many steps earns the full +9 refund (net +3 on its 6-coin price).
+    static let gingerThermosFullRefundSteps = 1_500
+
     @discardableResult
     func endStrollSession(autoArchived: Bool = false) -> CompletedStrollSummary? {
         guard let stroll = activeStroll else { return nil }
@@ -1086,9 +1102,10 @@ final class GameCoordinator {
         let day = todayDiaryRecord()
 
         if stroll.packedCharm == .gingerThermos && (stroll.sessionSteps > 0 || stroll.sessionEncountersCount > 0) {
-            ledger.coinBalance += 2
-            finalCoins += 2
-            let note = "散步返家喝了暖呼呼的薑茶（暖薑茶壺回禮 +2 步數幣）"
+            let refund = stroll.sessionSteps >= Self.gingerThermosFullRefundSteps ? 9 : 2
+            ledger.coinBalance += refund
+            finalCoins += refund
+            let note = "散步返家喝了暖呼呼的薑茶（暖薑茶壺回禮 +\(refund) 步數幣）"
             bonusNote = note
             if !day.revisitNotes.contains(note) {
                 day.revisitNotes.append(note)
@@ -1155,7 +1172,8 @@ final class GameCoordinator {
             companionPetID: day.companionPetID,
             weather: activeWeather,
             placeLabel: placeLabel,
-            localDateISO: currentLocalDateISO
+            localDateISO: currentLocalDateISO,
+            extraDailyCap: strollExtraPocketFindCap
         )
         applyStepIngestionSideEffects(result: result, day: day, placeLabel: placeLabel)
         return result
@@ -1166,6 +1184,7 @@ final class GameCoordinator {
 
         if result.newlyAcceptedSteps > 0 {
             advanceMentorshipSteps(by: result.newlyAcceptedSteps)
+            advanceWalkQuest(by: result.newlyAcceptedSteps)
             nurtureAllGrowingOffspring(axis: .brave, bonusSteps: result.newlyAcceptedSteps, countAsActivity: false)
         }
 
@@ -1183,6 +1202,8 @@ final class GameCoordinator {
                     ledger.pocketFindStepProgress += bonusForage
                     while ledger.pocketFindStepProgress >= StepCoinLedgerEngine.stepsPerPocketFind {
                         ledger.pocketFindStepProgress -= StepCoinLedgerEngine.stepsPerPocketFind
+                        // Same daily cap as regular pocket finds (the sachet already grants +1 to it).
+                        guard todaysPocketFindCount < dailyPocketFindCap else { continue }
                         let curio = CurioCatalog.pickFor(
                             weather: activeWeather,
                             placeLabel: placeLabel,
@@ -1352,11 +1373,13 @@ final class GameCoordinator {
         reloadAll()
     }
 
-    func collectOrigamiCharmGift(note: String) {
-        ledger.coinBalance += 1
+    @discardableResult
+    func collectOrigamiCharmGift(note: String) -> Bool {
+        let paid = grantIndoorCoinIfAvailable("origamiCharm")
         try? modelContext.save()
         reloadAll()
-        showWhisper(note)
+        showWhisper(paid ? note : note.replacingOccurrences(of: "(+1 步數幣)", with: "(收進窗台小盒)"))
+        return paid
     }
 
     /// 街頭相遇偶發小禮物（第 6 天以上熟悉夥伴偶爾遞上壓花、紙星或 +1 步數幣）

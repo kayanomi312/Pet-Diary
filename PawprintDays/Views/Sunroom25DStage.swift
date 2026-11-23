@@ -151,7 +151,8 @@ struct Sunroom25DStageView: View {
                     SunroomWindowVisitorView(
                         petSpec: PetCatalog.pet(id: visitorID),
                         weather: coordinator.activeWeather,
-                        visitCount: visits
+                        visitCount: visits,
+                        greetedToday: coordinator.hasGreetedWindowVisitorToday
                     ) {
                         coordinator.greetWindowVisitor(petID: visitorID)
                     }
@@ -164,8 +165,10 @@ struct Sunroom25DStageView: View {
                     let now = timeline.date
                     ZStack {
                         // Tap anywhere on the 2.5D wooden floor to call the nearest pet over!
+                        // Hit area covers only the floor, so taps on the window wall (window visitor,
+                        // curio shelf, pinned postcard) reach the views behind this layer.
                         Color.clear
-                            .contentShape(Rectangle())
+                            .contentShape(FloorTapRegionShape(topY: floorHorizonY))
                             .onTapGesture { location in
                                 guard !isDecoratingMode else { return }
                                 guard location.y >= floorHorizonY - 12 && location.y <= floorBottomY + 24 else { return }
@@ -387,19 +390,22 @@ struct Sunroom25DStageView: View {
                             let doorUV = CGPoint(x: 0.90, y: 0.45)
                             let doorPt = floorPoint(uv: doorUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
                             let doorScale = depthScale(for: doorUV.y)
-                            InWorldPorchSatchelView(
-                                activeErrand: coordinator.indoorState.activeErrand,
-                                now: now,
-                                coinBalance: coordinator.ledger.coinBalance,
-                                onSendSupply: { pack in onSendErrandSupply?(pack) },
-                                onCollectReturned: { onCollectErrandInWorld?() }
-                            )
-                            .scaleEffect(doorScale)
-                            .position(x: doorPt.x, y: doorPt.y - 24 * doorScale)
-                            .zIndex(Double(doorUV.y * 1000.0) + 22)
+                            if coordinator.isFeatureUnlocked(.errands) {
+                                InWorldPorchSatchelView(
+                                    activeErrand: coordinator.indoorState.activeErrand,
+                                    now: now,
+                                    coinBalance: coordinator.ledger.coinBalance,
+                                    onSendSupply: { pack in onSendErrandSupply?(pack) },
+                                    onCollectReturned: { onCollectErrandInWorld?() }
+                                )
+                                .scaleEffect(doorScale)
+                                .position(x: doorPt.x, y: doorPt.y - 24 * doorScale)
+                                .zIndex(Double(doorUV.y * 1000.0) + 22)
+                            }
 
                             // Direct In-World Mystical Courtship Nesting Heart (♂ × ♀) when an eligible pair shares the room!
-                            if let pair = coordinator.eligibleNestingPairs.first,
+                            if coordinator.isFeatureUnlocked(.nesting),
+                               let pair = coordinator.eligibleNestingPairs.first,
                                coordinator.indoorState.offsprings.filter({ $0.growthStage != .grown }).count < 2 {
                                 let nestUV = CGPoint(x: 0.50, y: 0.43)
                                 let nestPt = floorPoint(uv: nestUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
@@ -1246,19 +1252,30 @@ private struct PinnedWallPostcardView: View {
 }
 
 /// Shy undiscovered mystical companion peeking gently outside the Sunroom window!
+/// Rectangle from `topY` to the bottom of the stage; the floor-tap layer's hit-test shape.
+private struct FloorTapRegionShape: Shape {
+    let topY: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let top = min(max(rect.minY, topY), rect.maxY)
+        return Path(CGRect(x: rect.minX, y: top, width: rect.width, height: rect.maxY - top))
+    }
+}
+
 private struct SunroomWindowVisitorView: View {
     let petSpec: PetSpec
     let weather: WeatherMode
     let visitCount: Int
+    var greetedToday: Bool = false
     let onGreet: () -> Void
 
     var body: some View {
         Button(action: onGreet) {
             VStack(spacing: 2) {
                 HStack(spacing: 3) {
-                    Image(systemName: "hand.wave.fill")
+                    Image(systemName: greetedToday ? "moon.zzz.fill" : "hand.wave.fill")
                         .font(.system(size: 9.5, weight: .bold))
-                    Text("窗外揮手 \(visitCount)/3")
+                    Text(greetedToday ? "明天再來 \(visitCount)/3" : "窗外揮手 \(visitCount)/3")
                         .font(.system(size: 9.5, weight: .bold, design: .rounded))
                 }
                 .foregroundStyle(Color(hex: "#2F2A26"))
@@ -1276,7 +1293,7 @@ private struct SunroomWindowVisitorView: View {
                     isStaticSnapshot: true
                 )
                 .frame(width: 68, height: 68)
-                .opacity(0.86)
+                .opacity(greetedToday ? 0.6 : 0.86)
                 .clipped()
             }
         }

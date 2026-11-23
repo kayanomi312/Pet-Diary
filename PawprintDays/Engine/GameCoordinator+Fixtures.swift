@@ -59,10 +59,12 @@ extension GameCoordinator {
         let day2ISO = currentLocalDateISO
         let intervalA = currentSimulatedDate
         let intervalB = currentSimulatedDate.addingTimeInterval(900)
+        // Day-1 greeting bonuses (e.g. favourite gesture) are not part of the step-ledger gate.
+        let coinsBeforeSteps = ledger.coinBalance
         _ = ingestSteps(steps: 5_840, intervalStartUTC: intervalA, placeLabel: bakery.customLabel)
         _ = ingestSteps(steps: 5_840, intervalStartUTC: intervalA, placeLabel: bakery.customLabel)
         _ = ingestSteps(steps: 160, intervalStartUTC: intervalB, placeLabel: bakery.customLabel)
-        let coinsBeforePurchase = ledger.coinBalance
+        let coinsBeforePurchase = ledger.coinBalance - coinsBeforeSteps
         guard let sageRibbon = ShopCatalog.item(id: "outfit.sage_ribbon") else {
             return Stage1VerificationSummary(
                 gate1ProximityAndDay3CallbackPassed: false,
@@ -74,7 +76,7 @@ extension GameCoordinator {
         }
         let boughtRibbon = purchaseItem(sageRibbon, txID: "fixture.buy.sage_ribbon")
         _ = purchaseItem(sageRibbon, txID: "fixture.buy.sage_ribbon")
-        let coinsAfterRibbon = ledger.coinBalance
+        let coinsAfterRibbon = ledger.coinBalance - coinsBeforeSteps
         let gate3Passed = (coinsBeforePurchase == 30) && boughtRibbon && (coinsAfterRibbon == 18) && (ledger.stepCarryRemainder == 0)
         details.append("第 2 天 (\(day2ISO))：5,840+160 步 → \(coinsBeforePurchase) 幣 − 12 幣緞帶 = \(coinsAfterRibbon) 幣。")
 

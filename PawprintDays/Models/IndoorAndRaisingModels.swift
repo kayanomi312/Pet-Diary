@@ -229,7 +229,7 @@ enum OffspringCatalog {
 
     static func defaultBabyName(fatherID: String, motherID: String, index: Int) -> String {
         let pool = ["小暖星", "小露芽", "小雲焰", "小夜羽", "小紙星", "小琥珀", "小霜翼", "小苔火"]
-        let seed = abs(fatherID.hashValue ^ motherID.hashValue ^ index)
+        let seed = StableHash.value("\(fatherID)+\(motherID)#\(index)")
         return pool[seed % pool.count]
     }
 }
@@ -288,7 +288,7 @@ struct DailyWishesBoard: Codable, Sendable {
 
     static func generate(for dateISO: String, hasOffspring: Bool) -> DailyWishesBoard {
         let indoorPool: [DailyWishKind] = [.featherChase, .brewTea, .foldOrigami, .hideAndSeek, .sendErrand]
-        let seed = abs(dateISO.hashValue)
+        let seed = StableHash.value(dateISO)
         let first = indoorPool[seed % indoorPool.count]
         let second = indoorPool[(seed + 2) % indoorPool.count]
         let third: DailyWishKind = hasOffspring ? .nurtureOffspring : .writeDiary
@@ -444,6 +444,92 @@ struct SunroomIndoorState: Codable, Sendable {
     var offsprings: [MysticalOffspringRecord] = []
     /// Seen multi-pet sunroom skit IDs
     var seenSkitIDs: [String] = []
+
+    // MARK: Gameplay balance additions (all optional on decode so older saves keep every field)
+    /// Civil day of the last window greeting (one greeting per day → 3 days to welcome a visitor).
+    var lastWindowGreetDateISO: String? = nil
+    /// Civil day the per-activity indoor coin counters belong to.
+    var indoorCoinDateISO: String? = nil
+    /// Indoor coin payouts already granted today, keyed by activity.
+    var indoorCoinCounts: [String: Int] = [:]
+    /// Pets whose favourite greeting gesture has been discovered.
+    var discoveredFavoriteGesturePetIDs: [String] = []
+    /// Foraged curio entries already given to a companion as a gift.
+    var giftedCurioEntryIDs: [UUID] = []
+    /// Weather curio sets whose completion reward has been claimed.
+    var claimedCurioSetWeatherCodes: [String] = []
+    /// Optional "walk with me" step quest offered by a street companion.
+    var activeWalkQuest: WalkWithMeQuest? = nil
+    var completedWalkQuestCount: Int = 0
+    /// Special time-of-day / weather visitor appearances: visitor key → civil day it last appeared.
+    var specialVisitorDates: [String: String] = [:]
+    /// One-time doorstep corner created at the player's real first location.
+    var hasPlacedDoorstepCorner: Bool = false
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey {
+        case dailyWishes, activeErrand, errandHistory, unlockedTeaRecipeIDs, totalTeaBrewedCount
+        case hangingOrigamis, hasWindChimeInstalled, pinnedPostcardEncounterID, windowVisitCounts
+        case lastWindowVisitorPetID, lastWindowVisitorDateISO, offsprings, seenSkitIDs
+        case lastWindowGreetDateISO, indoorCoinDateISO, indoorCoinCounts, discoveredFavoriteGesturePetIDs
+        case giftedCurioEntryIDs, claimedCurioSetWeatherCodes, activeWalkQuest, completedWalkQuestCount
+        case specialVisitorDates, hasPlacedDoorstepCorner
+    }
+
+    /// Tolerant decoding: a missing key falls back to its default instead of failing the whole
+    /// decode (which would silently reset the Sunroom, including raised offspring).
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        dailyWishes = try? c.decodeIfPresent(DailyWishesBoard.self, forKey: .dailyWishes)
+        activeErrand = try? c.decodeIfPresent(ActivePetErrand.self, forKey: .activeErrand)
+        errandHistory = (try? c.decodeIfPresent([CompletedErrandPostcard].self, forKey: .errandHistory)) ?? []
+        unlockedTeaRecipeIDs = (try? c.decodeIfPresent([String].self, forKey: .unlockedTeaRecipeIDs)) ?? []
+        totalTeaBrewedCount = (try? c.decodeIfPresent(Int.self, forKey: .totalTeaBrewedCount)) ?? 0
+        hangingOrigamis = (try? c.decodeIfPresent([OrigamiCraftKind].self, forKey: .hangingOrigamis)) ?? []
+        hasWindChimeInstalled = (try? c.decodeIfPresent(Bool.self, forKey: .hasWindChimeInstalled)) ?? true
+        pinnedPostcardEncounterID = try? c.decodeIfPresent(UUID.self, forKey: .pinnedPostcardEncounterID)
+        windowVisitCounts = (try? c.decodeIfPresent([String: Int].self, forKey: .windowVisitCounts)) ?? [:]
+        lastWindowVisitorPetID = try? c.decodeIfPresent(String.self, forKey: .lastWindowVisitorPetID)
+        lastWindowVisitorDateISO = try? c.decodeIfPresent(String.self, forKey: .lastWindowVisitorDateISO)
+        offsprings = (try? c.decodeIfPresent([MysticalOffspringRecord].self, forKey: .offsprings)) ?? []
+        seenSkitIDs = (try? c.decodeIfPresent([String].self, forKey: .seenSkitIDs)) ?? []
+        lastWindowGreetDateISO = try? c.decodeIfPresent(String.self, forKey: .lastWindowGreetDateISO)
+        indoorCoinDateISO = try? c.decodeIfPresent(String.self, forKey: .indoorCoinDateISO)
+        indoorCoinCounts = (try? c.decodeIfPresent([String: Int].self, forKey: .indoorCoinCounts)) ?? [:]
+        discoveredFavoriteGesturePetIDs = (try? c.decodeIfPresent([String].self, forKey: .discoveredFavoriteGesturePetIDs)) ?? []
+        giftedCurioEntryIDs = (try? c.decodeIfPresent([UUID].self, forKey: .giftedCurioEntryIDs)) ?? []
+        claimedCurioSetWeatherCodes = (try? c.decodeIfPresent([String].self, forKey: .claimedCurioSetWeatherCodes)) ?? []
+        activeWalkQuest = try? c.decodeIfPresent(WalkWithMeQuest.self, forKey: .activeWalkQuest)
+        completedWalkQuestCount = (try? c.decodeIfPresent(Int.self, forKey: .completedWalkQuestCount)) ?? 0
+        specialVisitorDates = (try? c.decodeIfPresent([String: String].self, forKey: .specialVisitorDates)) ?? [:]
+        hasPlacedDoorstepCorner = (try? c.decodeIfPresent(Bool.self, forKey: .hasPlacedDoorstepCorner)) ?? false
+    }
+}
+
+/// A short "walk with me" request a street companion makes after a greeting.
+struct WalkWithMeQuest: Codable, Hashable, Sendable {
+    var petID: String
+    var localDateISO: String
+    var targetSteps: Int
+    var progressSteps: Int = 0
+
+    var isComplete: Bool { progressSteps >= targetSteps }
+    var remainingSteps: Int { max(0, targetSteps - progressSteps) }
+    static let rewardCoins: Int = 3
+}
+
+/// Process-stable string hashing. Swift's `hashValue` is reseeded on every launch, so it must
+/// never drive anything a player expects to stay put (daily wishes, visitors, names).
+enum StableHash {
+    static func value(_ text: String) -> Int {
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in text.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x100000001b3
+        }
+        return Int(hash & 0x3FFF_FFFF_FFFF_FFFF)
+    }
 }
 
 // MARK: - 5. Mystical Folklore Storybook (6 Companions x 5 Milestone Chapters = 30 Chapters!)

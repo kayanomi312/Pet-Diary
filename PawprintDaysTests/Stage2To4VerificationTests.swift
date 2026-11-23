@@ -714,6 +714,9 @@ final class Stage2To4VerificationTests: XCTestCase {
         XCTAssertTrue(coordinator.indoorState.unlockedTeaRecipeIDs.contains(recipe.id))
         XCTAssertEqual(coordinator.indoorState.totalTeaBrewedCount, 1)
         XCTAssertEqual(coordinator.ledger.coinBalance, coinsBeforeTea + 1)
+        XCTAssertFalse(coordinator.brewTeaRecipe(recipe), "Only the first brew of the day pays a coin")
+        XCTAssertEqual(coordinator.ledger.coinBalance, coinsBeforeTea + 1)
+        XCTAssertEqual(coordinator.indoorState.totalTeaBrewedCount, 2)
 
         // 3. Origami Workshop crafts hanging beam charms (capped at 5)
         for _ in 0..<6 {
@@ -734,18 +737,28 @@ final class Stage2To4VerificationTests: XCTestCase {
         XCTAssertEqual(coordinator.ledger.coinBalance, coinsBeforeReturn + 4)
         XCTAssertEqual(coordinator.ledger.foragedCurios.count, curiosBeforeReturn + 1)
 
-        // 5. Sunroom Window Visitors: 3 greetings indoors welcomes undiscovered companion!
+        // 5. Sunroom Window Visitors: one greeting per day, 3 days welcomes an undiscovered companion
         let visitorID = try XCTUnwrap(coordinator.currentWindowVisitorPetID)
         XCTAssertEqual(coordinator.resident(for: visitorID)?.inviteState, .unmet)
         coordinator.greetWindowVisitor(petID: visitorID)
+        XCTAssertTrue(coordinator.hasGreetedWindowVisitorToday)
+        coordinator.greetWindowVisitor(petID: visitorID)
+        coordinator.greetWindowVisitor(petID: visitorID)
+        XCTAssertEqual(coordinator.indoorState.windowVisitCounts[visitorID], 1, "Repeat greetings on the same day must not count")
+        XCTAssertEqual(coordinator.resident(for: visitorID)?.inviteState, .unmet)
+        coordinator.currentSimulatedDate = coordinator.currentSimulatedDate.addingTimeInterval(86_400)
+        XCTAssertEqual(coordinator.currentWindowVisitorPetID, visitorID, "The same shy visitor stays at the window")
         coordinator.greetWindowVisitor(petID: visitorID)
         XCTAssertEqual(coordinator.resident(for: visitorID)?.inviteState, .unmet)
+        coordinator.currentSimulatedDate = coordinator.currentSimulatedDate.addingTimeInterval(86_400)
         coordinator.greetWindowVisitor(petID: visitorID)
         XCTAssertEqual(coordinator.resident(for: visitorID)?.inviteState, .invitedHome)
 
         // 6. Hide-and-Seek, Feather-Wand, Wall Postcard Pin, Wind Chime, Multi-Pet Skits
         let coinsBeforeHide = coordinator.ledger.coinBalance
-        coordinator.foundHidingPet(petID: "pet.03")
+        XCTAssertTrue(coordinator.foundHidingPet(petID: "pet.03"))
+        XCTAssertEqual(coordinator.ledger.coinBalance, coinsBeforeHide + 1)
+        XCTAssertFalse(coordinator.foundHidingPet(petID: "pet.03"))
         XCTAssertEqual(coordinator.ledger.coinBalance, coinsBeforeHide + 1)
         coordinator.recordFeatherWandPlaySession()
         coordinator.ringSunroomWindChime()

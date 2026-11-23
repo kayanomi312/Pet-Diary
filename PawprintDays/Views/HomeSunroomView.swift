@@ -93,8 +93,8 @@ struct HomeSunroomView: View {
                     roamingEngine.emitFloatingBurst(at: CGPoint(x: 0.50, y: 0.48), text: "✦ 跨物種傳承完成！", colorHex: "#C98D26")
                 },
                 onCollectOrigami: { drop in
-                    coordinator.collectOrigamiCharmGift(note: drop.note)
-                    roamingEngine.emitFloatingBurst(at: drop.position, text: "+1 幣 ✦ 摺紙符", colorHex: "#B84A62")
+                    let paid = coordinator.collectOrigamiCharmGift(note: drop.note)
+                    roamingEngine.emitFloatingBurst(at: drop.position, text: paid ? "+1 幣 ✦ 摺紙符" : "✦ 摺紙符", colorHex: "#B84A62")
                 },
                 onTapWindowsillCurio: { entry in
                     let spec = CurioCatalog.curio(id: entry.curioID)
@@ -112,8 +112,11 @@ struct HomeSunroomView: View {
                         hidingPetID = nil
                         bouncingPetID = foundID
                     }
-                    coordinator.foundHidingPet(petID: foundID)
+                    let paid = coordinator.foundHidingPet(petID: foundID)
                     roamingEngine.popOutHidingPet(petID: foundID, from: spotUV)
+                    if paid {
+                        roamingEngine.emitFloatingBurst(at: CGPoint(x: spotUV.x, y: max(0.1, spotUV.y - 0.08)), text: "+1 幣", colorHex: "#D98A36")
+                    }
                     Task { @MainActor in
                         try? await Task.sleep(for: .milliseconds(360))
                         withAnimation(.easeOut(duration: 0.2)) { bouncingPetID = nil }
@@ -140,9 +143,9 @@ struct HomeSunroomView: View {
                     coordinator.showWhisper("已切換茶單「\(activeTeaRecipe.name)」——在茶壺上畫圈就能直接手沖！")
                 },
                 onBrewTeaInWorld: { brewed in
-                    coordinator.brewTeaRecipe(brewed)
+                    let paid = coordinator.brewTeaRecipe(brewed)
                     roamingEngine.gatherAllPets(near: CGPoint(x: 0.72, y: 0.72), bubble: "好香的\(brewed.name)♡")
-                    roamingEngine.emitFloatingBurst(at: CGPoint(x: 0.80, y: 0.72), text: "+1 幣 🍵 茶香四溢", colorHex: brewed.tintHex)
+                    roamingEngine.emitFloatingBurst(at: CGPoint(x: 0.80, y: 0.72), text: paid ? "+1 幣 🍵 茶香四溢" : "🍵 茶香四溢", colorHex: brewed.tintHex)
                 },
                 onTapOrigamiTable: {
                     HapticsEngine.shared.playBrushStrokeTick()
@@ -361,9 +364,9 @@ struct HomeSunroomView: View {
                     if showOrigamiFoldMat {
                         InWorldOrigamiFoldOverlay(
                             onCraftComplete: { kind in
-                                coordinator.craftOrigami(kind)
+                                let paid = coordinator.craftOrigami(kind)
                                 roamingEngine.gatherAllPets(near: CGPoint(x: 0.45, y: 0.30), bubble: "哇～\(kind.title)飛上去了✦")
-                                roamingEngine.emitFloatingBurst(at: CGPoint(x: 0.45, y: 0.16), text: "+1 幣 ✦ 掛上窗樑", colorHex: kind.colorHex)
+                                roamingEngine.emitFloatingBurst(at: CGPoint(x: 0.45, y: 0.16), text: paid ? "+1 幣 ✦ 掛上窗樑" : "✦ 掛上窗樑", colorHex: kind.colorHex)
                             },
                             onClose: {
                                 withAnimation(.easeOut(duration: 0.2)) { showOrigamiFoldMat = false }

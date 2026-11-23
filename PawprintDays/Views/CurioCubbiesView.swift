@@ -16,6 +16,69 @@ struct CurioCubbiesView: View {
 
     private let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
+    private var invitedCompanionIDs: [String] {
+        coordinator.residents.filter { $0.inviteState == .invitedHome }.map(\.petID)
+    }
+
+    /// Weather curio sets: progress chips, and a claim button once a set is complete.
+    private var curioSetRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(coordinator.curioSetProgress) { set in
+                    Button {
+                        if set.isComplete && !set.isClaimed {
+                            coordinator.claimCurioSetReward(weather: set.weather)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: set.isClaimed ? "seal.fill" : set.weather.sfSymbol)
+                                .font(.system(size: 10.5, weight: .bold))
+                            Text(set.isComplete && !set.isClaimed
+                                 ? "\(set.weather.displayName) 領 +\(set.rewardCoins)"
+                                 : "\(set.weather.displayName) \(set.foundCount)/\(set.totalCount)")
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                        }
+                        .foregroundStyle(set.isComplete && !set.isClaimed ? .white : AppTheme.deepPineInk)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            set.isComplete && !set.isClaimed ? AppTheme.forestTeal : Color(hex: set.isClaimed ? "#EADFC8" : "#FFFDF8"),
+                            in: Capsule()
+                        )
+                        .overlay(Capsule().stroke(Color(hex: "#D5C5AE").opacity(0.75), lineWidth: 0.9))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!(set.isComplete && !set.isClaimed))
+                    .accessibilityLabel("\(set.weather.displayName)拾遺套組 \(set.foundCount) / \(set.totalCount)")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func curioGiftControl(for entry: ForagedCurioEntry) -> some View {
+        if coordinator.isCurioGifted(entry) {
+            Label("已送給夥伴", systemImage: "gift.fill")
+                .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                .foregroundStyle(Color(hex: "#9A8A76"))
+        } else if !invitedCompanionIDs.isEmpty {
+            Menu {
+                ForEach(invitedCompanionIDs, id: \.self) { petID in
+                    Button(coordinator.displayName(for: petID)) {
+                        coordinator.giftCurio(entryID: entry.id, to: petID)
+                    }
+                }
+            } label: {
+                Label("送給夥伴", systemImage: "gift")
+                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                    .foregroundStyle(AppTheme.forestTeal)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4)
+                    .background(Color(hex: "#EEF4F1"), in: Capsule())
+            }
+        }
+    }
+
     var body: some View {
         ZStack {
             // 溫潤柔和暖棉紙與淺檜木色展示空間（告別過重深褐壓迫背景）
@@ -72,6 +135,8 @@ struct CurioCubbiesView: View {
                                 }
                                 .buttonStyle(.plain)
                             }
+
+                            curioSetRow
 
                             if showFullCompendium {
                                 LazyVGrid(columns: columns, spacing: 12) {
@@ -170,6 +235,7 @@ struct CurioCubbiesView: View {
                                                 .font(AppTheme.handwritten(12))
                                                 .foregroundStyle(AppTheme.softInk)
                                                 .lineLimit(2)
+                                            curioGiftControl(for: entry)
                                         }
                                         .padding(12)
                                         .frame(maxWidth: .infinity, alignment: .leading)
