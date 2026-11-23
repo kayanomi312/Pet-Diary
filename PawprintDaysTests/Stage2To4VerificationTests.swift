@@ -380,9 +380,16 @@ final class Stage2To4VerificationTests: XCTestCase {
         let t0 = Date()
         roaming.syncResidents(invitedPetIDs: ["pet.02", "pet.03"], spots: coordinator.homeSpots, verandaUnlocked: false, now: t0)
         roaming.callNearestPet(to: CGPoint(x: 0.88, y: 0.82), now: t0)
-        let walkingActor = try XCTUnwrap(roaming.actors.values.first(where: { $0.isWalking }))
-        let pStart = walkingActor.interpolatedPosition(at: t0)
-        let pMid = walkingActor.interpolatedPosition(at: t0.addingTimeInterval(1.5))
+        let walkingID = try XCTUnwrap(roaming.actors.first(where: { $0.value.isWalking })?.key)
+        // Walks hold on the start point until the authored turn/stand cels reach the walk pose.
+        guard case .walking(_, _, let walkStart, let walkDuration, _) = try XCTUnwrap(roaming.actors[walkingID]).behavior else {
+            return XCTFail("expected walking behavior")
+        }
+        roaming.tick(now: walkStart, spots: coordinator.homeSpots, verandaUnlocked: false)
+        let walkingActor = try XCTUnwrap(roaming.actors[walkingID])
+        XCTAssertFalse(walkingActor.waitingForWalkPose)
+        let pStart = walkingActor.interpolatedPosition(at: walkStart)
+        let pMid = walkingActor.interpolatedPosition(at: walkStart.addingTimeInterval(walkDuration * 0.5))
         XCTAssertNotEqual(pStart, pMid)
 
         // Juniper origami charm gift grants +1 coin cleanly
