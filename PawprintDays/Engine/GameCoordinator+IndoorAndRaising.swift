@@ -15,6 +15,39 @@ extension GameCoordinator {
         ledger.indoorState
     }
 
+    // MARK: - Indoor Coin Pacing
+    /// Indoor play is about bond, growth and story; coins come from walking. Each indoor activity
+    /// pays its coin only the first time(s) per civil day so the step economy can't be bypassed.
+    static let indoorCoinDailyLimits: [String: Int] = [
+        "tea": 1,
+        "origami": 1,
+        "hideSeek": 1,
+        "origamiCharm": 3
+    ]
+
+    func remainingIndoorCoins(for activity: String) -> Int {
+        let limit = Self.indoorCoinDailyLimits[activity] ?? 0
+        let state = ledger.indoorState
+        let used = (state.indoorCoinDateISO == currentLocalDateISO) ? (state.indoorCoinCounts[activity] ?? 0) : 0
+        return max(0, limit - used)
+    }
+
+    /// Grants +1 coin if today's allowance for `activity` isn't used up yet. Returns whether it paid.
+    @discardableResult
+    func grantIndoorCoinIfAvailable(_ activity: String) -> Bool {
+        guard remainingIndoorCoins(for: activity) > 0 else { return false }
+        let iso = currentLocalDateISO
+        var state = ledger.indoorState
+        if state.indoorCoinDateISO != iso {
+            state.indoorCoinDateISO = iso
+            state.indoorCoinCounts = [:]
+        }
+        state.indoorCoinCounts[activity, default: 0] += 1
+        ledger.indoorState = state
+        ledger.coinBalance += 1
+        return true
+    }
+
     // MARK: - 1. Gentle Daily Cozy Wishes (Zero-FOMO)
     var todayWishesBoard: DailyWishesBoard {
         let iso = currentLocalDateISO
@@ -67,7 +100,8 @@ extension GameCoordinator {
     }
 
     // MARK: - 2. Sunroom Tea & Biscuit Kitchen
-    func brewTeaRecipe(_ recipe: TeaRecipeSpec) {
+    @discardableResult
+    func brewTeaRecipe(_ recipe: TeaRecipeSpec) -> Bool {
         var firstUnlock = false
         mutateIndoorState { state in
             if !state.unlockedTeaRecipeIDs.contains(recipe.id) {
@@ -81,7 +115,7 @@ extension GameCoordinator {
                 state.lastWindowVisitorDateISO = currentLocalDateISO
             }
         }
-        ledger.coinBalance += 1
+        let paid = grantIndoorCoinIfAvailable("tea")
         try? modelContext.save()
         reloadAll()
 
@@ -89,20 +123,23 @@ extension GameCoordinator {
         markDailyWishCompleted(.brewTea)
         CozySoundEngine.shared.playTeapotClink()
         HapticsEngine.shared.playCurioUnpack()
+        let coinNote = paid ? "+1 幣，" : ""
         showWhisper(firstUnlock
-            ? "解鎖新茶點「\(recipe.name)」！香氣飄滿陽光室（+1 幣，幼靈溫柔度提升）。"
-            : "泡好了熱呼呼的「\(recipe.name)」！室友們滿足地瞇起雙眼（+1 幣）。")
+            ? "解鎖新茶點「\(recipe.name)」！香氣飄滿陽光室（\(coinNote)幼靈溫柔度提升）。"
+            : "泡好了熱呼呼的「\(recipe.name)」！室友們滿足地瞇起雙眼\(paid ? "（今日茶席 +1 幣）" : "。")")
+        return paid
     }
 
     // MARK: - 3. Juniper's Origami Workshop & Hanging Window Decor
-    func craftOrigami(_ kind: OrigamiCraftKind) {
+    @discardableResult
+    func craftOrigami(_ kind: OrigamiCraftKind) -> Bool {
         mutateIndoorState { state in
             state.hangingOrigamis.append(kind)
             if state.hangingOrigamis.count > 5 {
                 state.hangingOrigamis.removeFirst(state.hangingOrigamis.count - 5)
             }
         }
-        ledger.coinBalance += 1
+        let paid = grantIndoorCoinIfAvailable("origami")
         try? modelContext.save()
         reloadAll()
 
@@ -111,7 +148,8 @@ extension GameCoordinator {
         markDailyWishCompleted(.foldOrigami)
         CozySoundEngine.shared.playPaperFlip()
         HapticsEngine.shared.playCurioUnpack()
-        showWhisper("摺好了「\(kind.title)」並掛上陽光室窗樑！（+1 幣，幼靈好奇與靈性提升）")
+        showWhisper("摺好了「\(kind.title)」並掛上陽光室窗樑！（\(paid ? "+1 幣，" : "")幼靈好奇與靈性提升）")
+        return paid
     }
 
     func ringSunroomWindChime() {
@@ -136,15 +174,17 @@ extension GameCoordinator {
         HapticsEngine.shared.playPawRangeCue()
     }
 
-    func foundHidingPet(petID: String) {
-        ledger.coinBalance += 1
+    @discardableResult
+    func foundHidingPet(petID: String) -> Bool {
+        let paid = grantIndoorCoinIfAvailable("hideSeek")
         try? modelContext.save()
         reloadAll()
         nurtureAllGrowingOffspring(axis: .playful, bonusSteps: 0)
         markDailyWishCompleted(.hideAndSeek)
         CozySoundEngine.shared.playCompassChime()
         HapticsEngine.shared.playCurioUnpack()
-        showWhisper("抓到躲貓貓的「\(displayName(for: petID))」囉！牠開心地跳了起來（+1 幣）。")
+        showWhisper("抓到躲貓貓的「\(displayName(for: petID))」囉！牠開心地跳了起來\(paid ? "（+1 幣）" : "")。")
+        return paid
     }
 
     // MARK: - 5. Solo Pet Errands (Tabikaeru-Style Rainy Day Exploration)
@@ -162,7 +202,7 @@ extension GameCoordinator {
             ledger.coinBalance -= supply.costCoins
         }
         let destinations = ["老街紅磚麵包巷", "雨後溪畔木棧道", "靜謐舊書店騎樓", "公園百年大榕樹下", "黃昏茶行石階口"]
-        let dest = destinations[abs(petID.hashValue ^ indoorState.errandHistory.count) % destinations.count]
+        let dest = destinations[StableHash.value("\(petID)#\(indoorState.errandHistory.count)") % destinations.count]
         let now = currentSimulatedDate
         let returnTime = now.addingTimeInterval(TimeInterval(supply.durationMinutes * 60))
         let errand = ActivePetErrand(
@@ -258,20 +298,29 @@ extension GameCoordinator {
             return saved
         }
         // Deterministically surface 1 shy mystical visitor peeking outside the window each civil day
-        let seed = abs(currentLocalDateISO.hashValue)
+        let seed = StableHash.value(currentLocalDateISO)
         return unseenIDs[seed % unseenIDs.count]
+    }
+
+    /// One window greeting per civil day, so welcoming a shy visitor indoors takes three days.
+    var hasGreetedWindowVisitorToday: Bool {
+        indoorState.lastWindowGreetDateISO == currentLocalDateISO
     }
 
     func greetWindowVisitor(petID: String) {
         guard let target = resident(for: petID), target.inviteState == .unmet else { return }
         let spec = PetCatalog.pet(id: petID)
+        guard !hasGreetedWindowVisitorToday else {
+            showWhisper("「\(spec.name)」今天已經和你揮過手了，明天再來窗邊看看牠吧（街角相遇可以立刻成為室友喔）。")
+            return
+        }
         var newVisits = 0
         mutateIndoorState { state in
+            state.lastWindowGreetDateISO = currentLocalDateISO
             newVisits = (state.windowVisitCounts[petID] ?? 0) + 1
             state.windowVisitCounts[petID] = newVisits
-            if newVisits >= 3 {
-                state.lastWindowVisitorPetID = nil
-            }
+            // Keep the same shy visitor at the window until it moves in.
+            state.lastWindowVisitorPetID = newVisits >= 3 ? nil : petID
         }
         markDailyWishCompleted(.streetGreeting)
         CozySoundEngine.shared.playCompassChime()
@@ -286,7 +335,7 @@ extension GameCoordinator {
             solveHomeRoomNow()
             showWhisper("窗外的「\(spec.name)」終於安心走進陽光室，成為你的新室友囉 ✦")
         } else {
-            showWhisper("向窗外探頭的「\(spec.name)」溫柔揮了揮手（窗邊熟識度 \(newVisits)/3，泡熱茶更能吸引牠靠近！）。")
+            showWhisper("向窗外探頭的「\(spec.name)」溫柔揮了揮手（窗邊熟識度 \(newVisits)/3，明天再來打招呼吧！）。")
         }
     }
 

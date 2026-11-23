@@ -16,6 +16,8 @@ struct SidewalkEncounterView: View {
     @State private var committedLog: EncounterLog? = nil
     @State private var slipText: String = ""
     @State private var bonusGiftWhisper: String? = nil
+    @State private var greetingFeedback: String? = nil
+    @State private var walkQuestOffer: WalkWithMeQuest? = nil
     @State private var petTapBounce: CGFloat = 0.0
     @State private var holdRipplePulse: Bool = false
 
@@ -202,6 +204,40 @@ struct SidewalkEncounterView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
 
+                if let feedback = greetingFeedback {
+                    HStack(spacing: 8) {
+                        Image(systemName: feedback.hasPrefix("♡") ? "heart.fill" : "questionmark.circle")
+                            .foregroundStyle(Color(hex: "#D96B7E"))
+                        Text(feedback)
+                            .font(AppTheme.handwritten(13))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(AppTheme.warmPaper.opacity(0.95), in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#D96B7E").opacity(0.55), lineWidth: 1.2))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 6)
+                    .transition(.scale.combined(with: .opacity))
+                }
+
+                if let quest = walkQuestOffer {
+                    HStack(spacing: 8) {
+                        Image(systemName: "figure.walk")
+                            .foregroundStyle(AppTheme.forestTeal)
+                        Text("\(petDisplayName)想陪你再走 \(quest.targetSteps) 步——一起走完可得 +\(WalkWithMeQuest.rewardCoins) 步數幣。")
+                            .font(AppTheme.handwritten(13))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(AppTheme.warmPaper.opacity(0.95), in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.forestTeal.opacity(0.5), lineWidth: 1.2))
+                    .padding(.horizontal, 20)
+                    .padding(.top, 6)
+                    .transition(.scale.combined(with: .opacity))
+                }
+
                 if let gift = bonusGiftWhisper {
                     HStack(spacing: 8) {
                         Image(systemName: "gift.fill")
@@ -240,6 +276,21 @@ struct SidewalkEncounterView: View {
 
                 if committedLog == nil {
                     VStack(spacing: 14) {
+                        // 招呼偏好小提示：發現後標記最愛，未發現時鼓勵嘗試不同方式
+                        HStack(spacing: 5) {
+                            Image(systemName: coordinator.hasDiscoveredFavoriteGesture(for: petID) ? "heart.fill" : "questionmark.circle")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(Color(hex: "#D96B7E"))
+                            Text(coordinator.hasDiscoveredFavoriteGesture(for: petID)
+                                 ? "\(petDisplayName)最喜歡：\(petSpec.favoriteGreeting.title)"
+                                 : "試試不同的招呼方式，找出\(petDisplayName)最喜歡的那一種")
+                                .font(AppTheme.handwritten(12.5))
+                                .foregroundStyle(AppTheme.deepPineInk)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .background(AppTheme.warmPaper.opacity(0.92), in: Capsule())
+
                         ZStack {
                             // 長按共振波紋
                             if isHoldingCobblestone {
@@ -615,6 +666,10 @@ struct SidewalkEncounterView: View {
             withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) {
                 committedLog = log
                 petTapBounce = 1.0
+                greetingFeedback = coordinator.lastGreetingFeedback
+                if let quest = coordinator.activeWalkQuestToday, quest.petID == petID, quest.progressSteps == 0 {
+                    walkQuestOffer = quest
+                }
             }
             if let gift = coordinator.awardStreetEncounterBonusGiftIfEligible(petID: petID) {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.72)) {

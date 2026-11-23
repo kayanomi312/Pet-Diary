@@ -147,7 +147,7 @@ struct ProceduralPetRigView: View {
         }
 
         let elapsed = max(0, Date().timeIntervalSince(actionTriggerDate))
-        let petPhase = Double(abs(pet.id.hashValue) % 11) * 0.53
+        let petPhase = Double(StableHash.value(pet.id) % 11) * 0.53
         let tPet = time + petPhase
 
         // 1. Active explicit playful interactions (highest priority)

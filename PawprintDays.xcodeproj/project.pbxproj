@@ -41,6 +41,7 @@
 		9536B357EA0BC33DABC7932F /* paw_range.ahap in Resources */ = {isa = PBXBuildFile; fileRef = 3658077F88E869B7E55F647E /* paw_range.ahap */; };
 		A8FE120F10CDB1D4D24374A6 /* IndoorAndRaisingModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E03777EE489788915164AF7 /* IndoorAndRaisingModels.swift */; };
 		B2FFA362B31165E5FEF5E441 /* StrollLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67E854C8AC9CCB40C6F312CC /* StrollLiveActivityManager.swift */; };
+		B64CE2119FA3AE383C22D752 /* GameCoordinator+Progression.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D92A468F9BEDEEBA1580BCA /* GameCoordinator+Progression.swift */; };
 		B9E0D6FF5ADD861C160546AC /* GameCoordinator+Fixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 695FB44687F27EE0E023B4EB /* GameCoordinator+Fixtures.swift */; };
 		C129648729AE2C786C4E8CD7 /* PawprintAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A37DA5888EB9B52CFF84855E /* PawprintAppIntents.swift */; };
 		C768CB603C207703F6ED3370 /* WeatherSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF3DBFDAF506E7ED900643F2 /* WeatherSyncService.swift */; };
@@ -61,6 +62,7 @@
 		E2B720A0774F3E793E5340E2 /* AnchorRotationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FAA300ED020BC39BC83F973 /* AnchorRotationEngine.swift */; };
 		E52A5349635D7FE3F78072AB /* PawprintDaysApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0740C979C9E98A4DEB2763B7 /* PawprintDaysApp.swift */; };
 		EA98F78935CA143C0BF14B9F /* HardcoverSketchbookView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A74C81C1FC7B537AAD7B171 /* HardcoverSketchbookView.swift */; };
+		EB7112D171106873B5C7CF43 /* GameplayBalanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F853C14BC0C2937B7ED00B3D /* GameplayBalanceTests.swift */; };
 		EC6DD98609A3BF8E763BF9EE /* GameTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A600ABFFADCDFB70A967183 /* GameTypes.swift */; };
 /* End PBXBuildFile section */
 
@@ -102,6 +104,7 @@
 		187676AF72A63606215B3006 /* GameCoordinator+IndoorAndRaising.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GameCoordinator+IndoorAndRaising.swift"; sourceTree = "<group>"; };
 		1BB82F737C708433848BA4E4 /* Stage1VerificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stage1VerificationTests.swift; sourceTree = "<group>"; };
 		1C1A9B21CD584B1C4932B697 /* SunroomInWorldStations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunroomInWorldStations.swift; sourceTree = "<group>"; };
+		1D92A468F9BEDEEBA1580BCA /* GameCoordinator+Progression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GameCoordinator+Progression.swift"; sourceTree = "<group>"; };
 		240A215BE2D51BF1C17FC3C6 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		294ECBE64107C69E3AE79B88 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2FAA300ED020BC39BC83F973 /* AnchorRotationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorRotationEngine.swift; sourceTree = "<group>"; };
@@ -151,6 +154,7 @@
 		EF3DBFDAF506E7ED900643F2 /* WeatherSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherSyncService.swift; sourceTree = "<group>"; };
 		F175005BD67145CD1D5A8672 /* DiaryExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryExportService.swift; sourceTree = "<group>"; };
 		F23804B7F9F2AAAFBDCD72CC /* RoomOccupancySolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomOccupancySolver.swift; sourceTree = "<group>"; };
+		F853C14BC0C2937B7ED00B3D /* GameplayBalanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameplayBalanceTests.swift; sourceTree = "<group>"; };
 		F8E7501CACD547594CF9F3CB /* CuteKawaiiIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuteKawaiiIcons.swift; sourceTree = "<group>"; };
 		F9F40312D192B1DAF66279AE /* IndoorPlayHubSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndoorPlayHubSheet.swift; sourceTree = "<group>"; };
 		FC0F049D89ACEE9B47D5F487 /* SunroomRoamingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunroomRoamingEngine.swift; sourceTree = "<group>"; };
@@ -188,6 +192,7 @@
 		527344F3CAEAF57120A6CF38 /* PawprintDaysTests */ = {
 			isa = PBXGroup;
 			children = (
+				F853C14BC0C2937B7ED00B3D /* GameplayBalanceTests.swift */,
 				1BB82F737C708433848BA4E4 /* Stage1VerificationTests.swift */,
 				4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */,
 			);
@@ -271,6 +276,7 @@
 				A93CFFA2DFDC1657DFAD6BE0 /* GameCoordinator.swift */,
 				695FB44687F27EE0E023B4EB /* GameCoordinator+Fixtures.swift */,
 				187676AF72A63606215B3006 /* GameCoordinator+IndoorAndRaising.swift */,
+				1D92A468F9BEDEEBA1580BCA /* GameCoordinator+Progression.swift */,
 				9C568E5706C32C149A0CC402 /* HapticsEngine.swift */,
 				240A215BE2D51BF1C17FC3C6 /* LocationService.swift */,
 				E0B2764B24738456F6E6AFF4 /* MapKitAnchorDiscoveryService.swift */,
@@ -460,6 +466,7 @@
 				C93E1B479E8580F215D66CD8 /* DiegeticProps.swift in Sources */,
 				B9E0D6FF5ADD861C160546AC /* GameCoordinator+Fixtures.swift in Sources */,
 				D2DA54B2E0A7B9E6385CE914 /* GameCoordinator+IndoorAndRaising.swift in Sources */,
+				B64CE2119FA3AE383C22D752 /* GameCoordinator+Progression.swift in Sources */,
 				DDED72C953C9AC79544709AF /* GameCoordinator.swift in Sources */,
 				EC6DD98609A3BF8E763BF9EE /* GameTypes.swift in Sources */,
 				C881DC0B473CB523E163DC1F /* HapticsEngine.swift in Sources */,
@@ -499,6 +506,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EB7112D171106873B5C7CF43 /* GameplayBalanceTests.swift in Sources */,
 				541DE44C842987CE7AC096F4 /* Stage1VerificationTests.swift in Sources */,
 				32AD8FA0C4478A92BC144378 /* Stage2To4VerificationTests.swift in Sources */,
 			);

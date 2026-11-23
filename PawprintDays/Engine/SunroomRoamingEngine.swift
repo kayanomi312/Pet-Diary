@@ -526,7 +526,7 @@ final class SunroomRoamingEngine {
             actor.tapExcitedUntil = now.addingTimeInterval(2.6)
             actors[petID] = actor
         }
-        emitFloatingBurst(at: revealUV, text: "+1 幣 ✦ 找到啦！", colorHex: "#D98A36", now: now)
+        emitFloatingBurst(at: revealUV, text: "✦ 找到啦！", colorHex: "#D98A36", now: now)
     }
 
     /// Solo Errand departure animation: companion waves and trots out toward the right sunroom doorway!

@@ -290,6 +290,40 @@ struct StreetOverworldView: View {
                     .padding(.top, 4)
                 }
 
+                // 下一步小目標提示（新手第一位朋友、散步任務、育兒、羈絆與特別訪客）
+                if coordinator.activeQuietRevisit == nil, coordinator.newlyUnpackedCurio == nil,
+                   let hint = coordinator.nextGoalHint {
+                    HStack(spacing: 8) {
+                        Image(systemName: hint.icon)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(AppTheme.forestTeal)
+                        Text(hint.text)
+                            .font(AppTheme.handwritten(13))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 4)
+                        if coordinator.isStreetLocationUnavailable,
+                           let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                            Link(destination: settingsURL) {
+                                Text("開啟設定")
+                                    .font(AppTheme.diegeticLabel(11))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 5)
+                                    .background(AppTheme.forestTeal, in: Capsule())
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(AppTheme.warmPaper.opacity(0.95), in: RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 1.1))
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .accessibilityElement(children: .combine)
+                }
+
                 // 口袋拾遺開箱卡片（每 1,400 步觸發）
                 if let unpacked = coordinator.newlyUnpackedCurio {
                     let spec = CurioCatalog.curio(id: unpacked.curioID)

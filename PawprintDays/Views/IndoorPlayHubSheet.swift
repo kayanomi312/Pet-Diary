@@ -171,6 +171,24 @@ struct IndoorPlayHubSheet: View {
     @State private var renamingOffspringID: UUID? = nil
     @State private var renameDraft: String = ""
 
+    private func lockedFeatureCard(_ feature: GameCoordinator.GameFeature) -> some View {
+        VStack(spacing: 10) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 22, weight: .bold))
+                .foregroundStyle(Color(hex: "#9A8A76"))
+            Text("尚未開放")
+                .font(AppTheme.serifTitle(16))
+                .foregroundStyle(AppTheme.deepPineInk)
+            Text(feature.lockedHint)
+                .font(AppTheme.handwritten(13.5))
+                .foregroundStyle(AppTheme.softInk)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(22)
+        .background(Color(hex: "#EFE7D8").opacity(0.8), in: RoundedRectangle(cornerRadius: 16))
+    }
+
     init(coordinator: GameCoordinator, initialTab: HubTab = .wishes) {
         self.coordinator = coordinator
         self._selectedTab = State(initialValue: initialTab.rawValue)
@@ -198,8 +216,10 @@ struct IndoorPlayHubSheet: View {
                         case 0: wishesSection
                         case 1: teaKitchenSection
                         case 2: origamiSection
-                        case 3: errandsSection
-                        default: nurserySection
+                        case 3:
+                            if coordinator.isFeatureUnlocked(.errands) { errandsSection } else { lockedFeatureCard(.errands) }
+                        default:
+                            if coordinator.isFeatureUnlocked(.nesting) { nurserySection } else { lockedFeatureCard(.nesting) }
                         }
                     }
                     .padding(.horizontal, 16)

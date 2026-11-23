@@ -214,8 +214,8 @@ enum StrollSatchelCharm: String, Codable, CaseIterable, Identifiable, Sendable {
         switch self {
         case .none:          return "零消耗，步數與街角相遇完全照常進行。"
         case .picnicBread:   return "街角更容易吸引第二位奇幻夥伴來串門子，留下雙寵明信片。"
-        case .forageSachet:  return "散步時嗅覺加成 ×1.35，更快累積口袋拾遺進度。"
-        case .gingerThermos: return "為這趟散步添上暖意手記，返家結算額外回贈 +2 步數幣。"
+        case .forageSachet:  return "嗅覺加成 ×1.35 更快累積拾遺進度，且這趟散步的今日拾遺上限 +1。"
+        case .gingerThermos: return "走滿 1,500 步返家回贈 +9 步數幣（未滿回贈 +2），並添上暖意手記。"
         }
     }
 
