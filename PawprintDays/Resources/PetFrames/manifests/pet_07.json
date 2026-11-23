@@ -1,51 +1,64 @@
 {
-  "clips": {
-    "happy": {
-      "bank": "h",
-      "fps": 7,
-      "frames": 10,
-      "loop": "loop"
+  "clips" : {
+    "eat" : {
+      "bank" : "e",
+      "events" : {
+        "chew" : [
+          5,
+          7
+        ]
+      },
+      "fps" : 10,
+      "frames" : 10,
+      "loop" : "once",
+      "next" : "idle"
     },
-    "idle": {
-      "bank": "i",
-      "events": {
-        "blink": [
+    "happy" : {
+      "bank" : "h",
+      "fps" : 7,
+      "frames" : 10,
+      "loop" : "loop"
+    },
+    "idle" : {
+      "bank" : "i",
+      "events" : {
+        "blink" : [
           15
         ]
       },
-      "fps": 8,
-      "frames": 16,
-      "holds": {
-        "15": 3,
-        "7": 3
+      "fps" : 8,
+      "frames" : 16,
+      "holds" : {
+        "7" : 3,
+        "15" : 3
       },
-      "loop": "loop"
+      "loop" : "loop"
     },
-    "mouth": {
-      "bank": "m",
-      "fps": 7.5,
-      "frames": 8,
-      "loop": "loop"
+    "mouth" : {
+      "bank" : "m",
+      "fps" : 7.5,
+      "frames" : 8,
+      "loop" : "loop"
     },
-    "play": {
-      "bank": "p",
-      "fps": 8.5,
-      "frames": 8,
-      "loop": "loop"
+    "play" : {
+      "bank" : "p",
+      "fps" : 8.5,
+      "frames" : 8,
+      "loop" : "loop"
     },
-    "sleep": {
-      "bank": "s",
-      "fps": 3.2,
-      "frames": 8,
-      "loop": "pingpong"
+    "sleep" : {
+      "bank" : "s",
+      "fps" : 3.2000000000000002,
+      "frames" : 8,
+      "loop" : "pingpong"
     },
-    "walk": {
-      "bank": "w",
-      "fps": 9,
-      "frames": 16,
-      "loop": "loop"
+    "walk" : {
+      "bank" : "w",
+      "fps" : 9,
+      "frames" : 16,
+      "loop" : "loop"
     }
   },
-  "pet": "pet_07",
-  "spec": 2
+  "pet" : "pet_07",
+  "spec" : 2
 }
