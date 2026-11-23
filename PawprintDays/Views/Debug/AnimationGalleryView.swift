@@ -153,7 +153,8 @@ struct AnimationGalleryView: View {
                                      outfitID: showOutfit ? ShopCatalog.items.first(where: { $0.slotType == "socket_neck" })?.id : nil,
                                      applyMetalPaperShader: false, isStaticSnapshot: true,
                                      previewFrame: player.clip.asset(prefix: prefix, frame: player.order[index]),
-                                     previewNeck: neck)
+                                     previewNeck: neck,
+                                     previewPlayback: CelPlayback(player: player, elapsed: elapsed))
             }
             .frame(width: 215, height: 215)
             .scaleEffect(x: mirrored ? -1 : 1, y: 1)
