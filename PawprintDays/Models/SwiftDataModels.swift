@@ -472,3 +472,58 @@ enum PawprintSchemaV2: VersionedSchema {
         ]
     }
 }
+
+// MARK: - Schema Migration Plan
+/// The single source of truth for how on-disk diaries move between schema versions.
+///
+/// Every `ModelContainer` that touches the persistent store must be opened through this plan
+/// (use `PawprintPersistence.makeContainer`), otherwise SwiftData falls back to inferred
+/// lightweight migration and can't run custom stages.
+///
+/// ### Adding V3 (checklist)
+/// 1. **Freeze V2.** Copy the current `@Model` classes, byte-for-byte as they are in this
+///    file today, into `PawprintSchemaV2` as nested types (`PawprintSchemaV2.DiaryDayRecord`, …)
+///    and point `PawprintSchemaV2.models` at those nested copies. Its `versionIdentifier`
+///    and stored properties must never change again — they describe stores already on devices.
+/// 2. **Declare V3.** Add `enum PawprintSchemaV3: VersionedSchema` (version `3.0.0`) whose
+///    `models` lists the live top-level classes with the new changes applied.
+/// 3. **Register it here.** Append `PawprintSchemaV3.self` to `schemas` and a stage to `stages`:
+///    `.lightweight(fromVersion: PawprintSchemaV2.self, toVersion: PawprintSchemaV3.self)` when
+///    SwiftData can infer the change (new optional / defaulted property, rename via
+///    `@Attribute(originalName:)`), or `.custom(...)` with `willMigrate`/`didMigrate` closures
+///    for data back-fills and unique-constraint changes.
+/// 4. **Bump `PawprintPersistence.currentVersionedSchema`** to `PawprintSchemaV3.self`.
+/// 5. **Extend `SchemaMigrationTests`** with a V2-store → V3 case asserting the transformed data.
+///
+/// Two schemas with identical model shapes produce identical version checksums and make
+/// SwiftData reject the plan, so do not add an empty V3 "placeholder" before it has real changes.
+enum PawprintMigrationPlan: SchemaMigrationPlan {
+    static var schemas: [any VersionedSchema.Type] {
+        [PawprintSchemaV2.self]
+    }
+
+    static var stages: [MigrationStage] {
+        []
+    }
+}
+
+// MARK: - Persistence Factory
+/// Builds model containers for the persistent diary store. Shared by the app and the migration tests
+/// so both open the store exactly the same way.
+enum PawprintPersistence {
+    /// The newest schema in `PawprintMigrationPlan.schemas`.
+    static var currentVersionedSchema: any VersionedSchema.Type { PawprintSchemaV2.self }
+
+    static var currentSchema: Schema {
+        Schema(versionedSchema: currentVersionedSchema)
+    }
+
+    /// Opens (and if needed migrates) the store described by `configuration` through `PawprintMigrationPlan`.
+    static func makeContainer(configuration: ModelConfiguration) throws -> ModelContainer {
+        try ModelContainer(
+            for: currentSchema,
+            migrationPlan: PawprintMigrationPlan.self,
+            configurations: [configuration]
+        )
+    }
+}

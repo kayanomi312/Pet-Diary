@@ -39,6 +39,7 @@
 		928FC998F4E5361185438FB3 /* PedometerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006EAF955D692AACB215D604 /* PedometerService.swift */; };
 		934FE6CD834B229109168153 /* PawprintDaysWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D9C06CF7A23756CD0CFB07BF /* PawprintDaysWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9536B357EA0BC33DABC7932F /* paw_range.ahap in Resources */ = {isa = PBXBuildFile; fileRef = 3658077F88E869B7E55F647E /* paw_range.ahap */; };
+		A2FE4D92C5C040C83F9B3C5F /* SchemaMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90B4FD5206508F12F0CD9B32 /* SchemaMigrationTests.swift */; };
 		A8FE120F10CDB1D4D24374A6 /* IndoorAndRaisingModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E03777EE489788915164AF7 /* IndoorAndRaisingModels.swift */; };
 		B2FFA362B31165E5FEF5E441 /* StrollLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67E854C8AC9CCB40C6F312CC /* StrollLiveActivityManager.swift */; };
 		B64CE2119FA3AE383C22D752 /* GameCoordinator+Progression.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D92A468F9BEDEEBA1580BCA /* GameCoordinator+Progression.swift */; };
@@ -133,6 +134,7 @@
 		8D31E76984681A384C3B6706 /* SidewalkEncounterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidewalkEncounterView.swift; sourceTree = "<group>"; };
 		8E03777EE489788915164AF7 /* IndoorAndRaisingModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndoorAndRaisingModels.swift; sourceTree = "<group>"; };
 		8FA68C348F168F5266C8FF2B /* cat_purr.ahap */ = {isa = PBXFileReference; path = cat_purr.ahap; sourceTree = "<group>"; };
+		90B4FD5206508F12F0CD9B32 /* SchemaMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchemaMigrationTests.swift; sourceTree = "<group>"; };
 		9131649D46AD6C948295A1D7 /* StorybookGameUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorybookGameUI.swift; sourceTree = "<group>"; };
 		95711078B296384E1C6AD9A3 /* StepCoinLedgerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepCoinLedgerEngine.swift; sourceTree = "<group>"; };
 		9C568E5706C32C149A0CC402 /* HapticsEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticsEngine.swift; sourceTree = "<group>"; };
@@ -193,6 +195,7 @@
 			isa = PBXGroup;
 			children = (
 				F853C14BC0C2937B7ED00B3D /* GameplayBalanceTests.swift */,
+				90B4FD5206508F12F0CD9B32 /* SchemaMigrationTests.swift */,
 				1BB82F737C708433848BA4E4 /* Stage1VerificationTests.swift */,
 				4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */,
 			);
@@ -507,6 +510,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EB7112D171106873B5C7CF43 /* GameplayBalanceTests.swift in Sources */,
+				A2FE4D92C5C040C83F9B3C5F /* SchemaMigrationTests.swift in Sources */,
 				541DE44C842987CE7AC096F4 /* Stage1VerificationTests.swift in Sources */,
 				32AD8FA0C4478A92BC144378 /* Stage2To4VerificationTests.swift in Sources */,
 			);
