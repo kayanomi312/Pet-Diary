@@ -537,6 +537,10 @@ struct LiveTouchSparkleLayer: View {
                     let y = seed.position.y - p * 44
                     let s = (1.0 - p * 0.35) * (seed.isHeart ? 11.0 : 8.0)
 
+                    let sprite: SpriteFXKind = seed.isHeart ? .heart : .sparkle
+                    let rect = CGRect(x: x - s, y: y - s, width: s * 2, height: s * 2)
+                    if SpriteFXLibrary.draw(sprite, age: Double(p) * sprite.duration,
+                                            in: rect, context: ctx, opacity: alpha) { continue }
                     if seed.isHeart {
                         var heart = Path()
                         heart.move(to: CGPoint(x: x, y: y + s * 0.45))

@@ -46,6 +46,7 @@
 		B64CE2119FA3AE383C22D752 /* GameCoordinator+Progression.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D92A468F9BEDEEBA1580BCA /* GameCoordinator+Progression.swift */; };
 		B9E0D6FF5ADD861C160546AC /* GameCoordinator+Fixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 695FB44687F27EE0E023B4EB /* GameCoordinator+Fixtures.swift */; };
 		C129648729AE2C786C4E8CD7 /* PawprintAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A37DA5888EB9B52CFF84855E /* PawprintAppIntents.swift */; };
+		C22566FE27D76125FC7314B6 /* SpriteFXLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2589FA611DB3A4BC0FA7A098 /* SpriteFXLayer.swift */; };
 		C768CB603C207703F6ED3370 /* WeatherSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF3DBFDAF506E7ED900643F2 /* WeatherSyncService.swift */; };
 		C881DC0B473CB523E163DC1F /* HapticsEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C568E5706C32C149A0CC402 /* HapticsEngine.swift */; };
 		C93E1B479E8580F215D66CD8 /* DiegeticProps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 071983DCB25BE655FF909410 /* DiegeticProps.swift */; };
@@ -110,6 +111,7 @@
 		1C1A9B21CD584B1C4932B697 /* SunroomInWorldStations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SunroomInWorldStations.swift; sourceTree = "<group>"; };
 		1D92A468F9BEDEEBA1580BCA /* GameCoordinator+Progression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GameCoordinator+Progression.swift"; sourceTree = "<group>"; };
 		240A215BE2D51BF1C17FC3C6 /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
+		2589FA611DB3A4BC0FA7A098 /* SpriteFXLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpriteFXLayer.swift; sourceTree = "<group>"; };
 		294ECBE64107C69E3AE79B88 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		298FCD0EE8F0FAE692B68EB0 /* CelClip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CelClip.swift; sourceTree = "<group>"; };
 		2FAA300ED020BC39BC83F973 /* AnchorRotationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnchorRotationEngine.swift; sourceTree = "<group>"; };
@@ -237,6 +239,7 @@
 				F8E7501CACD547594CF9F3CB /* CuteKawaiiIcons.swift */,
 				071983DCB25BE655FF909410 /* DiegeticProps.swift */,
 				AFF60970FD6466DF84DA9D35 /* PlaceholderAssetGenerator.swift */,
+				2589FA611DB3A4BC0FA7A098 /* SpriteFXLayer.swift */,
 				9131649D46AD6C948295A1D7 /* StorybookGameUI.swift */,
 				C8C1C754DD8A26DFF8DBC7EB /* StorybookPropArt.swift */,
 				EEA141F93210351F30F0F3DA /* Shaders */,
@@ -510,6 +513,7 @@
 				29D2B56A5B1A15CF8920CA22 /* RoomOccupancySolver.swift in Sources */,
 				CA8581F4D6976F1140243EA6 /* RootStageView.swift in Sources */,
 				7C018745BC28708B329A0467 /* SidewalkEncounterView.swift in Sources */,
+				C22566FE27D76125FC7314B6 /* SpriteFXLayer.swift in Sources */,
 				1EA24F4C854908AC4C4ACEBE /* StepCoinLedgerEngine.swift in Sources */,
 				D03F5B5256D397DB58C261A1 /* StorybookGameUI.swift in Sources */,
 				0437345AC7B1271F5FDA70B5 /* StorybookPropArt.swift in Sources */,

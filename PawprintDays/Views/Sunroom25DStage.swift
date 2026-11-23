@@ -176,7 +176,7 @@ struct Sunroom25DStageView: View {
                                 let depth = max(0.14, min(0.88, (location.y - floorHorizonY) / max(1, floorBottomY - floorHorizonY)))
                                 HapticsEngine.shared.playBrushStrokeTick()
                                 CozySoundEngine.shared.playPawTap()
-                                roaming.callNearestPet(to: CGPoint(x: u, y: depth), now: now)
+                                roaming.callNearestPet(to: CGPoint(x: u, y: depth), now: now, useSprite: !reduceMotion)
                             }
 
                         // Golden foreshortened floor tap ripples
@@ -197,6 +197,18 @@ struct Sunroom25DStageView: View {
                             .position(pt)
                             .zIndex(Double(ripple.position.y * 1000.0) - 20)
                             .allowsHitTesting(false)
+                        }
+
+                        ForEach(reduceMotion ? [] : roaming.spriteFX.active(at: now)) { effect in
+                            let uv = effect.position
+                            let point = floorPoint(uv: uv, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
+                            let size = 44 * depthScale(for: uv.y)
+                            let isGround = effect.kind == .dust || effect.kind == .floorRipple
+                            SpriteFXLayer(effect: effect, date: now)
+                                .frame(width: size, height: size)
+                                .scaleEffect(y: effect.kind == .floorRipple ? 0.52 : 1)
+                                .position(x: point.x, y: point.y - (isGround ? size * 0.16 : size * 1.35))
+                                .zIndex(Double(uv.y * 1000) + (isGround ? -1 : 1))
                         }
 
                         // 2.5D Staggered Home Furnishings (depth-scaled, depth-sorted, & freely draggable in Decorate Mode!)
@@ -365,6 +377,7 @@ struct Sunroom25DStageView: View {
                             let teaPt = floorPoint(uv: teaUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
                             let teaScale = depthScale(for: teaUV.y)
                             InWorldTeaStationView(
+                                stageDate: now,
                                 recipe: activeTeaRecipe,
                                 onCycleRecipe: { onCycleTeaRecipe?() },
                                 onBrewCompleted: { brewed in
@@ -602,7 +615,12 @@ struct Sunroom25DStageView: View {
                                                 poseStartedAt: bouncingPetID == actor.petID ? nil : actor.poseStartedAt,
                                                 locomotion: actor.direction,
                                                 facingRight: actor.facingRight,
-                                                presentationScale: scale * (isInBox ? 0.86 : 1.0)
+                                                presentationScale: scale * (isInBox ? 0.86 : 1.0),
+                                                onCelEvent: { event, date in
+                                                    if event == "footContact" || event == "land" {
+                                                        roaming.emitCelDust(petID: actor.petID, at: date)
+                                                    }
+                                                }
                                             )
                                             .frame(width: 118, height: 118)
 
