@@ -1,4 +1,5 @@
 import XCTest
+import CoreData
 import SwiftData
 @testable import PawprintDays
 
@@ -7,6 +8,8 @@ import SwiftData
 /// - `testFrozenV2FixtureReopensThroughMigrationPlan` opens `Fixtures/PawprintV2.store`, a binary
 ///   store written by the V2 schema and checked in. It never gets regenerated, so if anyone changes a
 ///   stored property without adding a new schema version, this test fails, just as players' stores would.
+/// - `testV2SchemaStillMatchesFrozenFixtureVersionHashes` compares Core Data entity version hashes, so it
+///   also catches *added* optional/defaulted properties and new entities, which the reopen test cannot see.
 /// - `testRuntimeV2StoreReopensThroughMigrationPlan` writes the same sample through the V2 schema at
 ///   runtime (catches API-level regressions in the open path).
 /// - When V3 lands: freeze V2's models as `PawprintSchemaV2.*` nested types, point the V2 helpers below
@@ -61,6 +64,28 @@ final class SchemaMigrationTests: XCTestCase {
 
         let container = try openThroughPlan()
         try V2Sample.assertIntact(in: container.mainContext)
+    }
+
+    /// Opening the fixture only proves existing columns survive; an *added* optional or defaulted
+    /// property (or a new entity) would be silently migrated in and every assertion would still pass.
+    /// Comparing Core Data's per-entity version hashes catches any un-versioned edit to V2: the hashes
+    /// recorded in the frozen fixture must equal those of a store created from `PawprintSchemaV2` today.
+    func testV2SchemaStillMatchesFrozenFixtureVersionHashes() throws {
+        let fixture = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "PawprintV2", withExtension: "store"))
+        let shipped = try Self.entityVersionHashes(ofStoreAt: fixture)
+
+        let freshURL = storeDirectory.appendingPathComponent("fresh-v2.store")
+        try autoreleasepool {
+            let schema = Schema(versionedSchema: PawprintSchemaV2.self)
+            let container = try ModelContainer(for: schema, configurations: [ModelConfiguration(schema: schema, url: freshURL)])
+            try ModelContext(container).save()
+        }
+        let current = try Self.entityVersionHashes(ofStoreAt: freshURL)
+
+        XCTAssertEqual(Set(current.keys), Set(shipped.keys), "PawprintSchemaV2 entities changed; add a new schema version instead")
+        for (entity, hash) in shipped where current[entity] != hash {
+            XCTFail("PawprintSchemaV2.\(entity) no longer matches shipped V2 stores; freeze V2 and add a new schema version instead of editing it")
+        }
     }
 
     func testRuntimeV2StoreReopensThroughMigrationPlan() throws {
@@ -118,9 +143,18 @@ final class SchemaMigrationTests: XCTestCase {
         XCTAssertTrue(PawprintPersistence.isMigrationFailure(outer))
         XCTAssertEqual(PawprintPersistence.failureReason(of: inner), "Can't find mapping model")
         XCTAssertFalse(PawprintPersistence.isMigrationFailure(NSError(domain: NSCocoaErrorDomain, code: 4)))
+        // NSSQLiteError (I/O, disk full, corruption) is not a migration failure even though it sits in 1341xx.
+        XCTAssertEqual(PawprintPersistence.sqliteErrorCode, NSSQLiteError)
+        let sqlite = NSError(domain: "Outer", code: 1, userInfo: [NSUnderlyingErrorKey: NSError(domain: NSCocoaErrorDomain, code: NSSQLiteError)])
+        XCTAssertFalse(PawprintPersistence.isMigrationFailure(sqlite))
     }
 
     // MARK: - Helpers
+
+    private static func entityVersionHashes(ofStoreAt url: URL) throws -> [String: Data] {
+        let metadata = try NSPersistentStoreCoordinator.metadataForPersistentStore(type: .sqlite, at: url)
+        return try XCTUnwrap(metadata[NSStoreModelVersionHashesKey] as? [String: Data], "No entity version hashes in \(url.lastPathComponent)")
+    }
 
     private func openThroughPlan() throws -> ModelContainer {
         let config = ModelConfiguration(schema: PawprintPersistence.currentSchema, url: storeURL)
