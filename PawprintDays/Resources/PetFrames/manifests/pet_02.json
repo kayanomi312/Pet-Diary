@@ -19,6 +19,18 @@
       "frames" : 10,
       "loop" : "loop"
     },
+    "hop" : {
+      "bank" : "j",
+      "events" : {
+        "land" : [
+          7
+        ]
+      },
+      "fps" : 12,
+      "frames" : 9,
+      "loop" : "once",
+      "next" : "idle"
+    },
     "idle" : {
       "bank" : "i",
       "events" : {
