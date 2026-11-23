@@ -4,6 +4,7 @@ import SwiftUI
 
 struct InWorldTeaStationView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let stageDate: Date
     let recipe: TeaRecipeSpec
     let onCycleRecipe: () -> Void
     let onBrewCompleted: (TeaRecipeSpec) -> Void
@@ -36,15 +37,28 @@ struct InWorldTeaStationView: View {
 
                 // Rising animated steam wisps
                 if isSwirling || steamBurst {
-                    HStack(spacing: 5) {
-                        ForEach(0..<3, id: \.self) { i in
-                            Capsule()
-                                .fill(Color.white.opacity(steamBurst ? 0.85 : 0.60))
-                                .frame(width: 3, height: steamBurst ? 18 : 12)
-                                .offset(y: steamBurst ? -26 - CGFloat(i % 2) * 6 : -18)
+                    if SpriteFXLibrary.contains(.steam) {
+                        let age = reduceMotion ? 0 : stageDate.timeIntervalSinceReferenceDate
+                            .truncatingRemainder(dividingBy: SpriteFXKind.steam.duration)
+                        Canvas { context, size in
+                            SpriteFXLibrary.draw(.steam, age: age, in: CGRect(origin: .zero, size: size),
+                                                 context: context)
                         }
+                        .frame(width: 38, height: 38)
+                        .offset(y: -24)
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                    } else {
+                        HStack(spacing: 5) {
+                            ForEach(0..<3, id: \.self) { i in
+                                Capsule()
+                                    .fill(Color.white.opacity(steamBurst ? 0.85 : 0.60))
+                                    .frame(width: 3, height: steamBurst ? 18 : 12)
+                                    .offset(y: steamBurst ? -26 - CGFloat(i % 2) * 6 : -18)
+                            }
+                        }
+                        .transition(.opacity)
                     }
-                    .transition(.opacity)
                 }
 
                 // Live circular pour-over progress ring while swirling

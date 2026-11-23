@@ -49,3 +49,10 @@ Locomotion banks are `w` (left), `wr` (right), `wf` (toward camera), and
 `wb` (away). Author `tn` to end facing left and `tr` to end facing right.
 Pets with a `wr` clip use the authored right-facing art. Without directional
 banks the app keeps the legacy side-walk behavior.
+
+## Effects sheets
+
+Add transparent sRGB strips to the asset catalog with the names `fx_floor_ripple`,
+`fx_dust`, `fx_heart`, `fx_sparkle`, `fx_coin`, `fx_sleep`, `fx_steam`, and
+`fx_rain_splash`. Place square frames left to right with no gaps. The player
+runs at 12 fps and expects six cells per strip, with eight for heart.

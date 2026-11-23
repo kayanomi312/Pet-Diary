@@ -98,4 +98,17 @@ final class CelClipTests: XCTestCase {
         XCTAssertEqual(cache.decodedBytes, image.bytesPerRow * image.height)
         XCTAssertNotNil(cache.cached(key))
     }
+
+    func testSpritePoolBoundsLiveEffectsAndExpiresThem() {
+        let date = Date(timeIntervalSinceReferenceDate: 300)
+        var pool = SpriteFXPool()
+        for index in 0..<40 {
+            pool.emit(.dust, at: CGPoint(x: index, y: 0), time: date)
+        }
+        let active = pool.active(at: date)
+        XCTAssertEqual(active.count, 32)
+        XCTAssertEqual(active.map(\.position.x).min(), 8)
+        XCTAssertTrue(pool.active(at: date.addingTimeInterval(0.5)).isEmpty)
+        XCTAssertEqual(SpriteFXKind.heart.frame(at: 0.61), 7)
+    }
 }

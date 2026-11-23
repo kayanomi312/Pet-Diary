@@ -732,6 +732,9 @@ private struct WatercolorUmbrellaCanopyOverlay: View {
                     let baseY = h * (0.48 - sin(Double(idx) / 4.0 * .pi) * 0.14)
                     let bounceY = baseY - CGFloat(sin(phase * .pi)) * 14
                     let alpha = sin(phase * .pi) * 0.75 * Double(progress)
+                    let rect = CGRect(x: rx - 10, y: baseY - 16, width: 20, height: 20)
+                    if SpriteFXLibrary.draw(.rainSplash, age: phase * SpriteFXKind.rainSplash.duration,
+                                            in: rect, context: ctx, opacity: alpha) { continue }
                     ctx.fill(
                         Path(ellipseIn: CGRect(x: rx - 2.2, y: bounceY - 2.2, width: 4.4, height: 4.4)),
                         with: .color(Color.white.opacity(alpha))
