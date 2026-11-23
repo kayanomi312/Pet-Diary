@@ -1,3 +1,4 @@
+import ImageIO
 import XCTest
 @testable import PawprintDays
 
@@ -97,6 +98,16 @@ final class CelClipTests: XCTestCase {
         XCTAssertLessThanOrEqual(max(image.width, image.height), 128)
         XCTAssertEqual(cache.decodedBytes, image.bytesPerRow * image.height)
         XCTAssertNotNil(cache.cached(key))
+
+        let oversizeKey = CelFrameImageCache.Key(name: "pet_01_w1", displayPixels: 645)
+        let native = await cache.image(oversizeKey)
+        let nativeImage = try XCTUnwrap(native?.cgImage)
+        let url = try XCTUnwrap(CelLibrary.frameURL(oversizeKey.name))
+        let source = try XCTUnwrap(CGImageSourceCreateWithURL(url as CFURL, nil))
+        let properties = try XCTUnwrap(CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any])
+        let nativeWidth = try XCTUnwrap(properties[kCGImagePropertyPixelWidth] as? Int)
+        let nativeHeight = try XCTUnwrap(properties[kCGImagePropertyPixelHeight] as? Int)
+        XCTAssertEqual(max(nativeImage.width, nativeImage.height), min(oversizeKey.pixels, max(nativeWidth, nativeHeight)))
     }
 
     func testSpritePoolBoundsLiveEffectsAndExpiresThem() {
