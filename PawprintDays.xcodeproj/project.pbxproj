@@ -18,6 +18,7 @@
 		261C0EF6829472C2765DA40C /* IndoorPlayHubSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9F40312D192B1DAF66279AE /* IndoorPlayHubSheet.swift */; };
 		2964DFA28D5E109109BEEE50 /* PawprintDaysWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AE753BFE83AECF2523A7649 /* PawprintDaysWidgets.swift */; };
 		29D2B56A5B1A15CF8920CA22 /* RoomOccupancySolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23804B7F9F2AAAFBDCD72CC /* RoomOccupancySolver.swift */; };
+		31F7B3E9E404C27E1F06362E /* PawprintV2.store in Resources */ = {isa = PBXBuildFile; fileRef = CF8DA222295F2ADB241D07DE /* PawprintV2.store */; };
 		32AD8FA0C4478A92BC144378 /* Stage2To4VerificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */; };
 		35A667A6EF0C88B15F3C20D6 /* Sunroom25DStage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7625FA3318755BEFCDDDB260 /* Sunroom25DStage.swift */; };
 		369D3BD8F3426939791248D1 /* SwiftDataModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BF59BCC71DE351874829DEE /* SwiftDataModels.swift */; };
@@ -150,6 +151,7 @@
 		C1BB69ACCDDB09346B6CD70E /* HomeSunroomView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeSunroomView.swift; sourceTree = "<group>"; };
 		C8C1C754DD8A26DFF8DBC7EB /* StorybookPropArt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorybookPropArt.swift; sourceTree = "<group>"; };
 		CA4F7120974E6DAA6C348D1B /* RootStageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootStageView.swift; sourceTree = "<group>"; };
+		CF8DA222295F2ADB241D07DE /* PawprintV2.store */ = {isa = PBXFileReference; path = PawprintV2.store; sourceTree = "<group>"; };
 		D9C06CF7A23756CD0CFB07BF /* PawprintDaysWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PawprintDaysWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		DD04CC74F8F43258F4D9E69A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E0B2764B24738456F6E6AFF4 /* MapKitAnchorDiscoveryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapKitAnchorDiscoveryService.swift; sourceTree = "<group>"; };
@@ -198,6 +200,7 @@
 				90B4FD5206508F12F0CD9B32 /* SchemaMigrationTests.swift */,
 				1BB82F737C708433848BA4E4 /* Stage1VerificationTests.swift */,
 				4B799F6A1E2B7217D6CBE810 /* Stage2To4VerificationTests.swift */,
+				D2E2996ADB8EE27C0532A2EB /* Fixtures */,
 			);
 			path = PawprintDaysTests;
 			sourceTree = "<group>";
@@ -294,6 +297,14 @@
 			path = Engine;
 			sourceTree = "<group>";
 		};
+		D2E2996ADB8EE27C0532A2EB /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				CF8DA222295F2ADB241D07DE /* PawprintV2.store */,
+			);
+			path = Fixtures;
+			sourceTree = "<group>";
+		};
 		E0BE3A26B480A4F469AD43D3 = {
 			isa = PBXGroup;
 			children = (
@@ -362,6 +373,7 @@
 			buildConfigurationList = 384C94877866DA7D0F5DB7D3 /* Build configuration list for PBXNativeTarget "PawprintDaysTests" */;
 			buildPhases = (
 				6EB09A7AD3A694474F5A0193 /* Sources */,
+				7E4D7BFD93509ED83F8BA556 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -447,6 +459,14 @@
 				36F62EF6BB28E06CBAAB9BD1 /* curio_unpack.ahap in Resources */,
 				49A593D4C4BFAFEE8EBB985D /* dog_ball_roll.ahap in Resources */,
 				9536B357EA0BC33DABC7932F /* paw_range.ahap in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7E4D7BFD93509ED83F8BA556 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				31F7B3E9E404C27E1F06362E /* PawprintV2.store in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
