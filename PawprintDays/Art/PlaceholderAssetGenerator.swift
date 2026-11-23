@@ -66,6 +66,9 @@ struct ProceduralPetRigView: View {
     var playfulAction: PetPlayfulAction = .idle
     var actionTriggerDate: Date = .distantPast
 
+    var stageDate: Date? = nil
+    var poseTransition: CelPoseTransition? = nil
+    var poseStartedAt: Date? = nil
     var previewFrame: String? = nil
     var previewNeck: [Double]? = nil
 
@@ -75,6 +78,8 @@ struct ProceduralPetRigView: View {
         Group {
             if isStaticSnapshot || reduceMotion {
                 celAnimationStack(time: 0.0)
+            } else if let stageDate {
+                celAnimationStack(time: stageDate.timeIntervalSinceReferenceDate)
             } else {
                 TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
                     celAnimationStack(time: timeline.date.timeIntervalSinceReferenceDate)
@@ -141,6 +146,10 @@ struct ProceduralPetRigView: View {
     private func authoredFrame(_ bank: String, elapsed: Double) -> CelFrameState? {
         guard let player = CelLibrary.authored(for: pet.id, bank: bank),
               let playback = CelLibrary.playback(for: pet.id, starting: player, elapsed: elapsed) else { return nil }
+        return frameState(for: playback)
+    }
+
+    private func frameState(for playback: CelPlayback) -> CelFrameState {
         let activeBank = playback.player.clip.bank
         return CelFrameState(
             assetName: playback.player.clip.asset(prefix: assetPrefix, frame: playback.frame),
@@ -163,14 +172,18 @@ struct ProceduralPetRigView: View {
             return CelFrameState(assetName: celName(staticIdx), isSleeping: staticIdx == 6, isExcited: isHappySquint)
         }
 
+        if let playback = poseTransition?.playback(at: Date(timeIntervalSinceReferenceDate: time)) {
+            return frameState(for: playback)
+        }
         let elapsed = max(0, time - actionTriggerDate.timeIntervalSinceReferenceDate)
+        let poseElapsed = max(0, time - (poseStartedAt ?? actionTriggerDate).timeIntervalSinceReferenceDate)
         let petPhase = Double(StableHash.value(pet.id) % 11) * 0.53
         let tPet = time + petPhase
 
         // 1. Active explicit playful interactions (highest priority)
         switch playfulAction {
         case .walking:
-            if let authored = authoredFrame("w", elapsed: elapsed) { return authored }
+            if let authored = authoredFrame("w", elapsed: poseElapsed) { return authored }
             // Relaxed, natural 16-frame stroll cycle (`w1`..`w16`) at 9.0fps (~1.78s per unhurried stride)
             let walkFPS = 9.0
             let subtleCadence = -CGFloat(abs(sin(tPet * walkFPS * .pi / 8.0))) * minDim * 0.008
@@ -181,7 +194,7 @@ struct ProceduralPetRigView: View {
             )
 
         case .cozyNap:
-            if let authored = authoredFrame("s", elapsed: elapsed) { return authored }
+            if let authored = authoredFrame("s", elapsed: poseElapsed) { return authored }
             if elapsed < 0.45 {
                 return CelFrameState(assetName: celName(2), isSleeping: false)
             }
@@ -189,7 +202,7 @@ struct ProceduralPetRigView: View {
             return CelFrameState(assetName: bankFrame("s", time: tPet), isSleeping: true)
 
         case .bellyBoop:
-            if let authored = authoredFrame("g", elapsed: elapsed) { return authored }
+            if let authored = authoredFrame("g", elapsed: poseElapsed) { return authored }
             if elapsed < 2.2 {
                 let hopArc = (elapsed < 0.65) ? sin(elapsed / 0.65 * .pi) : 0.0
                 if elapsed < 0.65 {
@@ -204,7 +217,7 @@ struct ProceduralPetRigView: View {
             }
 
         case .pounceHop:
-            if let authored = authoredFrame("j", elapsed: elapsed) { return authored }
+            if let authored = authoredFrame("j", elapsed: poseElapsed) { return authored }
             if elapsed < 2.25 {
                 if elapsed < 0.22 {
                     return CelFrameState(assetName: bankFrame("i", time: 2.0 / 5.2), isExcited: true)
