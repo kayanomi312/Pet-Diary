@@ -47,8 +47,8 @@
       "fps" : 8,
       "frames" : 16,
       "holds" : {
-        "14" : 3,
-        "6" : 3
+        "6" : 3,
+        "14" : 3
       },
       "loop" : "loop"
     },
@@ -97,18 +97,16 @@
     },
     "walk" : {
       "bank" : "w",
-      "fps" : 12,
-      "frames" : 6,
-      "holds" : {
-        "1" : 3,
-        "2" : 3,
-        "3" : 2,
-        "4" : 3,
-        "5" : 3,
-        "6" : 2
+      "events" : {
+        "footContact" : [
+          1,
+          7
+        ]
       },
+      "fps" : 12,
+      "frames" : 12,
       "loop" : "loop",
-      "strideLengthUV" : 0.01339
+      "strideLengthUV" : 0.013390000000000001
     }
   },
   "pet" : "pet_05",
