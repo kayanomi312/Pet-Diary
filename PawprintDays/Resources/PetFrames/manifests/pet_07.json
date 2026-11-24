@@ -52,6 +52,13 @@
       },
       "loop" : "loop"
     },
+    "lie_down" : {
+      "bank" : "ld",
+      "fps" : 12,
+      "frames" : 8,
+      "loop" : "once",
+      "next" : "sleep"
+    },
     "mouth" : {
       "bank" : "m",
       "fps" : 10,
@@ -95,12 +102,31 @@
       "loop" : "once",
       "next" : "idle"
     },
+    "startle" : {
+      "bank" : "r",
+      "events" : {
+        "land" : [
+          4
+        ]
+      },
+      "fps" : 12,
+      "frames" : 6,
+      "loop" : "once",
+      "next" : "idle"
+    },
     "turn" : {
       "bank" : "tn",
       "fps" : 12,
       "frames" : 8,
       "loop" : "once",
       "next" : "walk"
+    },
+    "wake" : {
+      "bank" : "wk",
+      "fps" : 12,
+      "frames" : 8,
+      "loop" : "once",
+      "next" : "idle"
     },
     "walk" : {
       "bank" : "w",
