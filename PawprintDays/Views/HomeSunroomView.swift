@@ -638,8 +638,7 @@ private struct PetBookmarkJumpDrawer: View {
                                         }
                                     }
                                     if isUnmet {
-                                        let weathers = spec.resonantWeathers.map(\.displayName).joined(separator: "、")
-                                        Text(weathers.isEmpty ? "也許會在某個街角遇見" : "偏愛\(weathers)的時刻")
+                                        Text(spec.discoveryClue)
                                             .font(AppTheme.serifBody(12.5))
                                             .foregroundStyle(AppTheme.softInk)
                                     } else if res.inviteState == .invitedHome {

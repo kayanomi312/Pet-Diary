@@ -68,6 +68,12 @@ struct CurioCubbiesView: View {
         }
         // While the shop sheet is up it hosts the celebration itself (so it shows above the sheet).
         .milestoneCelebrationOverlay(coordinator: coordinator, isEnabled: !showPouchShop)
+        .onChange(of: showPouchShop) { _, isPresented in
+            coordinator.isMilestoneSheetHostActive = isPresented
+        }
+        .onDisappear {
+            coordinator.isMilestoneSheetHostActive = false
+        }
         .sheet(isPresented: $showPouchShop) {
             PouchShopDrawer(coordinator: coordinator, selectedCategory: $selectedCategory)
                 .presentationDetents([.large])

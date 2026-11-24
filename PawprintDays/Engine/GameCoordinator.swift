@@ -35,6 +35,7 @@ final class GameCoordinator {
     var showAccessibleNearbyList: Bool = false
     var showFixtureDrawer: Bool = false
     var isSunroomPhotoMode: Bool = false
+    var isMilestoneSheetHostActive: Bool = false
     var pendingOpenStartStrollSheet: Bool = false
     var transientWhisper: String? = nil
     var latestFixtureReport: Stage1VerificationSummary? = nil

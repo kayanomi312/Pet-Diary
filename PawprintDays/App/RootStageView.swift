@@ -67,6 +67,7 @@ struct RootStageView: View {
                 .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .milestoneCelebrationOverlay(coordinator: coordinator, isEnabled: !coordinator.isMilestoneSheetHostActive)
         .animation(.easeInOut(duration: 0.24), value: coordinator.currentScreen)
         .fullScreenCover(isPresented: $coordinator.showInteractiveTutorial) {
             CozyOnboardingTutorialView(coordinator: coordinator)
