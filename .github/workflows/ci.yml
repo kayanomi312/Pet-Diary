@@ -36,8 +36,14 @@ jobs:
           echo "$version"
           echo "build=$(awk '/^Build version / {print $3}' <<<"$version")" >> "$GITHUB_OUTPUT"
 
-      - name: Install XcodeGen
-        run: brew install xcodegen
+      # Pinned to the version the committed project was generated with; the runner's
+      # Homebrew can lag and its output differs (scheme buildArchitectures), failing the drift check.
+      - name: Install XcodeGen 2.48.0
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" https://github.com/yonaskolb/XcodeGen/releases/download/2.48.0/xcodegen.zip
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/xcodegen/bin/xcodegen" --version
 
       - name: Cache Swift packages
         if: hashFiles('**/Package.resolved') != ''
