@@ -42,10 +42,12 @@ struct CelClipPlayer: Equatable, Sendable {
     private let ends: [Int]
     private let markers: [Marker]
 
-    init(_ clip: CelClip) {
+    /// `reversed` plays a one-shot backwards, e.g. a right-to-left turn used for a left-to-right turn.
+    init(_ clip: CelClip, reversed: Bool = false) {
         self.clip = clip
         let forward = Array(1...max(1, clip.frames))
-        order = clip.loop == .pingpong ? forward + forward.dropFirst().dropLast().reversed() : forward
+        let base = clip.loop == .pingpong ? forward + forward.dropFirst().dropLast().reversed() : forward
+        order = reversed ? base.reversed() : base
         var tick = 0
         var timedEvents: [Marker] = []
         let eventNames = clip.events?.keys.sorted() ?? []
@@ -135,7 +137,7 @@ enum CelLibrary {
         return result
     }()
 
-    private static let authoredPlayers = manifests.mapValues { $0.clips.mapValues(CelClipPlayer.init) }
+    private static let authoredPlayers = manifests.mapValues { $0.clips.mapValues { CelClipPlayer($0) } }
 
     static func authored(for petID: String, bank: String) -> CelClipPlayer? {
         authoredPlayers[prefix(for: petID)]?.values.first { $0.clip.bank == bank }
@@ -161,6 +163,16 @@ enum CelLibrary {
 
     static func manifest(for petID: String) -> CelManifest? { manifests[prefix(for: petID)] }
 
+    /// Suffix for transition lookups that plays the bank backwards (`"tn<"`).
+    static let reversedSuffix: Character = "<"
+
+    /// Authored one-shot lookup for pose transitions; `"tn<"` returns the `tn` clip reversed.
+    static func transitionPlayer(for petID: String, bank: String) -> CelClipPlayer? {
+        guard bank.last == reversedSuffix else { return authored(for: petID, bank: bank) }
+        guard let player = authored(for: petID, bank: String(bank.dropLast())) else { return nil }
+        return CelClipPlayer(player.clip, reversed: true)
+    }
+
     private static let frameURLs: [String: URL] = {
         let urls = Bundle.main.urls(forResourcesWithExtension: "heic", subdirectory: "PetFrames") ?? []
         return Dictionary(uniqueKeysWithValues: urls.map { ($0.deletingPathExtension().lastPathComponent, $0) })
@@ -172,7 +184,7 @@ enum CelLibrary {
         authoredPlayers[prefix(for: petID)]?[name] ?? legacyPlayers[name]
     }
 
-    private static let legacyPlayers = legacy.mapValues(CelClipPlayer.init)
+    private static let legacyPlayers = legacy.mapValues { CelClipPlayer($0) }
 
     static let legacy: [String: CelClip] = [
         "walk": CelClip(bank: "w", frames: 16, fps: 9, loop: .loop),
@@ -259,6 +271,24 @@ struct CelStride: Sendable {
     let lengthUV: Double
     let cycleDuration: Double
 
+    /// Gait playback may run this much faster or slower than authored to lock feet to the floor.
+    static let gaitRateRange: ClosedRange<Double> = 0.8...1.25
+    /// Travel time may drift this far from the engine's intended pacing. Stride measurements are coarse,
+    /// so this keeps an outlier from producing a sprint or a crawl.
+    static let pacingTolerance = 1.3
+
+    var naturalSpeed: Double { lengthUV / cycleDuration }
+
+    /// Matches gait speed and travel time for a walk of `distance` the engine wanted to take `intended` seconds.
+    func matched(distance: Double, intended: Double) -> (duration: Double, gaitRate: Double)? {
+        guard distance.isFinite, distance > 0, intended.isFinite, intended > 0, naturalSpeed > 0 else { return nil }
+        let wanted = distance / intended
+        let rate = min(Self.gaitRateRange.upperBound, max(Self.gaitRateRange.lowerBound, wanted / naturalSpeed))
+        let duration = distance / (naturalSpeed * rate)
+        let bounded = min(intended * Self.pacingTolerance, max(intended / Self.pacingTolerance, duration))
+        return (bounded, rate)
+    }
+
     init?(lengthUV: Double?, player: CelClipPlayer?) {
         guard let lengthUV, lengthUV.isFinite, lengthUV > 0,
               let player, player.clip.loop != .once, player.duration.isFinite else { return nil }
@@ -280,5 +310,18 @@ struct CelOutfitMotion {
         let phase = (playback.elapsed - lag) / player.duration * 2 * Double.pi
         let settle = min(1, max(0, playback.elapsed / lag))
         return CGPoint(x: sin(phase) * 0.018 * settle, y: cos(phase) * 0.008 * settle)
+    }
+}
+
+/// Rate-limits cel event feedback (sound/haptics) shared by every rendered pet.
+@MainActor
+enum CelEventFeedbackThrottle {
+    static let minimumInterval: TimeInterval = 0.3
+    private static var lastFired: [String: Date] = [:]
+
+    static func allows(_ event: String, now: Date) -> Bool {
+        if let last = lastFired[event], now.timeIntervalSince(last) < minimumInterval { return false }
+        lastFired[event] = now
+        return true
     }
 }

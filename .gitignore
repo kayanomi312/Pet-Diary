@@ -18,3 +18,6 @@ build/
 
 # Generated animation reviews
 art-src/previews/
+
+# QA screen recordings are kept locally; GitHub rejects files over 100 MB
+docs/qa/**/*.mp4

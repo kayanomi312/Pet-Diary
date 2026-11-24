@@ -84,3 +84,53 @@ All three use 768 × 768 transparent PNGs with warm dark-brown ink, watercolor w
 2. **`PlaceholderAssetGenerator.swift` (`events.blink`):** Wire `"blink"` event from `CelClip` manifests (used by `A1.3` in `pet_01..08.json`) so idle loops trigger a brief blink frame/overlay without popping the whole pose.
 3. **`SpriteFXLayer.swift` (`SpriteFXKind.sleep.frameCount`):** Expects 6 cells for `fx_sleep`, while `ANIMATION_PLAN.md` / `art-src/fx/LOOK.md` specify 8 frames for `zzz`. `art-src/fx/zzz/sheet.png` is exported as a 6-frame `768×128` strip matching `SpriteFXKind.sleep`, with all 8 individual frames (`01..08.png`) plus `sheet_8f.png` preserved.
 4. **Sunroom stage bounds / crash investigation (`docs/qa/animation-baseline/`):** Monitor sustained (>2 min) roaming stability and ensure `SunroomRoamingEngine` UV bounds keep speech bubbles inside the right edge.
+
+## 8. S0–S6 smoothness art on the crown-registered base
+
+The [per-bank comparison](../../art-src/design/smoothness-comparison.md) compares
+integration commit `23c5bb2` against the final bundled HEIC cels. Smoothness
+flagged 51 of 88 banks at baseline and 12 of 122 after the art and timing work.
+The full frame lint passed, including the crown landmarks. All 58 banks with
+new or repainted cels passed both tools. The iPhone 17 simulator suite passed
+all 83 tests. Gallery playback still needs a visual check on device.
+
+### S2 walk gaps
+
+| Bank | Remaining issue |
+| --- | --- |
+| `pet_02/w` | The replacement in-between still produced a conspicuous paw transition from the long reach to the passing pose. The original has 38.28 px centroid travel. |
+| `pet_04/w` | Interpolation ghosted the paws. The painted alternates introduced crown and limb-spacing jumps. |
+| `pet_04/wr` | The new passing keys moved the head and increased the peak step. |
+| `pet_06/w` | The candidate reduced torso travel, but its large paw steps persisted and the typical step grew. |
+| `pet_08/wr` | The replacements traded the original spikes for other visible jumps and a crown-height mismatch. The existing asymmetrical antlers were retained. |
+| `pet_03/wr` | The existing art still needs the terracotta dorsal scales called out in section 5. Centroid travel is 11.01 px. |
+
+The shipped left-walk revisions cover pets 01, 03, 05, 07 and 08. The new
+12-drawing walks for 03 and 05 have larger absolute steps than their short
+predecessors. Relative step and seam thresholds pass, and the new cycles
+include both contact and passing poses. Pet 03's dorsal scales are visible
+in all 12 left-walk cels.
+
+Six other smoothness findings remain in existing cels for pets 05–08.
+These are `pet_05/i`, `pet_05/s`, `pet_06/i`, `pet_07/i`, `pet_08/i`
+and `pet_08/s`. Pets 05–08's expression and sleep art was assigned to the
+other art lane.
+
+### Art and playback notes
+
+The built-in image generator used the six model cels and the nearest
+existing bank for each pet. Breathing uses the original body paint with
+small chest and tail motion and localized closed-lid paint for cel 14.
+The walk prompts used contact and passing keys in both directions. The
+turn prompts used profile, three-quarter and frontal keys. Lie-down uses
+the seated and curled keys, with wake using the same intermediate drawings
+in reverse. Startle uses the idle and airborne reference poses and ends back
+at idle after a small recoil.
+
+All `tn` banks face right at entry, end facing left and link to `walk`.
+The art includes `wr` for every pet. The right-facing turn path still needs
+engine playback in the opposite direction. The new `ld`, `wk` and `r`
+clips are one-shots and link to `sleep`, `idle` and `idle` respectively.
+Startle emits `land` on cel 4. The [stride measurements](../../art-src/design/stride.md)
+are estimates for the base Sunroom at mid-depth. Validate contact against
+the floor grid when wiring the engine changes.

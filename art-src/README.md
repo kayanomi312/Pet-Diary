@@ -35,9 +35,14 @@ be provided per locomotion clip or as a pet-wide default.
 Lint checks source banks whose PNGs are present. With no matching sources it
 reports measurements for the corresponding legacy HEICs. Use
 `tools/frames/lint --legacy` to audit the committed bundle explicitly.
-The halo check is a fringe heuristic. The idle head-height check uses the
-broad central silhouette as a proxy. Verify both against the guide on the
-rendered sheet, especially for ears, horns and intentional changes in pose.
+The halo check is a fringe heuristic. For an anatomical head-height check,
+place `crown-landmarks.json` alongside a bank's PNGs. List one integer
+`[x, y]` pair per drawing, from `01.png` onward, with the origin at the
+top left. Measure the skull crown on the opaque drawing, excluding ears,
+horns and antlers. Lint compares marked banks with the marked idle crown
+and uses the broad silhouette when a bank has no landmarks. Update the
+landmarks when the drawings move or change. Check them against the guide
+on the contact sheet before committing.
 
 Preview writes a contact sheet and timed GIF per selected bank under the
 ignored `art-src/previews/pet_XX/` directory. The default shows adjacent

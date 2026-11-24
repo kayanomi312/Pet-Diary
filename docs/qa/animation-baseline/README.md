@@ -1,5 +1,7 @@
 # Animation Baseline QA Capture (A5.1)
 
+> The `.mp4` recordings listed below are kept on the capture machine only and are not committed (the largest is over GitHub's 100 MB file limit). The `.png` stills are in the repo.
+
 - **Captured:** 2026-11-24 (pre-merge baseline on `gemini/anim-art` @ `49acbf0`)
 - **Device:** iPhone 18 Pro Simulator (`F839F388-C746-4C4E-9A82-AEB40A1ECC70`), iOS 27.2 (`1206 × 2622` px @3x)
 - **App:** `com.pawprintdays.app` (`PawprintDays`)
