@@ -15,6 +15,11 @@ struct FrameError: LocalizedError {
     var errorDescription: String? { message }
 }
 
+struct CrownLandmark {
+    let x: Int
+    let y: Int
+}
+
 struct Frame {
     let url: URL
     let image: CGImage
@@ -93,6 +98,16 @@ struct Bank {
         guard let count = entry["frames"] as? Int, count == urls.count else {
             throw FrameError("\(label): manifest frames=\(entry["frames"] ?? "?"), found \(urls.count) PNGs")
         }
+    }
+
+    func crownLandmarks() throws -> [CrownLandmark]? {
+        let url = urls[0].deletingLastPathComponent().appendingPathComponent("crown-landmarks.json")
+        guard files.fileExists(atPath: url.path) else { return nil }
+        let points = try? JSONDecoder().decode([[Int]].self, from: Data(contentsOf: url))
+        guard let points, points.count == urls.count, points.allSatisfy({ $0.count == 2 }) else {
+            throw FrameError("\(label): crown-landmarks.json needs one integer [x, y] pair per PNG in frame order")
+        }
+        return points.map { CrownLandmark(x: $0[0], y: $0[1]) }
     }
 }
 
@@ -260,6 +275,11 @@ func legacyBanks(pet: String?, bank: String?) throws -> [Bank] {
 }
 
 extension Frame {
+    func hasOpaquePixel(at point: CrownLandmark) -> Bool {
+        guard (0..<width).contains(point.x), (0..<height).contains(point.y) else { return false }
+        return pixels[4 * (point.y * width + point.x) + 3] >= 128
+    }
+
     var hasLikelyMatte: Bool {
         var fringeSamples = 0
         var whiteFringe = 0
@@ -348,6 +368,53 @@ func validateManifest(_ manifest: [String: Any], bank: Bank) throws -> [String: 
     return entry
 }
 
+func headHeightIssues(_ bank: Bank, frames: [Frame]) throws -> [String] {
+    guard ["i", "w", "wr", "wf", "wb", "h", "m"].contains(bank.name) else { return [] }
+    let idleBank = bank.name == "i" ? bank : try sourceBanks(pet: bank.pet, bank: "i").first
+    let landmarks = try bank.crownLandmarks()
+    guard let idleBank else {
+        if landmarks == nil { return [] }
+        throw FrameError("\(bank.label): crown landmarks require an idle source bank")
+    }
+    let idleFrame = bank.name == "i" ? frames[0] : try Frame(idleBank.urls[0])
+
+    let reference: Int
+    let heads: [Int?]
+    let measurement: String
+    if let landmarks {
+        let idleCrown = bank.name == "i" ? landmarks.first : try idleBank.crownLandmarks()?.first
+        guard let idleCrown, idleFrame.hasOpaquePixel(at: idleCrown) else {
+            throw FrameError("\(bank.label): crown landmarks require a valid landmark on i1")
+        }
+        reference = idleCrown.y
+        heads = try zip(frames, landmarks).map { frame, landmark in
+            guard frame.hasOpaquePixel(at: landmark) else {
+                throw FrameError("\(bank.label)/\(frame.url.lastPathComponent): crown landmark must sit on the drawing")
+            }
+            return landmark.y
+        }
+        measurement = "crown landmark"
+    } else {
+        // Keep comparisons between unmarked banks on the same silhouette metric.
+        guard let silhouette = idleFrame.broadSilhouetteTop else { return [] }
+        reference = silhouette
+        heads = frames.map(\.broadSilhouetteTop)
+        measurement = "broad head silhouette"
+    }
+
+    var issues: [String] = []
+    if bank.name == "i", abs(reference - 170) > 6 {
+        issues.append("\(measurement) in i1 is at y=\(reference), expected 170 ±6")
+    }
+    let tolerance = Double(690 - reference) * 0.03
+    for (frame, head) in zip(frames, heads) {
+        if let head, Double(abs(head - reference)) > tolerance {
+            issues.append("\(frame.url.lastPathComponent): head height differs from i1 by more than 3% (\(measurement), y=\(head) vs \(reference))")
+        }
+    }
+    return issues
+}
+
 func lint(_ banks: [Bank], legacy: Bool) throws {
     var failures = 0
     for bank in banks {
@@ -384,19 +451,7 @@ func lint(_ banks: [Bank], legacy: Bool) throws {
         if ["w", "wr", "wf", "wb", "i"].contains(bank.name), uniqueCount < 8 {
             issues.append("at least 8 unique drawings required")
         }
-        let idleSource = try sourceBanks(pet: bank.pet, bank: "i").first?.urls.first
-        let idleReference = try idleSource.flatMap { try Frame($0).broadSilhouetteTop }
-        if ["i", "w", "wr", "wf", "wb", "h", "m"].contains(bank.name), let reference = idleReference {
-            if bank.name == "i", abs(reference - 170) > 6 {
-                issues.append("broad head silhouette in i1 is at y=\(reference), expected 170 ±6")
-            }
-            let height = 690 - reference
-            for frame in frames {
-                if let head = frame.broadSilhouetteTop, Double(abs(head - reference)) > Double(height) * 0.03 {
-                    issues.append("\(frame.url.lastPathComponent): head height differs from i1 by more than 3%")
-                }
-            }
-        }
+        issues += try headHeightIssues(bank, frames: frames)
         if entry["loop"] as? String == "loop", frames.count > 2,
            let first = frames.first, let last = frames.last {
             let internalDiff = zip(frames, frames.dropFirst()).map(frameDifference).reduce(0, +)
