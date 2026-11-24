@@ -97,7 +97,7 @@
     },
     "walk" : {
       "bank" : "w",
-      "fps" : 12,
+      "fps" : 10,
       "frames" : 16,
       "loop" : "loop",
       "strideLengthUV" : 0.041230000000000003
