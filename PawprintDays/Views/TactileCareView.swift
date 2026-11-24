@@ -128,9 +128,15 @@ struct TactileCareView: View {
                             .accessibilityHidden(true)
                         SpeciesFolkloreBadgeView(kind: petSpec.kind)
                         if let resident {
-                            Text(resident.milestoneTitle)
-                                .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                                .foregroundStyle(AppTheme.softInk)
+                            let statusText = (resident.milestoneTier == 0 && resident.inviteState == .invitedHome)
+                                ? "陽光室室友"
+                                : resident.milestoneTitle
+                            Text(statusText)
+                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                .foregroundStyle(AppTheme.deepPineInk)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Color(hex: "#FFF7EC").opacity(0.92), in: Capsule())
                         }
                     }
 

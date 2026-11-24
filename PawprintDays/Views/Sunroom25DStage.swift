@@ -177,7 +177,7 @@ struct Sunroom25DStageView: View {
                         ) {
                             coordinator.greetWindowVisitor(petID: visitorID)
                         }
-                        .position(x: stageW * 0.76, y: floorHorizonY - 46)
+                        .position(x: stageW * 0.71, y: floorHorizonY - 46)
                         .offset(x: effectivePan * (reduceMotion ? 1 : 0.52))
                     }
 
