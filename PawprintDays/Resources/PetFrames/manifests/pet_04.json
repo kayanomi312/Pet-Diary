@@ -15,8 +15,14 @@
     },
     "happy" : {
       "bank" : "h",
-      "fps" : 7,
+      "fps" : 10,
       "frames" : 10,
+      "holds" : {
+        "5" : 2,
+        "6" : 2,
+        "7" : 2,
+        "8" : 2
+      },
       "loop" : "loop"
     },
     "hop" : {
@@ -41,21 +47,28 @@
       "fps" : 8,
       "frames" : 16,
       "holds" : {
-        "7" : 3,
-        "14" : 3
+        "14" : 3,
+        "7" : 3
       },
       "loop" : "loop"
     },
     "mouth" : {
       "bank" : "m",
-      "fps" : 7.5,
+      "fps" : 10,
       "frames" : 8,
+      "holds" : {
+        "1" : 2,
+        "5" : 2
+      },
       "loop" : "loop"
     },
     "play" : {
       "bank" : "p",
-      "fps" : 8.5,
+      "fps" : 10,
       "frames" : 8,
+      "holds" : {
+        "1" : 2
+      },
       "loop" : "loop"
     },
     "signature" : {
@@ -68,8 +81,8 @@
       "fps" : 10,
       "frames" : 10,
       "holds" : {
-        "5" : 3,
-        "10" : 2
+        "10" : 2,
+        "5" : 3
       },
       "loop" : "once",
       "next" : "idle"
@@ -83,8 +96,12 @@
     },
     "sleep" : {
       "bank" : "s",
-      "fps" : 3.2000000000000002,
+      "fps" : 4,
       "frames" : 8,
+      "holds" : {
+        "1" : 3,
+        "8" : 2
+      },
       "loop" : "pingpong"
     },
     "stand_to_sit" : {
@@ -111,7 +128,8 @@
       },
       "fps" : 12,
       "frames" : 12,
-      "loop" : "loop"
+      "loop" : "loop",
+      "strideLengthUV" : 0.04154
     },
     "walk_right" : {
       "bank" : "wr",
@@ -123,7 +141,8 @@
       },
       "fps" : 12,
       "frames" : 12,
-      "loop" : "loop"
+      "loop" : "loop",
+      "strideLengthUV" : 0.09532
     }
   },
   "pet" : "pet_04",
