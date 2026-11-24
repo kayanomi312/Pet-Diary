@@ -133,3 +133,14 @@ final class CelClipTests: XCTestCase {
         XCTAssertEqual(peak.y, 0, accuracy: 0.000001)
     }
 }
+
+@MainActor
+final class CelEventFeedbackThrottleTests: XCTestCase {
+    func testThrottleSuppressesBurstsPerEvent() {
+        let start = Date(timeIntervalSinceReferenceDate: 1_000_000)
+        XCTAssertTrue(CelEventFeedbackThrottle.allows("throttleTest", now: start))
+        XCTAssertFalse(CelEventFeedbackThrottle.allows("throttleTest", now: start.addingTimeInterval(0.1)))
+        XCTAssertTrue(CelEventFeedbackThrottle.allows("throttleTestOther", now: start.addingTimeInterval(0.1)))
+        XCTAssertTrue(CelEventFeedbackThrottle.allows("throttleTest", now: start.addingTimeInterval(0.35)))
+    }
+}

@@ -282,3 +282,16 @@ struct CelOutfitMotion {
         return CGPoint(x: sin(phase) * 0.018 * settle, y: cos(phase) * 0.008 * settle)
     }
 }
+
+/// Rate-limits cel event feedback (sound/haptics) shared by every rendered pet.
+@MainActor
+enum CelEventFeedbackThrottle {
+    static let minimumInterval: TimeInterval = 0.3
+    private static var lastFired: [String: Date] = [:]
+
+    static func allows(_ event: String, now: Date) -> Bool {
+        if let last = lastFired[event], now.timeIntervalSince(last) < minimumInterval { return false }
+        lastFired[event] = now
+        return true
+    }
+}
