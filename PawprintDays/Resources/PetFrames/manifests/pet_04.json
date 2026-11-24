@@ -47,8 +47,8 @@
       "fps" : 8,
       "frames" : 16,
       "holds" : {
-        "14" : 3,
-        "7" : 3
+        "6" : 3,
+        "13" : 3
       },
       "loop" : "loop"
     },
@@ -81,8 +81,8 @@
       "fps" : 10,
       "frames" : 10,
       "holds" : {
-        "10" : 2,
-        "5" : 3
+        "5" : 3,
+        "10" : 2
       },
       "loop" : "once",
       "next" : "idle"
@@ -129,7 +129,7 @@
       "fps" : 12,
       "frames" : 12,
       "loop" : "loop",
-      "strideLengthUV" : 0.04154
+      "strideLengthUV" : 0.041540000000000001
     },
     "walk_right" : {
       "bank" : "wr",
@@ -142,7 +142,7 @@
       "fps" : 12,
       "frames" : 12,
       "loop" : "loop",
-      "strideLengthUV" : 0.09532
+      "strideLengthUV" : 0.095320000000000002
     }
   },
   "pet" : "pet_04",
