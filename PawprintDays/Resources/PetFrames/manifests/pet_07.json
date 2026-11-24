@@ -47,8 +47,8 @@
       "fps" : 8,
       "frames" : 16,
       "holds" : {
-        "15" : 3,
-        "7" : 3
+        "7" : 3,
+        "15" : 3
       },
       "loop" : "loop"
     },
@@ -100,7 +100,7 @@
       "fps" : 12,
       "frames" : 16,
       "loop" : "loop",
-      "strideLengthUV" : 0.04123
+      "strideLengthUV" : 0.041230000000000003
     }
   },
   "pet" : "pet_07",
