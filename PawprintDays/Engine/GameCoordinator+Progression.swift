@@ -143,6 +143,7 @@ extension GameCoordinator {
         let name = displayName(for: petID)
         let loved = spec.resonantWeathers.contains(curio.weatherTag)
         let dateISO = currentLocalDateISO
+        let previousBondTier = PetResidentState.milestoneForSharedDays(pet.sharedDaysCount)
 
         updateIndoorState { $0.giftedCurioEntryIDs.append(entry.id) }
         if pet.lastSharedDateISO != dateISO {
@@ -162,6 +163,7 @@ extension GameCoordinator {
         HapticsEngine.shared.playCurioUnpack()
         CozySoundEngine.shared.playPaperFlip()
         showWhisper(loved ? "\(name)超喜歡「\(curio.name)」！（+1 步數幣，相伴天數 +1）" : "\(name)收下了「\(curio.name)」。")
+        celebrateBondTierUpIfNeeded(petID: petID, previousTier: previousBondTier, newTier: pet.milestoneTier)
         return true
     }
 
@@ -204,6 +206,16 @@ extension GameCoordinator {
         CozySoundEngine.shared.playCompassChime()
         HapticsEngine.shared.playCurioUnpack()
         showWhisper("集齊「\(weather.displayName)」拾遺套組！（+\(set.rewardCoins) 步數幣）")
+        emitMilestoneCelebration(MilestoneCelebration(
+            id: "curioSet.\(weather.rawValue)",
+            kind: .curioSet,
+            title: "「\(weather.displayName)」拾遺套組集齊了",
+            subtitle: "\(set.totalCount) 件小物都安穩收進木格櫃",
+            detail: "日記頁貼上了一枚\(weather.displayName)紀念封蠟。下次在這樣的天氣出門，記得抬頭看看天空。",
+            symbol: weather.sfSymbol,
+            accentHex: "#C98D26",
+            rewardBadge: "+\(set.rewardCoins) 步數幣"
+        ), onceKey: "curioSet.\(weather.rawValue)")
         return true
     }
 
@@ -370,6 +382,263 @@ extension GameCoordinator {
     static func nextMilestoneDays(after days: Int) -> Int? {
         [1, 3, 6, 10, 15, 25].first(where: { $0 > days })
     }
+}
+
+// MARK: - Zero-FOMO Cozy Stamp Card, Milestone Celebrations & Progress Snapshots
+extension GameCoordinator {
+    // MARK: Cozy stamp card
+
+    var hasEarnedCozyStampToday: Bool {
+        indoorState.lastStampAwardedDateISO == currentLocalDateISO
+    }
+
+    /// Stamps already on the current card (0...6).
+    var cozyStampCountInCard: Int {
+        indoorState.stampCountInCard
+    }
+
+    /// Awards today's single cozy stamp (street greeting, a real stroll, or all three daily wishes).
+    /// At most one per civil day, and missed days never erase progress. The 7th stamp completes the
+    /// card: +15 coins, a keepsake diary line, a fresh card, and a storybook celebration.
+    @discardableResult
+    func awardDailyCozyStampIfEligible(reason: String) -> Bool {
+        let today = currentLocalDateISO
+        guard indoorState.lastStampAwardedDateISO != today else { return false }
+
+        var completedCardNumber: Int? = nil
+        updateIndoorState { state in
+            state.lastStampAwardedDateISO = today
+            let next = min(max(state.stampCountInCard, 0), CozyStampCard.slotCount - 1) + 1
+            if next >= CozyStampCard.slotCount {
+                state.stampCountInCard = 0
+                state.completedStampCardsCount += 1
+                completedCardNumber = state.completedStampCardsCount
+            } else {
+                state.stampCountInCard = next
+            }
+        }
+
+        if let cardNumber = completedCardNumber {
+            ledger.coinBalance += CozyStampCard.completionRewardCoins
+            let note = "足印集章卡第 \(cardNumber) 張蓋滿了！七個慢慢走過的日子，一枚一枚都是我們的小小約定。（+\(CozyStampCard.completionRewardCoins) 步數幣）"
+            let day = todayDiaryRecord()
+            if !day.revisitNotes.contains(note) { day.revisitNotes.append(note) }
+            try? modelContext.save()
+            reloadAll()
+            CozySoundEngine.shared.playCompassChime()
+            HapticsEngine.shared.playCurioUnpack()
+            emitMilestoneCelebration(MilestoneCelebration(
+                id: "stampCard.\(cardNumber)",
+                kind: .stampCard,
+                title: "足印集章卡蓋滿了",
+                subtitle: "第 \(cardNumber) 張 · 七枚小印章",
+                detail: "不必天天打卡，只要想出門的時候就出門——今天的「\(reason)」替這張卡蓋上了最後一枚印章。新的一張已經悄悄攤開。",
+                symbol: "seal.fill",
+                accentHex: "#B84A39",
+                rewardBadge: "+\(CozyStampCard.completionRewardCoins) 步數幣"
+            ), onceKey: "stampCard.\(cardNumber)")
+        } else {
+            try? modelContext.save()
+            reloadAll()
+            HapticsEngine.shared.playBrushStrokeTick()
+        }
+        return true
+    }
+
+    // MARK: Milestone celebrations
+
+    /// Shows a celebration now, or queues it behind the one on screen. With `onceKey`, the same
+    /// celebration is never shown twice (the key is remembered in the save file).
+    func emitMilestoneCelebration(_ celebration: MilestoneCelebration, onceKey: String? = nil) {
+        if let key = onceKey {
+            guard !indoorState.unlockedCelebratedFeatures.contains(key) else { return }
+            updateIndoorState { $0.unlockedCelebratedFeatures.append(key) }
+            try? modelContext.save()
+        }
+        if pendingMilestoneCelebration == nil {
+            pendingMilestoneCelebration = celebration
+        } else if pendingMilestoneCelebration?.id != celebration.id,
+                  !queuedMilestoneCelebrations.contains(where: { $0.id == celebration.id }) {
+            queuedMilestoneCelebrations.append(celebration)
+        }
+    }
+
+    func dismissMilestoneCelebration() {
+        pendingMilestoneCelebration = queuedMilestoneCelebrations.isEmpty ? nil : queuedMilestoneCelebrations.removeFirst()
+    }
+
+    func celebrateNewCompanionIfNeeded(petID: String) {
+        let spec = PetCatalog.pet(id: petID)
+        let name = displayName(for: petID)
+        emitMilestoneCelebration(MilestoneCelebration(
+            id: "welcome.\(petID)",
+            kind: .newCompanion,
+            title: "\(name)搬進陽光室了",
+            subtitle: "第 \(invitedCompanionCount) 位室友 · \(spec.personalityWord)",
+            detail: "牠在木地板上繞了一圈，挑好最喜歡的角落。往後的散步、茶點與午睡，都多了一個小小身影。",
+            symbol: "house.fill",
+            accentHex: spec.accentHex,
+            rewardBadge: nil
+        ), onceKey: "welcome.\(petID)")
+    }
+
+    /// Celebrates reaching a new bond tier (Day 3, 6, 10, 15 and 25), naming exactly what it unlocks.
+    func celebrateBondTierUpIfNeeded(petID: String, previousTier: Int, newTier: Int) {
+        guard newTier > previousTier, newTier >= 2 else { return }
+        let name = displayName(for: petID)
+        let spec = PetCatalog.pet(id: petID)
+        let perk = Self.bondTierPerk(tier: newTier, petID: petID)
+        emitMilestoneCelebration(MilestoneCelebration(
+            id: "bond.\(petID).tier\(newTier)",
+            kind: .bondTierUp,
+            title: "和\(name)成為「\(Self.bondTierTitle(newTier))」",
+            subtitle: "相伴第 \(Self.bondTierStartDays(newTier)) 天",
+            detail: perk,
+            symbol: "heart.fill",
+            accentHex: spec.accentHex,
+            rewardBadge: nil
+        ), onceKey: "bond.\(petID).tier\(newTier)")
+    }
+
+    func celebrateRoomPurchaseIfNeeded(_ item: ShopItemSpec) {
+        if let theme = SeasonalRoomTheme(rawValue: item.id) {
+            emitMilestoneCelebration(MilestoneCelebration(
+                id: "theme.\(theme.rawValue)",
+                kind: .roomTheme,
+                title: "陽光室換上「\(item.name)」",
+                subtitle: "屋景已經掛好 · 隨時可在小舖切換",
+                detail: item.summary,
+                symbol: "sun.max.fill",
+                accentHex: item.swatchHex,
+                rewardBadge: nil
+            ), onceKey: "theme.\(theme.rawValue)")
+        } else if item.id == "room.rain_veranda" {
+            emitMilestoneCelebration(MilestoneCelebration(
+                id: "veranda",
+                kind: .veranda,
+                title: "雨廊木檐蓋好了",
+                subtitle: "陽光室多了 3 處新角落",
+                detail: "雨天裡，室友們可以在新木檐下聽雨、打盹，再也不怕窗邊太擠。",
+                symbol: "house.lodge.fill",
+                accentHex: item.swatchHex,
+                rewardBadge: nil
+            ), onceKey: "veranda")
+        }
+    }
+
+    // MARK: Bond progress
+
+    static let bondMilestoneDays: [Int] = [1, 3, 6, 10, 15, 25]
+
+    static func bondTierTitle(_ tier: Int) -> String {
+        switch tier {
+        case 1: return "初次相遇"
+        case 2: return "熟悉面孔"
+        case 3: return "散步同伴"
+        case 4: return "心照不宣"
+        case 5: return "溫柔導師"
+        case 6: return "街角柱石"
+        default: return "尚未遇見"
+        }
+    }
+
+    /// Shared days at which `tier` begins (tier 0 begins at 0).
+    static func bondTierStartDays(_ tier: Int) -> Int {
+        guard tier >= 1 else { return 0 }
+        return bondMilestoneDays[min(tier, bondMilestoneDays.count) - 1]
+    }
+
+    static func bondTierPerk(tier: Int, petID: String) -> String {
+        let spec = PetCatalog.pet(id: petID)
+        switch tier {
+        case 2:
+            let chapter = MysticalFolkloreCatalog.chapters(for: petID).first { $0.requiredSharedDays == 3 }
+            if let chapter {
+                return "解鎖新的回憶篇章「\(chapter.title)」，到陽光室的奇譚繪本翻開讀讀看吧。"
+            }
+            return "解鎖一段新的回憶篇章，到陽光室的奇譚繪本翻開讀讀看吧。"
+        case 3:
+            return "從今天起，在街角相遇時牠偶爾會遞上一份小禮物。"
+        case 4:
+            return "牠願意在陽光室展示招牌習慣「\(spec.signatureHabitTitle)」了。"
+        case 5:
+            return "牠可以當溫柔導師，把「\(spec.signatureHabitTitle)」傳授給其他室友。"
+        case 6:
+            return "牠成了你的街角柱石，年度約定裡多了一頁專屬的相伴紀念跨頁。"
+        default:
+            return "你們又更靠近了一點。"
+        }
+    }
+
+    func bondProgress(for petID: String) -> BondProgressSnapshot {
+        let days = resident(for: petID)?.sharedDaysCount ?? 0
+        let tier = PetResidentState.milestoneForSharedDays(days)
+        let next = Self.nextMilestoneDays(after: days)
+        let start = Self.bondTierStartDays(tier)
+        let fraction: Double
+        if let next {
+            fraction = min(1, max(0, Double(days - start) / Double(max(1, next - start))))
+        } else {
+            fraction = 1
+        }
+        return BondProgressSnapshot(
+            petID: petID,
+            currentTier: tier,
+            currentTierTitle: Self.bondTierTitle(tier),
+            nextTierTitle: next == nil ? nil : Self.bondTierTitle(tier + 1),
+            sharedDays: days,
+            nextMilestoneDays: next,
+            daysRemaining: next.map { max(0, $0 - days) } ?? 0,
+            progressFraction: fraction
+        )
+    }
+
+    // MARK: Journey summary
+
+    var journeyProgress: JourneyProgressSummary {
+        let sets = curioSetProgress
+        return JourneyProgressSummary(
+            companionsInvited: invitedCompanionCount,
+            companionsTotal: PetCatalog.allPets.count,
+            curiosDiscovered: Set(ledger.foragedCurios.map(\.curioID)).count,
+            curiosTotal: CurioCatalog.all.count,
+            weatherSetsCompleted: sets.filter(\.isComplete).count,
+            weatherSetsTotal: sets.count,
+            stampCountInCard: indoorState.stampCountInCard,
+            completedStampCards: indoorState.completedStampCardsCount,
+            themesOwned: Set(ledger.ownedRoomThemeIDs).count
+        )
+    }
+
+    // MARK: Stroll postcard stamp snapshot
+
+    /// Remembers the stamp card and pocket-find countdown right after a stroll, so the summary
+    /// postcard can show them even when it is presented without a coordinator.
+    func recordStrollStampSnapshot(for summaryID: UUID) {
+        StrollStampSnapshot.store[summaryID] = StrollStampSnapshot(
+            stampCountInCard: indoorState.stampCountInCard,
+            completedStampCards: indoorState.completedStampCardsCount,
+            stampedToday: hasEarnedCozyStampToday,
+            stepsUntilNextPocketFind: stepsUntilNextPocketFind,
+            pocketFindsLeftToday: max(0, StepCoinLedgerEngine.dailyPocketFindCap(for: ledger) - todaysPocketFindCount)
+        )
+    }
+}
+
+/// Stamp-card state captured at the end of a stroll for the summary postcard.
+struct StrollStampSnapshot: Equatable, Sendable {
+    let stampCountInCard: Int
+    let completedStampCards: Int
+    let stampedToday: Bool
+    let stepsUntilNextPocketFind: Int
+    let pocketFindsLeftToday: Int
+
+    /// Number of filled slots to draw on the 7-slot card (a just-completed card shows all 7).
+    var filledSlots: Int {
+        stampedToday && stampCountInCard == 0 && completedStampCards > 0 ? CozyStampCard.slotCount : stampCountInCard
+    }
+
+    @MainActor static var store: [UUID: StrollStampSnapshot] = [:]
 }
 
 // MARK: - Species greeting preferences

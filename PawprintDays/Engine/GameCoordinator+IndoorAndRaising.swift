@@ -95,6 +95,9 @@ extension GameCoordinator {
             CozySoundEngine.shared.playCompassChime()
             HapticsEngine.shared.playCurioUnpack()
             showWhisper("完成今日小願望「\(kind.title)」！（+\(kind.rewardCoins) 步數幣）")
+            if todayWishesBoard.wishes.allSatisfy(\.isClaimed) {
+                awardDailyCozyStampIfEligible(reason: "今日三個小願望")
+            }
         }
         return claimed
     }
@@ -334,6 +337,7 @@ extension GameCoordinator {
             try? modelContext.save()
             solveHomeRoomNow()
             showWhisper("窗外的「\(spec.name)」終於安心走進陽光室，成為你的新室友囉 ✦")
+            celebrateNewCompanionIfNeeded(petID: petID)
         } else {
             showWhisper("向窗外探頭的「\(spec.name)」溫柔揮了揮手（窗邊熟識度 \(newVisits)/3，明天再來打招呼吧！）。")
         }

@@ -252,7 +252,7 @@ enum DailyWishKind: String, Codable, CaseIterable, Sendable {
         case .brewTea: return "在茶點台手沖一杯熱茶或烤蜜餅"
         case .foldOrigami: return "和杜松一起摺一件手作摺紙"
         case .hideAndSeek: return "在陽光室找到躲貓貓的小靈獸"
-        case .writeDiary: return "在精裝日記寫下一句今日心情"
+        case .writeDiary: return "翻開足印日記回顧今日足跡"
         case .sendErrand: return "派一位靈獸出門散步小探險"
         case .nurtureOffspring: return "照護奇幻靈卵或幼靈一次"
         case .streetGreeting: return "外出或在窗邊向奇幻靈獸打招呼"
@@ -265,7 +265,7 @@ enum DailyWishKind: String, Codable, CaseIterable, Sendable {
         case .brewTea: return "cup.and.saucer.fill"
         case .foldOrigami: return "paperplane.fill"
         case .hideAndSeek: return "eyes"
-        case .writeDiary: return "pencil.and.outline"
+        case .writeDiary: return "book.pages.fill"
         case .sendErrand: return "backpack.fill"
         case .nurtureOffspring: return "sparkles"
         case .streetGreeting: return "pawprint.fill"
@@ -466,6 +466,16 @@ struct SunroomIndoorState: Codable, Sendable {
     /// One-time doorstep corner created at the player's real first location.
     var hasPlacedDoorstepCorner: Bool = false
 
+    // MARK: Zero-FOMO cozy stamp card & milestone celebrations (optional on decode)
+    /// Stamps on the current 7-slot card (0...6); the 7th stamp completes the card and resets this.
+    var stampCountInCard: Int = 0
+    /// Lifetime number of completed 7-stamp cards.
+    var completedStampCardsCount: Int = 0
+    /// Civil day of the last stamp (at most one stamp per day; missed days never reset progress).
+    var lastStampAwardedDateISO: String? = nil
+    /// Keys of one-time milestone celebrations already shown (e.g. "welcome.pet.07").
+    var unlockedCelebratedFeatures: [String] = []
+
     init() {}
 
     private enum CodingKeys: String, CodingKey {
@@ -475,6 +485,7 @@ struct SunroomIndoorState: Codable, Sendable {
         case lastWindowGreetDateISO, indoorCoinDateISO, indoorCoinCounts, discoveredFavoriteGesturePetIDs
         case giftedCurioEntryIDs, claimedCurioSetWeatherCodes, activeWalkQuest, completedWalkQuestCount
         case specialVisitorDates, hasPlacedDoorstepCorner
+        case stampCountInCard, completedStampCardsCount, lastStampAwardedDateISO, unlockedCelebratedFeatures
     }
 
     /// Tolerant decoding: a missing key falls back to its default instead of failing the whole
@@ -504,7 +515,63 @@ struct SunroomIndoorState: Codable, Sendable {
         completedWalkQuestCount = (try? c.decodeIfPresent(Int.self, forKey: .completedWalkQuestCount)) ?? 0
         specialVisitorDates = (try? c.decodeIfPresent([String: String].self, forKey: .specialVisitorDates)) ?? [:]
         hasPlacedDoorstepCorner = (try? c.decodeIfPresent(Bool.self, forKey: .hasPlacedDoorstepCorner)) ?? false
+        let decodedStamps = (try? c.decodeIfPresent(Int.self, forKey: .stampCountInCard)) ?? 0
+        stampCountInCard = min(max(decodedStamps, 0), CozyStampCard.slotCount - 1)
+        completedStampCardsCount = max(0, (try? c.decodeIfPresent(Int.self, forKey: .completedStampCardsCount)) ?? 0)
+        lastStampAwardedDateISO = try? c.decodeIfPresent(String.self, forKey: .lastStampAwardedDateISO)
+        unlockedCelebratedFeatures = (try? c.decodeIfPresent([String].self, forKey: .unlockedCelebratedFeatures)) ?? []
     }
+}
+
+// MARK: - Zero-FOMO Cozy Stamp Card, Milestone Celebrations & Progress Snapshots
+
+/// A gentle 7-slot stamp card: one stamp per civil day of play, never reset by missed days.
+enum CozyStampCard {
+    static let slotCount = 7
+    static let completionRewardCoins = 15
+}
+
+/// A one-shot storybook celebration shown over the current screen. Never persisted.
+struct MilestoneCelebration: Identifiable, Equatable, Sendable {
+    enum Kind: String, Sendable {
+        case bondTierUp, newCompanion, stampCard, curioSet, roomTheme, veranda
+    }
+
+    let id: String
+    let kind: Kind
+    let title: String
+    let subtitle: String
+    let detail: String
+    let symbol: String
+    let accentHex: String
+    let rewardBadge: String?
+}
+
+/// Where a companion stands on the shared-days bond ladder (1, 3, 6, 10, 15, 25 days).
+struct BondProgressSnapshot: Equatable, Sendable {
+    let petID: String
+    let currentTier: Int
+    let currentTierTitle: String
+    let nextTierTitle: String?
+    let sharedDays: Int
+    let nextMilestoneDays: Int?
+    let daysRemaining: Int
+    let progressFraction: Double
+
+    var isMaxTier: Bool { nextMilestoneDays == nil }
+}
+
+/// A warm at-a-glance summary of the whole journey for the shop and keepsake diary.
+struct JourneyProgressSummary: Equatable, Sendable {
+    let companionsInvited: Int
+    let companionsTotal: Int
+    let curiosDiscovered: Int
+    let curiosTotal: Int
+    let weatherSetsCompleted: Int
+    let weatherSetsTotal: Int
+    let stampCountInCard: Int
+    let completedStampCards: Int
+    let themesOwned: Int
 }
 
 /// A short "walk with me" request a street companion makes after a greeting.

@@ -325,7 +325,7 @@ enum ShopCatalog {
             id: "outfit.forager_satchel",
             name: "採集帆布小側包",
             category: .wardrobe,
-            priceCoins: 140,
+            priceCoins: 100,
             slotType: "socket_back",
             swatchHex: "#9C7E54",
             secondaryHex: "#5B462B",
@@ -450,7 +450,7 @@ enum ShopCatalog {
             id: "room.rainy_season",
             name: "梅雨季微霧光影",
             category: .rooms,
-            priceCoins: 400,
+            priceCoins: 300,
             slotType: "interior_theme",
             swatchHex: "#8FA7AD",
             secondaryHex: "#E4E8E6",
@@ -461,7 +461,7 @@ enum ShopCatalog {
             id: "room.autumn_cedar",
             name: "秋日紅檜餘暉",
             category: .rooms,
-            priceCoins: 420,
+            priceCoins: 320,
             slotType: "interior_theme",
             swatchHex: "#C28B5B",
             secondaryHex: "#EAD9C2",
@@ -472,7 +472,7 @@ enum ShopCatalog {
             id: "room.winter_lamp",
             name: "冬夜暖燈茶室",
             category: .rooms,
-            priceCoins: 450,
+            priceCoins: 350,
             slotType: "interior_theme",
             swatchHex: "#B57845",
             secondaryHex: "#F2D7AA",
@@ -494,6 +494,25 @@ enum ShopCatalog {
 
     static func item(id: String) -> ShopItemSpec? {
         items.first(where: { $0.id == id })
+    }
+}
+
+// MARK: - Discovery clues for companions not yet met
+extension PetSpec {
+    /// A short poetic weather / time-of-day hint for where an unmet companion might be found.
+    /// Never names the companion, so the reveal stays a surprise.
+    var discoveryClue: String {
+        switch id {
+        case "pet.02": return "微陰的午後，誰在老屋玻璃門前理著一對彎彎小黑角？"
+        case "pet.03": return "晨光把石階烘得暖暖的時候，麵包香裡藏著一團小小爐火。"
+        case "pet.04": return "暮色染紫天邊時，招牌涼蔭下有對摺扇般的小翼悄悄張開。"
+        case "pet.06": return "多雲轉細雨的巷口，一盞藍紫小燈火守在台階旁。"
+        case "pet.07": return "月光灑落的夜晚，踩著雲絮的銀白身影走得無聲無息。"
+        case "pet.08": return "細雨落下時，林蔭小路飄來紅檜香，有新芽在鹿角上發亮。"
+        default:
+            let weathers = resonantWeathers.map(\.displayName).joined(separator: "、")
+            return weathers.isEmpty ? "也許就在下一個轉角。" : "在\(weathers)的日子裡，也許就在下一個轉角。"
+        }
     }
 }
 

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0169EF9AD712A5AF1AE1545D /* SunroomRoamingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC0F049D89ACEE9B47D5F487 /* SunroomRoamingEngine.swift */; };
+		0431A139F949D110E68B6AEF /* MilestoneCelebrationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ACD2E62261A770B86DFA2A2 /* MilestoneCelebrationOverlay.swift */; };
 		0437345AC7B1271F5FDA70B5 /* StorybookPropArt.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8C1C754DD8A26DFF8DBC7EB /* StorybookPropArt.swift */; };
 		0640173307935006252D0A68 /* PaperGrainAndLUT.metal in Sources */ = {isa = PBXBuildFile; fileRef = BDA681F6E122D4646A6AFCF5 /* PaperGrainAndLUT.metal */; };
 		0B4D4E3AF991E4D6E9B5113D /* CozyUnifiedUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A13283725832011B999E96 /* CozyUnifiedUI.swift */; };
@@ -140,6 +141,7 @@
 		63B2F90D7A01B759FD220D22 /* PawprintDaysTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = PawprintDaysTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		67E854C8AC9CCB40C6F312CC /* StrollLiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrollLiveActivityManager.swift; sourceTree = "<group>"; };
 		695FB44687F27EE0E023B4EB /* GameCoordinator+Fixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GameCoordinator+Fixtures.swift"; sourceTree = "<group>"; };
+		6ACD2E62261A770B86DFA2A2 /* MilestoneCelebrationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneCelebrationOverlay.swift; sourceTree = "<group>"; };
 		6AE753BFE83AECF2523A7649 /* PawprintDaysWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PawprintDaysWidgets.swift; sourceTree = "<group>"; };
 		71448162A759227F2D467E47 /* CozySoundEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CozySoundEngine.swift; sourceTree = "<group>"; };
 		73DFE847C9BBA2DC84E27151 /* curio_unpack.ahap */ = {isa = PBXFileReference; path = curio_unpack.ahap; sourceTree = "<group>"; };
@@ -191,6 +193,7 @@
 				4A74C81C1FC7B537AAD7B171 /* HardcoverSketchbookView.swift */,
 				C1BB69ACCDDB09346B6CD70E /* HomeSunroomView.swift */,
 				F9F40312D192B1DAF66279AE /* IndoorPlayHubSheet.swift */,
+				6ACD2E62261A770B86DFA2A2 /* MilestoneCelebrationOverlay.swift */,
 				8D31E76984681A384C3B6706 /* SidewalkEncounterView.swift */,
 				7E7D5485F75FC57B5EBD6075 /* StreetOverworldView.swift */,
 				577B6815AA46FB69A029BEF6 /* StrollRitualSheets.swift */,
@@ -548,6 +551,7 @@
 				261C0EF6829472C2765DA40C /* IndoorPlayHubSheet.swift in Sources */,
 				4047114F86E909BFEB2CCFE0 /* LocationService.swift in Sources */,
 				84940EB4D785441D0E90E20E /* MapKitAnchorDiscoveryService.swift in Sources */,
+				0431A139F949D110E68B6AEF /* MilestoneCelebrationOverlay.swift in Sources */,
 				6BAD6FE020F29A88D2B224C3 /* NarrativeEngine.swift in Sources */,
 				0640173307935006252D0A68 /* PaperGrainAndLUT.metal in Sources */,
 				C129648729AE2C786C4E8CD7 /* PawprintAppIntents.swift in Sources */,
