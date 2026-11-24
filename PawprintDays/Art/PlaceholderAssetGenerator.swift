@@ -42,6 +42,8 @@ struct ProceduralPetRigView: View {
     var poseTransition: CelPoseTransition? = nil
     var poseStartedAt: Date? = nil
     var locomotion: CelLocomotion? = nil
+    /// Walk-cycle playback speed relative to the authored fps, matched to travel speed by the roaming engine.
+    var gaitRate: Double = 1
     var facingRight = false
     var presentationScale: CGFloat = 1
     var onCelEvent: ((String, Date) -> Void)? = nil
@@ -59,7 +61,7 @@ struct ProceduralPetRigView: View {
             } else if let stageDate {
                 celAnimationStack(time: stageDate.timeIntervalSinceReferenceDate)
             } else {
-                TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 30.0, reduceMotion: reduceMotion))) { timeline in
+                TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 60.0, reduceMotion: reduceMotion))) { timeline in
                     celAnimationStack(time: timeline.date.timeIntervalSinceReferenceDate)
                 }
             }
@@ -170,7 +172,7 @@ struct ProceduralPetRigView: View {
         // 1. Active explicit playful interactions (highest priority)
         switch playfulAction {
         case .walking:
-            if let authored = authoredFrame(locomotion?.bank ?? "w", elapsed: poseElapsed) { return authored }
+            if let authored = authoredFrame(locomotion?.bank ?? "w", elapsed: poseElapsed * gaitRate) { return authored }
             // Relaxed, natural 16-frame stroll cycle (`w1`..`w16`) at 9.0fps (~1.78s per unhurried stride)
             let walkFPS = 9.0
             let subtleCadence = -CGFloat(abs(sin(tPet * walkFPS * .pi / 8.0))) * minDim * 0.008
@@ -372,6 +374,17 @@ struct ProceduralPetRigView: View {
         return CGPoint(x: sin((isStaticSnapshot ? 0.5 : time) * 1.05) * 0.005, y: 0)
     }
 
+    /// `facingRight` flips when a walk is planned, but the clips queued before the turn (e.g. standing up)
+    /// still face the old way.
+    private func facingAt(time: Double) -> Bool {
+        guard let poseTransition,
+              let playback = poseTransition.playback(at: Date(timeIntervalSinceReferenceDate: time)),
+              let turn = poseTransition.players.firstIndex(where: { ["tn", "tr"].contains($0.clip.bank) }),
+              let current = poseTransition.players.firstIndex(of: playback.player),
+              current < turn else { return facingRight }
+        return !facingRight
+    }
+
     private func preloadPlan(state: CelFrameState, date: Date, pixels: CGFloat) -> CelClipPreloader.Plan? {
         guard !isStaticSnapshot, !reduceMotion else { return nil }
         let bank = bank(of: state.assetName)
@@ -400,14 +413,16 @@ struct ProceduralPetRigView: View {
             let minDim = min(w, h)
             let state = resolveCelFrameState(time: time, minDim: minDim)
             let frameAssetName = state.assetName
-            let displayPixels = minDim * displayScale * presentationScale
+            // Decode at the pet's base size, not its depth-scaled size: a walk toward or away from the
+            // camera would otherwise cross cache buckets and hold stale drawings while new sizes decode.
+            let displayPixels = minDim * displayScale * min(1, presentationScale)
             let playback = state.playback
             let recentDust = playback?.player.events(after: (playback?.elapsed ?? 0) - 0.42,
                                                      through: playback?.elapsed ?? 0)
                 .filter { $0.name == "footContact" || $0.name == "land" } ?? []
             let activeBank = state.playback?.player.clip.bank ?? bank(of: state.assetName)
-            let hasRightWalk = CelLibrary.authored(for: pet.id, bank: "wr") != nil
-            let mirror = !reduceMotion && facingRight && !hasRightWalk && !(["wr", "wf", "wb", "tr"].contains(activeBank))
+            // Banks authored facing right (or turning) are drawn as-is; everything else is mirrored when facing right.
+            let mirror = !reduceMotion && facingAt(time: time) && !(["wr", "wf", "wb", "tr", "tn"].contains(activeBank))
             let shadowShrink = max(0.76, 1.0 + (state.hopOffsetY / max(1, minDim)) * 1.4)
 
             let rimGlowColor: Color = {
@@ -511,7 +526,7 @@ struct ProceduralPetRigView: View {
                 }
             }
             .scaleEffect(x: mirror ? -1 : 1, y: 1)
-            .animation(reduceMotion || hasRightWalk || ["wf", "wb", "tn", "tr"].contains(activeBank) ? nil : .easeInOut(duration: 0.16), value: mirror)
+            .animation(nil, value: mirror)
         }
     }
 }

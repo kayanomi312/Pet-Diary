@@ -624,6 +624,7 @@ struct Sunroom25DStageView: View {
                                                 poseTransition: actor.poseTransition,
                                                 poseStartedAt: bouncingPetID == actor.petID ? nil : actor.poseStartedAt,
                                                 locomotion: actor.direction,
+                                                gaitRate: actor.gaitRate,
                                                 facingRight: actor.facingRight,
                                                 presentationScale: scale * (isInBox ? 0.86 : 1.0),
                                                 onCelEvent: { event, date in
