@@ -15,6 +15,10 @@ jobs:
         with:
           persist-credentials: false
 
+      # Only the shipped cels are needed to build and test; art-src sources stay in LFS.
+      - name: Fetch LFS cel frames
+        run: git lfs pull --include="PawprintDays/Resources/PetFrames/**"
+
       - name: Select newest stable Xcode on the runner
         id: xcode
         shell: bash
