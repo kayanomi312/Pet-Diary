@@ -1,0 +1,81 @@
+name: CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: iOS unit tests
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      # Only the shipped cels are needed to build and test; art-src sources stay in LFS.
+      - name: Fetch LFS cel frames
+        run: git lfs pull --include="PawprintDays/Resources/PetFrames/**"
+
+      - name: Select newest stable Xcode on the runner
+        id: xcode
+        shell: bash
+        run: |
+          xcode_app=$(
+            for app in /Applications/Xcode_*.app; do
+              if [[ -d "$app" && ! -L "$app" && ${app##*/} =~ ^Xcode_[0-9]+(\.[0-9]+)*\.app$ ]]; then
+                printf '%s\n' "$app"
+              fi
+            done | LC_ALL=C sort -V | tail -n 1
+          )
+          if [[ -z "$xcode_app" ]]; then
+            echo "No stable Xcode installation found in /Applications." >&2
+            exit 1
+          fi
+          export DEVELOPER_DIR="$xcode_app/Contents/Developer"
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+          version=$(xcodebuild -version)
+          echo "$version"
+          echo "build=$(awk '/^Build version / {print $3}' <<<"$version")" >> "$GITHUB_OUTPUT"
+
+      # Pinned to the version the committed project was generated with; the runner's
+      # Homebrew can lag and its output differs (scheme buildArchitectures), failing the drift check.
+      - name: Install XcodeGen 2.48.0
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" https://github.com/yonaskolb/XcodeGen/releases/download/2.48.0/xcodegen.zip
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/xcodegen/bin/xcodegen" --version
+
+      - name: Cache Swift packages
+        if: hashFiles('**/Package.resolved') != ''
+        uses: actions/cache@v6
+        with:
+          path: DerivedData/CI/SourcePackages
+          key: spm-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.build }}-${{ hashFiles('**/Package.resolved') }}
+
+      - name: Cache build intermediates
+        uses: actions/cache@v6
+        with:
+          path: |
+            DerivedData/CI/Build
+            DerivedData/CI/ModuleCache.noindex
+          key: xcode-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.build }}-${{ hashFiles('project.yml', '**/Package.resolved') }}-${{ github.sha }}
+          restore-keys: |
+            xcode-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.build }}-${{ hashFiles('project.yml', '**/Package.resolved') }}-
+
+      - name: Check project drift and run tests
+        env:
+          CI_SIMULATOR_ID: auto
+        run: scripts/ci-local.sh
+
+      - name: Upload failed test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: PawprintDays-xcresult
+          path: build/ci/run.*/PawprintDays.xcresult/
+          if-no-files-found: ignore
+          retention-days: 14

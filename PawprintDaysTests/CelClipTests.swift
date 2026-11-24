@@ -62,6 +62,38 @@ final class CelClipTests: XCTestCase {
         XCTAssertNil(legacy.playback(at: start))
     }
 
+    func testReversedPlayerRunsTurnBackwards() {
+        let turn = CelClip(bank: "tn", frames: 8, fps: 12, loop: .once, next: "walk")
+        let backwards = CelClipPlayer(turn, reversed: true)
+        XCTAssertEqual(backwards.order, Array((1...8).reversed()))
+        XCTAssertEqual(backwards.frame(at: 0.01), 8)
+        XCTAssertEqual(backwards.frame(at: backwards.duration + 1), 1)
+        XCTAssertEqual(backwards.duration, CelClipPlayer(turn).duration)
+    }
+
+    func testAuthoredTurnIsReversedForRightTurns() throws {
+        let forward = try XCTUnwrap(CelLibrary.transitionPlayer(for: "pet.01", bank: "tn"))
+        let backward = try XCTUnwrap(CelLibrary.transitionPlayer(for: "pet.01", bank: "tn<"))
+        XCTAssertEqual(backward.order, forward.order.reversed())
+        XCTAssertNil(CelLibrary.transitionPlayer(for: "pet.01", bank: "zz<"))
+    }
+
+    func testStrideMatchingBoundsGaitRateAndPacing() throws {
+        let walk = CelClipPlayer(CelClip(bank: "w", frames: 12, fps: 12, loop: .loop))
+        // Plausible stride: feet lock exactly, linear travel keeps the intended time.
+        let fair = try XCTUnwrap(CelStride(lengthUV: 0.1, player: walk)?.matched(distance: 0.3, intended: 3))
+        XCTAssertEqual(fair.gaitRate, 1, accuracy: 1e-9)
+        XCTAssertEqual(fair.duration, 3, accuracy: 1e-9)
+        // A tiny measured stride cannot turn a 3 s stroll into a crawl.
+        let tiny = try XCTUnwrap(CelStride(lengthUV: 0.02, player: walk)?.matched(distance: 0.3, intended: 3))
+        XCTAssertEqual(tiny.gaitRate, CelStride.gaitRateRange.upperBound)
+        XCTAssertEqual(tiny.duration, 3 * CelStride.pacingTolerance, accuracy: 1e-9)
+        // A huge one cannot turn it into a sprint.
+        let huge = try XCTUnwrap(CelStride(lengthUV: 0.6, player: walk)?.matched(distance: 0.3, intended: 3))
+        XCTAssertEqual(huge.gaitRate, CelStride.gaitRateRange.lowerBound)
+        XCTAssertEqual(huge.duration, 3 / CelStride.pacingTolerance, accuracy: 1e-9)
+    }
+
     func testLocomotionSelectsDepthAndRightBanksWithSideFallback() {
         let banks: Set<String> = ["wr", "wf", "wb"]
         XCTAssertEqual(CelLocomotion(dx: 0.1, dy: 0.5, facingRight: true, hasBank: banks.contains).bank, "wf")
@@ -131,5 +163,16 @@ final class CelClipTests: XCTestCase {
         XCTAssertEqual(start, .zero)
         XCTAssertEqual(peak.x, 0.018, accuracy: 0.000001)
         XCTAssertEqual(peak.y, 0, accuracy: 0.000001)
+    }
+}
+
+@MainActor
+final class CelEventFeedbackThrottleTests: XCTestCase {
+    func testThrottleSuppressesBurstsPerEvent() {
+        let start = Date(timeIntervalSinceReferenceDate: 1_000_000)
+        XCTAssertTrue(CelEventFeedbackThrottle.allows("throttleTest", now: start))
+        XCTAssertFalse(CelEventFeedbackThrottle.allows("throttleTest", now: start.addingTimeInterval(0.1)))
+        XCTAssertTrue(CelEventFeedbackThrottle.allows("throttleTestOther", now: start.addingTimeInterval(0.1)))
+        XCTAssertTrue(CelEventFeedbackThrottle.allows("throttleTest", now: start.addingTimeInterval(0.35)))
     }
 }

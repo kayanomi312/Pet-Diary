@@ -39,7 +39,7 @@
 		<string>需要暫時開啟精準定位，以準確判斷 75 公尺內的街角足印與繪製散步路線。</string>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>足印日記需要你的精準位置，才能在真實巷口遇見奇幻毛孩、計算 75 公尺街角距離並繪製散步水彩軌跡（資料 100% 私密留存本機）。</string>
+	<string>足印日記需要你的精準位置，才能在真實巷口遇見奇幻毛孩、計算 75 公尺街角距離並繪製散步水彩軌跡。精準位置只留在你的手機上；為了讓小窩的天氣跟現實同步，僅會送出約 1 公里的模糊位置。</string>
 	<key>NSMotionUsageDescription</key>
 	<string>足印日記透過計步器將你的日常步行自動換算為步數幣與口袋拾遺進度（不上傳任何健康資料）。</string>
 	<key>NSSupportsLiveActivities</key>

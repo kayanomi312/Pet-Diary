@@ -6,6 +6,7 @@ struct InWorldTeaStationView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let stageDate: Date
     let recipe: TeaRecipeSpec
+    var isPhotoMode: Bool = false
     let onCycleRecipe: () -> Void
     let onBrewCompleted: (TeaRecipeSpec) -> Void
 
@@ -150,29 +151,31 @@ struct InWorldTeaStationView: View {
                 onCycleRecipe()
             }
 
-            // Compact diegetic recipe tag (tap to switch tea flavor!)
-            Button(action: {
-                HapticsEngine.shared.playBrushStrokeTick()
-                CozySoundEngine.shared.playPaperFlip()
-                onCycleRecipe()
-            }) {
-                HStack(spacing: 3) {
-                    Image(systemName: recipe.icon)
-                        .font(.system(size: 8.5, weight: .bold))
-                        .foregroundStyle(Color(hex: recipe.tintHex))
-                    Text(isSwirling ? "畫圈手沖 \(Int(brewProgress * 100))%" : recipe.name)
-                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color(hex: "#4A3628"))
-                        .lineLimit(1)
+            if !isPhotoMode {
+                // Compact diegetic recipe tag (tap to switch tea flavor!)
+                Button(action: {
+                    HapticsEngine.shared.playBrushStrokeTick()
+                    CozySoundEngine.shared.playPaperFlip()
+                    onCycleRecipe()
+                }) {
+                    HStack(spacing: 3) {
+                        Image(systemName: recipe.icon)
+                            .font(.system(size: 8.5, weight: .bold))
+                            .foregroundStyle(Color(hex: recipe.tintHex))
+                        Text(isSwirling ? "畫圈手沖 \(Int(brewProgress * 100))%" : recipe.name)
+                            .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color(hex: "#4A3628"))
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2.5)
+                    .background(Color(hex: "#FFFDF7").opacity(0.94), in: Capsule())
+                    .overlay(Capsule().stroke(Color(hex: recipe.tintHex).opacity(0.55), lineWidth: 1))
+                    .shadow(color: AppTheme.deepPineInk.opacity(0.14), radius: 2, y: 1)
                 }
-                .padding(.horizontal, 7)
-                .padding(.vertical, 2.5)
-                .background(Color(hex: "#FFFDF7").opacity(0.94), in: Capsule())
-                .overlay(Capsule().stroke(Color(hex: recipe.tintHex).opacity(0.55), lineWidth: 1))
-                .shadow(color: AppTheme.deepPineInk.opacity(0.14), radius: 2, y: 1)
+                .buttonStyle(.plain)
+                .accessibilityLabel("手沖茶盤：畫圈泡茶，輕點切換\(recipe.name)")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("手沖茶盤：畫圈泡茶，輕點切換\(recipe.name)")
         }
     }
 
@@ -194,6 +197,7 @@ struct InWorldTeaStationView: View {
 // MARK: - 2. Physical In-World Origami Bench + Direct Swipe-to-Fold Mat (Zero Modal Sheet!)
 
 struct InWorldOrigamiTableView: View {
+    var isPhotoMode: Bool = false
     let onTapTable: () -> Void
 
     var body: some View {
@@ -237,13 +241,15 @@ struct InWorldOrigamiTableView: View {
                 }
                 .frame(width: 62, height: 42)
 
-                Text("摺紙桌")
-                    .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color(hex: "#4A3628"))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2)
-                    .background(Color(hex: "#FFFDF7").opacity(0.92), in: Capsule())
-                    .overlay(Capsule().stroke(Color(hex: "#D9A441").opacity(0.6), lineWidth: 0.9))
+                if !isPhotoMode {
+                    Text("摺紙桌")
+                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(hex: "#4A3628"))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Color(hex: "#FFFDF7").opacity(0.92), in: Capsule())
+                        .overlay(Capsule().stroke(Color(hex: "#D9A441").opacity(0.6), lineWidth: 0.9))
+                }
             }
         }
         .buttonStyle(TactileGameButtonStyle(pressScale: 0.92, pressOffsetY: 1))
@@ -272,25 +278,31 @@ struct InWorldOrigamiFoldOverlay: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 8) {
-                ForEach(OrigamiCraftKind.allCases) { kind in
-                    Button {
-                        HapticsEngine.shared.playBrushStrokeTick()
-                        selectedKind = kind
-                        foldStep = 0
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: kind.sfSymbol)
-                                .font(.system(size: 10, weight: .bold))
-                            Text(kind.title)
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
+            HStack(spacing: 6) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(OrigamiCraftKind.allCases) { kind in
+                            Button {
+                                HapticsEngine.shared.playBrushStrokeTick()
+                                selectedKind = kind
+                                foldStep = 0
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: kind.sfSymbol)
+                                        .font(.system(size: 10, weight: .bold))
+                                    Text(kind.title)
+                                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                                        .lineLimit(1)
+                                        .fixedSize(horizontal: true, vertical: false)
+                                }
+                                .foregroundStyle(selectedKind == kind ? .white : Color(hex: "#4A3628"))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(selectedKind == kind ? Color(hex: kind.colorHex) : Color(hex: "#F2EBDD"), in: Capsule())
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .foregroundStyle(selectedKind == kind ? .white : Color(hex: "#4A3628"))
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .background(selectedKind == kind ? Color(hex: kind.colorHex) : Color(hex: "#F2EBDD"), in: Capsule())
                     }
-                    .buttonStyle(.plain)
                 }
 
                 Button(action: onClose) {
@@ -299,6 +311,7 @@ struct InWorldOrigamiFoldOverlay: View {
                         .foregroundStyle(Color(hex: "#9B8B7A"))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("關閉摺紙桌")
             }
 
             ZStack {
@@ -395,6 +408,7 @@ struct InWorldPorchSatchelView: View {
     let activeErrand: ActivePetErrand?
     let now: Date
     let coinBalance: Int
+    var isPhotoMode: Bool = false
     let onSendSupply: (ErrandSupplyPack) -> Void
     let onCollectReturned: () -> Void
 
@@ -493,13 +507,15 @@ struct InWorldPorchSatchelView: View {
                         }
                         .shadow(color: AppTheme.deepPineInk.opacity(0.20), radius: 3, y: 2)
 
-                        Text("玄關背包")
-                            .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color(hex: "#4A3628"))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color(hex: "#FFFDF7").opacity(0.92), in: Capsule())
-                            .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.5), lineWidth: 0.9))
+                        if !isPhotoMode {
+                            Text("玄關背包")
+                                .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                                .foregroundStyle(Color(hex: "#4A3628"))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color(hex: "#FFFDF7").opacity(0.92), in: Capsule())
+                                .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.5), lineWidth: 0.9))
+                        }
                     }
                 }
                 .buttonStyle(TactileGameButtonStyle(pressScale: 0.92, pressOffsetY: 1))
@@ -845,7 +861,7 @@ struct InWorldFurnitureCarouselBar: View {
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color(hex: "#FFFDF8").opacity(0.95))
+                .fill(Color(hex: "#FFFDF8"))
                 .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Color(hex: "#D5C5AE"), lineWidth: 1))
                 .shadow(color: Color(hex: "#2B211A").opacity(0.16), radius: 14, y: -2)
         )

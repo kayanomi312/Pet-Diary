@@ -4,10 +4,9 @@ import CoreLocation
 /// 溫潤日式手繪繪本「新手互動教學引導」（4 頁完整圖解，自動於首次開啟出現，也可於設定隨時重看）
 struct CozyOnboardingTutorialView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.openURL) private var openURL
     @Bindable var coordinator: GameCoordinator
     @State private var currentPage: Int = 0
-    @State private var requestedLocation: Bool = false
-    @State private var requestedMotion: Bool = false
 
     private let totalPages = 4
 
@@ -115,6 +114,7 @@ struct CozyOnboardingTutorialView: View {
                 .padding(.bottom, 26)
             }
         }
+        .accessibilityAddTraits(.isModal)
     }
 
     // MARK: - Page 1: Welcome & 6 Mystical Creatures
@@ -183,6 +183,7 @@ struct CozyOnboardingTutorialView: View {
                         .font(.system(size: 40, weight: .bold))
                         .foregroundStyle(AppTheme.pawInRange)
                 }
+                .accessibilityHidden(true)
                 .padding(.top, 16)
 
                 VStack(spacing: 6) {
@@ -295,6 +296,7 @@ struct CozyOnboardingTutorialView: View {
                         .font(.system(size: 38, weight: .semibold))
                         .foregroundStyle(AppTheme.forestTeal)
                 }
+                .accessibilityHidden(true)
                 .padding(.top, 14)
 
                 VStack(spacing: 6) {
@@ -324,8 +326,9 @@ struct CozyOnboardingTutorialView: View {
                             .foregroundStyle(AppTheme.deepPineInk)
 
                         HStack(spacing: 10) {
-                            let locGranted = coordinator.locationService.authorizationStatus == .authorizedWhenInUse
-                                || coordinator.locationService.authorizationStatus == .authorizedAlways
+                            let locStatus = coordinator.locationService.authorizationStatus
+                            let locGranted = locStatus == .authorizedWhenInUse || locStatus == .authorizedAlways
+                            let locDenied = locStatus == .denied || locStatus == .restricted
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("精準定位權限")
                                     .font(.system(size: 13.5, weight: .bold, design: .rounded))
@@ -335,16 +338,19 @@ struct CozyOnboardingTutorialView: View {
                                     .foregroundStyle(AppTheme.softInk)
                             }
                             Spacer()
-                            Button(locGranted || requestedLocation ? "已開啟 ✓" : "開啟定位") {
-                                requestedLocation = true
-                                coordinator.locationService.requestForegroundLocation()
+                            Button(locGranted ? "已開啟 ✓" : (locDenied ? "前往設定" : "開啟定位")) {
+                                if locDenied, let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                                    openURL(settingsURL)
+                                } else {
+                                    coordinator.locationService.requestForegroundLocation()
+                                }
                             }
                             .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(locGranted || requestedLocation ? AppTheme.forestTeal : .white)
+                            .foregroundStyle(locGranted ? AppTheme.forestTeal : .white)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 7)
                             .background(
-                                Capsule().fill(locGranted || requestedLocation ? AppTheme.forestTeal.opacity(0.14) : AppTheme.forestTeal)
+                                Capsule().fill(locGranted ? AppTheme.forestTeal.opacity(0.14) : (locDenied ? AppTheme.pawInRange : AppTheme.forestTeal))
                             )
                             .buttonStyle(.plain)
                         }
@@ -361,16 +367,15 @@ struct CozyOnboardingTutorialView: View {
                                     .foregroundStyle(AppTheme.softInk)
                             }
                             Spacer()
-                            Button(coordinator.ledger.pedometerOptIn || requestedMotion ? "已連結 ✓" : "連結計步") {
-                                requestedMotion = true
+                            Button(coordinator.ledger.pedometerOptIn ? "已連結 ✓" : "連結計步") {
                                 Task { await coordinator.optInAndSyncPedometer() }
                             }
                             .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(coordinator.ledger.pedometerOptIn || requestedMotion ? AppTheme.forestTeal : .white)
+                            .foregroundStyle(coordinator.ledger.pedometerOptIn ? AppTheme.forestTeal : .white)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 7)
                             .background(
-                                Capsule().fill(coordinator.ledger.pedometerOptIn || requestedMotion ? AppTheme.forestTeal.opacity(0.14) : AppTheme.forestTeal)
+                                Capsule().fill(coordinator.ledger.pedometerOptIn ? AppTheme.forestTeal.opacity(0.14) : AppTheme.forestTeal)
                             )
                             .buttonStyle(.plain)
                         }
@@ -389,6 +394,7 @@ struct CozyOnboardingTutorialView: View {
                 .foregroundStyle(tint)
                 .frame(width: 30, height: 30)
                 .background(Circle().fill(tint.opacity(0.12)))
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.system(size: 13.5, weight: .bold, design: .rounded))

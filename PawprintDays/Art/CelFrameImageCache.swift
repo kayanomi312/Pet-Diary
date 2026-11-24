@@ -7,7 +7,7 @@ import UIKit
 @MainActor
 final class CelFrameImageCache {
     static let shared = CelFrameImageCache()
-    static let budget = 48 * 1024 * 1024
+    static let budget = 96 * 1024 * 1024
 
     struct Key: Hashable, Sendable {
         let name: String

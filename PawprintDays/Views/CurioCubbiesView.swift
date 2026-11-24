@@ -7,7 +7,7 @@ struct CurioCubbiesView: View {
     @State private var showPouchShop: Bool = false
     @State private var showVisitOptInPreview: Bool = false
     @State private var showWalkingSettings: Bool = false
-    @State private var showFullCompendium: Bool = true
+    @State private var showFullCompendium: Bool = false
     @State private var confirmResetDiary: Bool = false
 
     private var discoveredCurioIDs: Set<String> {
@@ -473,7 +473,7 @@ struct CurioCubbiesView: View {
         }
         .sheet(isPresented: $showPouchShop) {
             PouchShopDrawer(coordinator: coordinator, selectedCategory: $selectedCategory)
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.large])
         }
         .confirmationDialog(
             "確定要重置所有日記並重新開始嗎？",

@@ -34,6 +34,8 @@ final class SunroomRoamingEngine {
         var poseStartedAt: Date = .distantPast
         var direction: CelLocomotion?
         var hasMatchedStride = false
+        /// Walk-cycle playback speed relative to the authored fps (see `CelStride.matched`).
+        var gaitRate: Double = 1
 
         var targetPose: CelPose {
             switch behavior {
@@ -54,14 +56,17 @@ final class SunroomRoamingEngine {
             if direction.isSideOn, self.facingRight != nextFacing {
                 let hasRightWalk = CelLibrary.authored(for: petID, bank: "wr") != nil
                 let hasRightTurn = CelLibrary.authored(for: petID, bank: "tr") != nil
+                let hasTurn = CelLibrary.authored(for: petID, bank: "tn") != nil
+                // `tn` is authored right-to-left; play it backwards to turn toward an authored right walk.
                 turnBank = if nextFacing && hasRightTurn { "tr" }
+                else if nextFacing && hasRightWalk && hasTurn { "tn\(CelLibrary.reversedSuffix)" }
                 else if nextFacing && hasRightWalk { nil }
                 else { "tn" }
             } else {
                 turnBank = nil
             }
             let transition = CelPoseTransition(from: previousPose, to: .walk, at: now, turnBank: turnBank) {
-                CelLibrary.authored(for: petID, bank: $0)
+                CelLibrary.transitionPlayer(for: petID, bank: $0)
             }
             poseTransition = transition
             waitingForWalkPose = !transition.players.isEmpty
@@ -70,10 +75,11 @@ final class SunroomRoamingEngine {
             let player = CelLibrary.player(for: petID, bank: direction.bank)
             let length = player?.clip.strideLengthUV ?? CelLibrary.manifest(for: petID)?.strideLengthUV
             let stride = CelStride(lengthUV: length, player: player)
-            let matchedDuration = stride?.duration(forDistance: hypot(to.x - from.x, to.y - from.y))
-            hasMatchedStride = matchedDuration != nil
+            let matched = stride?.matched(distance: hypot(to.x - from.x, to.y - from.y), intended: duration)
+            hasMatchedStride = matched != nil
+            gaitRate = matched?.gaitRate ?? 1
             behavior = .walking(from: from, to: to, startedAt: transition.arrivesAt,
-                                duration: matchedDuration ?? duration, arrivalSpotIndex: arrivalSpotIndex)
+                                duration: matched?.duration ?? duration, arrivalSpotIndex: arrivalSpotIndex)
             poseStartedAt = transition.arrivesAt
         }
 
@@ -87,7 +93,7 @@ final class SunroomRoamingEngine {
         mutating func preparePose(from previous: Self, at now: Date, startled: Bool = false) {
             let target = startled ? .startle : targetPose
             let transition = CelPoseTransition(from: previous.poseForInterruption(at: now), to: target, at: now) {
-                CelLibrary.authored(for: petID, bank: $0)
+                CelLibrary.transitionPlayer(for: petID, bank: $0)
             }
             poseTransition = transition
             waitingForWalkPose = false

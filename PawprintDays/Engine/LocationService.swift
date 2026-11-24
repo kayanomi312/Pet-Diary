@@ -4,10 +4,11 @@ import Observation
 
 enum GPSSignalQuality: String, Sendable {
     case simulated = "等待定位"
-    case acquiring = "搜尋精準定位…"
+    case acquiring = "定位中…"
     case high = "GPS 極精準"
     case good = "GPS 良好"
     case weak = "GPS 訊號較弱"
+    case denied = "定位未開"
 
     var badgeColorHex: String {
         switch self {
@@ -16,6 +17,7 @@ enum GPSSignalQuality: String, Sendable {
         case .high:      return "#4E9A6F"
         case .good:      return "#5B8E94"
         case .weak:      return "#D96A52"
+        case .denied:    return "#D96A52"
         }
     }
 }
@@ -77,6 +79,10 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         manager.pausesLocationUpdatesAutomatically = false
         authorizationStatus = manager.authorizationStatus
         isReducedAccuracy = (manager.accuracyAuthorization == .reducedAccuracy)
+        if authorizationStatus == .denied || authorizationStatus == .restricted {
+            useSimulatedPosition = false
+            gpsSignalQuality = .denied
+        }
         seedInitialNeighborhoodTrail()
         startLiveUpdatesIfAuthorized()
     }
@@ -285,6 +291,10 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
             self.isReducedAccuracy = reduced
             if status == .authorizedWhenInUse || status == .authorizedAlways {
                 self.startLiveUpdatesIfAuthorized()
+            } else if status == .denied || status == .restricted {
+                self.useSimulatedPosition = false
+                self.gpsSignalQuality = .denied
+                self.gpsAccuracyMeters = nil
             }
         }
     }

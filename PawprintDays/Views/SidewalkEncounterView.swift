@@ -356,6 +356,8 @@ struct SidewalkEncounterView: View {
                             perform: { completeGreeting(with: .offerHand) }
                         )
                         .accessibilityLabel("長按 2.5 秒向\(petSpec.name)伸手打招呼")
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityHint("按住 2.5 秒向\(petDisplayName)伸出手")
 
                         ViewThatFits(in: .horizontal) {
                             HStack(spacing: 12) { secondaryGestureButtons }
@@ -468,6 +470,10 @@ struct SidewalkEncounterView: View {
                     }
             )
             .accessibilityLabel("向上滑動或輕點滾出縫布球給\(petDisplayName)")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                launchBallFlickRitual()
+            }
         } else if coordinator.activeWeather.isRainy {
             // Interactive Rain Umbrella Shelter Hold (hold 1.2s to shelter pet under watercolor umbrella!)
             HStack(spacing: 6) {
