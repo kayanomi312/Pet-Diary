@@ -129,6 +129,7 @@ struct CozyHeroActionButton: View {
 
 /// 統一底部懸浮棉紙導覽列（街區 / 陽光室 / 日記 / 小舖）— 讓玩家在任何主畫面都一目瞭然、一鍵直達！
 struct CozyFloatingDockBar: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var currentScreen: AppScreen
     var coinBalance: Int
     var hasReadyMentorship: Bool = false
@@ -208,7 +209,7 @@ struct CozyFloatingDockBar: View {
         }
         .padding(.horizontal, 22)
         .padding(.bottom, 6)
-        .animation(.spring(response: 0.30, dampingFraction: 0.78), value: currentScreen)
+        .animation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion), value: currentScreen)
     }
 }
 
@@ -262,7 +263,7 @@ struct CozyPopoverMenuCard: View {
                 }
             }
         }
-        .frame(width: 214)
+        .frame(width: 244)
         .padding(.vertical, 4)
         .background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -288,6 +289,7 @@ struct CozySegmentedPillOption: Identifiable {
 }
 
 struct CozySegmentedPillBar: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let options: [CozySegmentedPillOption]
     @Binding var selection: Int
 
@@ -299,7 +301,7 @@ struct CozySegmentedPillBar: View {
                     guard !isSelected else { return }
                     HapticsEngine.shared.playBrushStrokeTick()
                     CozySoundEngine.shared.playPaperFlip()
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                    withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
                         selection = opt.id
                     }
                 } label: {

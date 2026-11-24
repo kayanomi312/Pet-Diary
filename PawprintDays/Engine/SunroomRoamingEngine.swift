@@ -29,6 +29,87 @@ final class SunroomRoamingEngine {
         var bubbleExpiresAt: Date = .distantPast
         var tapExcitedUntil: Date = .distantPast
 
+        var poseTransition: CelPoseTransition?
+        var waitingForWalkPose = false
+        var poseStartedAt: Date = .distantPast
+        var direction: CelLocomotion?
+        var hasMatchedStride = false
+        /// Walk-cycle playback speed relative to the authored fps (see `CelStride.matched`).
+        var gaitRate: Double = 1
+
+        var targetPose: CelPose {
+            switch behavior {
+            case .walking: return .walk
+            case .napping: return .sleep
+            default: return .idle
+            }
+        }
+
+        mutating func beginWalk(from: CGPoint, to: CGPoint, at now: Date, duration: Double,
+                                arrivalSpotIndex: Int? = nil, facingRight: Bool? = nil) {
+            let previousPose = poseForInterruption(at: now)
+            let nextFacing = facingRight ?? (to.x > from.x)
+            let direction = CelLocomotion(dx: to.x - from.x, dy: to.y - from.y, facingRight: nextFacing) {
+                CelLibrary.authored(for: petID, bank: $0) != nil
+            }
+            let turnBank: String?
+            if direction.isSideOn, self.facingRight != nextFacing {
+                let hasRightWalk = CelLibrary.authored(for: petID, bank: "wr") != nil
+                let hasRightTurn = CelLibrary.authored(for: petID, bank: "tr") != nil
+                let hasTurn = CelLibrary.authored(for: petID, bank: "tn") != nil
+                // `tn` is authored right-to-left; play it backwards to turn toward an authored right walk.
+                turnBank = if nextFacing && hasRightTurn { "tr" }
+                else if nextFacing && hasRightWalk && hasTurn { "tn\(CelLibrary.reversedSuffix)" }
+                else if nextFacing && hasRightWalk { nil }
+                else { "tn" }
+            } else {
+                turnBank = nil
+            }
+            let transition = CelPoseTransition(from: previousPose, to: .walk, at: now, turnBank: turnBank) {
+                CelLibrary.transitionPlayer(for: petID, bank: $0)
+            }
+            poseTransition = transition
+            waitingForWalkPose = !transition.players.isEmpty
+            self.facingRight = nextFacing
+            self.direction = direction
+            let player = CelLibrary.player(for: petID, bank: direction.bank)
+            let length = player?.clip.strideLengthUV ?? CelLibrary.manifest(for: petID)?.strideLengthUV
+            let stride = CelStride(lengthUV: length, player: player)
+            let matched = stride?.matched(distance: hypot(to.x - from.x, to.y - from.y), intended: duration)
+            hasMatchedStride = matched != nil
+            gaitRate = matched?.gaitRate ?? 1
+            behavior = .walking(from: from, to: to, startedAt: transition.arrivesAt,
+                                duration: matched?.duration ?? duration, arrivalSpotIndex: arrivalSpotIndex)
+            poseStartedAt = transition.arrivesAt
+        }
+
+        private func poseForInterruption(at date: Date) -> CelPose {
+            if let poseTransition, date < poseTransition.arrivesAt {
+                return poseTransition.source
+            }
+            return targetPose
+        }
+
+        mutating func preparePose(from previous: Self, at now: Date, startled: Bool = false) {
+            let target = startled ? .startle : targetPose
+            let transition = CelPoseTransition(from: previous.poseForInterruption(at: now), to: target, at: now) {
+                CelLibrary.transitionPlayer(for: petID, bank: $0)
+            }
+            poseTransition = transition
+            waitingForWalkPose = false
+            poseStartedAt = transition.arrivesAt
+        }
+
+        mutating func arriveInWalkPose(at now: Date) -> Bool {
+            guard waitingForWalkPose, let transition = poseTransition else { return false }
+            var arrived = false
+            transition.onArrival(at: now) { _ in
+                waitingForWalkPose = false
+                arrived = true
+            }
+            return arrived
+        }
+
         var isWalking: Bool {
             if case .walking = behavior { return true }
             return false
@@ -44,10 +125,14 @@ final class SunroomRoamingEngine {
             guard case .walking(let from, let to, let startedAt, let duration, _) = behavior else {
                 return position
             }
-            let rawP = min(1.0, max(0.0, now.timeIntervalSince(startedAt) / max(0.2, duration)))
-            let eased = rawP < 0.5
-                ? 2.0 * rawP * rawP
-                : 1.0 - pow(-2.0 * rawP + 2.0, 2.0) / 2.0
+            if waitingForWalkPose { return from }
+            let rawP = min(1.0, max(0.0, now.timeIntervalSince(startedAt) / duration))
+            let eased: Double
+            if hasMatchedStride {
+                eased = rawP
+            } else {
+                eased = rawP < 0.5 ? 2.0 * rawP * rawP : 1.0 - pow(-2.0 * rawP + 2.0, 2.0) / 2.0
+            }
             return CGPoint(
                 x: from.x + (to.x - from.x) * eased,
                 y: from.y + (to.y - from.y) * eased
@@ -101,6 +186,7 @@ final class SunroomRoamingEngine {
 
     var actors: [String: RoamingPetActor] = [:]
     var floorRipples: [FloorTapRipple] = []
+    private(set) var spriteFX = SpriteFXPool()
     var floatingBursts: [FloatingSunroomBurst] = []
     var origamiDrops: [OrigamiCharmDrop] = []
     var rollingBall: RollingClothBall? = nil
@@ -218,31 +304,30 @@ final class SunroomRoamingEngine {
             }
 
             // 讓三分之一的室友悠閒漫步、三分之一靜靜坐著曬太陽、三分之一窩著小憩，節奏從容溫柔！
-            let behavior: RoamBehavior
-            var facingRight = false
+            let rest = RoamBehavior.sitting(until: now.addingTimeInterval(Double.random(in: 6.5...13.0)),
+                                            spotIndex: assignedSpot?.spotIndex)
+            var actor = RoamingPetActor(petID: petID, position: startPos, behavior: rest,
+                                        poseStartedAt: now)
             if idx % 3 == 0 {
                 let target = pickNextWalkDestination(from: startPos, spots: spots, verandaUnlocked: verandaUnlocked)
                 let dist = hypot(target.point.x - startPos.x, target.point.y - startPos.y)
                 let dur = max(4.5, min(12.5, Double(dist) * 18.5))
-                facingRight = target.point.x > startPos.x
-                behavior = .walking(from: startPos, to: target.point, startedAt: now, duration: dur, arrivalSpotIndex: target.spotIndex)
+                actor.beginWalk(from: startPos, to: target.point, at: now, duration: dur, arrivalSpotIndex: target.spotIndex)
             } else if idx % 3 == 2 {
-                behavior = .napping(until: now.addingTimeInterval(Double.random(in: 12.0...22.0)), spotIndex: assignedSpot?.spotIndex)
-            } else {
-                behavior = .sitting(until: now.addingTimeInterval(Double.random(in: 6.5...13.0)), spotIndex: assignedSpot?.spotIndex)
+                actor.behavior = .napping(until: now.addingTimeInterval(Double.random(in: 12.0...22.0)),
+                                          spotIndex: assignedSpot?.spotIndex)
             }
-
-            actors[petID] = RoamingPetActor(
-                petID: petID,
-                position: startPos,
-                facingRight: facingRight,
-                behavior: behavior
-            )
+            actors[petID] = actor
         }
     }
 
     /// 狀態機低頻推進（每 0.25s 檢查一次狀態轉換；不於 60fps 改寫位置，讓 SwiftUI 零無謂重繪！）
     func tick(now: Date, spots: [HomeSpotPlacement], verandaUnlocked: Bool, weather: WeatherMode = .clearMorning) {
+        for id in actors.keys {
+            if var actor = actors[id], actor.arriveInWalkPose(at: now) {
+                actors[id] = actor
+            }
+        }
         guard now.timeIntervalSince(lastStateTickDate) >= 0.25 else { return }
         lastStateTickDate = now
 
@@ -278,7 +363,8 @@ final class SunroomRoamingEngine {
 
         let petIDs = Array(actors.keys).sorted()
         for petID in petIDs {
-            guard var actor = actors[petID] else { continue }
+            guard let previous = actors[petID] else { continue }
+            var actor = previous
             var didMutate = false
 
             if actor.speechBubble != nil && now > actor.bubbleExpiresAt {
@@ -288,7 +374,8 @@ final class SunroomRoamingEngine {
 
             switch actor.behavior {
             case .walking(_, let to, let startedAt, let duration, let arrivalSpot):
-                let rawP = min(1.0, max(0.0, now.timeIntervalSince(startedAt) / max(0.2, duration)))
+                guard !actor.waitingForWalkPose else { break }
+                let rawP = min(1.0, max(0.0, now.timeIntervalSince(startedAt) / duration))
                 let currentPos = actor.interpolatedPosition(at: now)
 
                 if rawP >= 1.0 {
@@ -345,11 +432,13 @@ final class SunroomRoamingEngine {
                     actor.bubbleExpiresAt = now.addingTimeInterval(4.2)
                     didMutate = true
 
-                    if var partner = actors[friend.petID] {
+                    if let previousPartner = actors[friend.petID] {
+                        var partner = previousPartner
                         partner.facingRight = currentPos.x > partner.position.x
                         partner.behavior = .greetingFriend(partnerID: actor.petID, until: now.addingTimeInterval(4.2))
                         partner.speechBubble = "呼嚕嚕♪"
                         partner.bubbleExpiresAt = now.addingTimeInterval(4.2)
+                        partner.preparePose(from: previousPartner, at: now)
                         actors[friend.petID] = partner
                     }
                 }
@@ -359,13 +448,15 @@ final class SunroomRoamingEngine {
                     let target = pickNextWalkDestination(from: actor.position, spots: spots, verandaUnlocked: verandaUnlocked)
                     let dist = hypot(target.point.x - actor.position.x, target.point.y - actor.position.y)
                     let dur = max(4.5, min(12.5, Double(dist) * 18.5))
-                    actor.facingRight = target.point.x > actor.position.x
-                    actor.behavior = .walking(from: actor.position, to: target.point, startedAt: now, duration: dur, arrivalSpotIndex: target.spotIndex)
+                    actor.beginWalk(from: actor.position, to: target.point, at: now, duration: dur, arrivalSpotIndex: target.spotIndex)
                     didMutate = true
                 }
             }
 
             if didMutate {
+                if previous.behavior != actor.behavior, !actor.isWalking {
+                    actor.preparePose(from: previous, at: now)
+                }
                 actors[petID] = actor
             }
         }
@@ -377,12 +468,16 @@ final class SunroomRoamingEngine {
     }
 
     /// 玩家點擊陽光室 2.5D 地板任一處 → 喚來最近的室友輕快卻自然地走過來！
-    func callNearestPet(to roomUV: CGPoint, now: Date = Date()) {
+    func callNearestPet(to roomUV: CGPoint, now: Date = Date(), useSprite: Bool = true) {
         let clamped = CGPoint(
             x: max(0.09, min(0.91, roomUV.x)),
             y: max(0.16, min(0.86, roomUV.y))
         )
-        floorRipples.append(FloorTapRipple(position: clamped, createdAt: now))
+        if useSprite, SpriteFXLibrary.contains(.floorRipple) {
+            spriteFX.emit(.floorRipple, at: clamped, time: now)
+        } else {
+            floorRipples.append(FloorTapRipple(position: clamped, createdAt: now))
+        }
 
         guard let nearest = actors.values.min(by: {
             let p0 = $0.interpolatedPosition(at: now)
@@ -395,8 +490,7 @@ final class SunroomRoamingEngine {
         actor.position = startPos
         let dist = hypot(clamped.x - startPos.x, clamped.y - startPos.y)
         let dur = max(2.4, min(6.8, Double(dist) * 11.5))
-        actor.facingRight = clamped.x > startPos.x
-        actor.behavior = .walking(from: startPos, to: clamped, startedAt: now, duration: dur, arrivalSpotIndex: nil)
+        actor.beginWalk(from: startPos, to: clamped, at: now, duration: dur)
         actor.speechBubble = "來囉～♪"
         actor.bubbleExpiresAt = now.addingTimeInterval(2.6)
         actor.tapExcitedUntil = now.addingTimeInterval(1.6)
@@ -428,8 +522,7 @@ final class SunroomRoamingEngine {
         actor.position = curPos
         let dist = hypot(targetPos.x - curPos.x, targetPos.y - curPos.y)
         let dur = max(2.2, min(5.4, Double(dist) * 9.8))
-        actor.facingRight = targetPos.x > curPos.x
-        actor.behavior = .walking(from: curPos, to: targetPos, startedAt: now, duration: dur, arrivalSpotIndex: nil)
+        actor.beginWalk(from: curPos, to: targetPos, at: now, duration: dur)
         let spec = PetCatalog.pet(id: actor.petID)
         actor.speechBubble = spec.kind.isCatFamily ? "咻——追布球囉！" : "汪嗚！我去接球♪"
         actor.bubbleExpiresAt = now.addingTimeInterval(3.2)
@@ -440,11 +533,18 @@ final class SunroomRoamingEngine {
 
     // MARK: - Direct In-World Live Animations (Zero-Menu Tactile Reactions!)
 
+    func emitCelDust(petID: String, at time: Date) {
+        guard SpriteFXLibrary.contains(.dust), let actor = actors[petID] else { return }
+        spriteFX.emit(.dust, at: actor.interpolatedPosition(at: time), time: time)
+    }
+
     func emitFloatingBurst(at roomUV: CGPoint, text: String, colorHex: String = "#C98D26", now: Date = Date()) {
         let clamped = CGPoint(
             x: max(0.08, min(0.92, roomUV.x)),
             y: max(0.10, min(0.88, roomUV.y))
         )
+        let sprite: SpriteFXKind = text.hasPrefix("+") ? .coin : text.hasPrefix("♡") ? .heart : .sparkle
+        if SpriteFXLibrary.contains(sprite) { spriteFX.emit(sprite, at: clamped, time: now) }
         floatingBursts.append(FloatingSunroomBurst(position: clamped, text: text, colorHex: colorHex, createdAt: now))
         if floatingBursts.count > 16 {
             floatingBursts.removeFirst(floatingBursts.count - 16)
@@ -466,8 +566,7 @@ final class SunroomRoamingEngine {
             )
             let dist = hypot(dest.x - startPos.x, dest.y - startPos.y)
             let dur = max(1.4, min(4.2, Double(dist) * 8.2))
-            actor.facingRight = dest.x > startPos.x
-            actor.behavior = .walking(from: startPos, to: dest, startedAt: now, duration: dur, arrivalSpotIndex: nil)
+            actor.beginWalk(from: startPos, to: dest, at: now, duration: dur)
             actor.speechBubble = idx == 0 ? bubble : ["好期待♪", "我也來！♡", "香香的～"][idx % 3]
             actor.bubbleExpiresAt = now.addingTimeInterval(3.8)
             actor.tapExcitedUntil = now.addingTimeInterval(2.5)
@@ -484,8 +583,7 @@ final class SunroomRoamingEngine {
             let cur = a.interpolatedPosition(at: now)
             a.position = cur
             let dist = hypot(leftDest.x - cur.x, leftDest.y - cur.y)
-            a.facingRight = true
-            a.behavior = .walking(from: cur, to: leftDest, startedAt: now, duration: max(1.1, min(3.2, Double(dist) * 7.5)), arrivalSpotIndex: nil)
+            a.beginWalk(from: cur, to: leftDest, at: now, duration: max(1.1, min(3.2, Double(dist) * 7.5)), facingRight: true)
             a.speechBubble = bubbleA
             a.bubbleExpiresAt = now.addingTimeInterval(5.2)
             a.tapExcitedUntil = now.addingTimeInterval(4.0)
@@ -496,8 +594,7 @@ final class SunroomRoamingEngine {
             let cur = b.interpolatedPosition(at: now)
             b.position = cur
             let dist = hypot(rightDest.x - cur.x, rightDest.y - cur.y)
-            b.facingRight = false
-            b.behavior = .walking(from: cur, to: rightDest, startedAt: now, duration: max(1.1, min(3.2, Double(dist) * 7.5)), arrivalSpotIndex: nil)
+            b.beginWalk(from: cur, to: rightDest, at: now, duration: max(1.1, min(3.2, Double(dist) * 7.5)), facingRight: false)
             b.speechBubble = bubbleB
             b.bubbleExpiresAt = now.addingTimeInterval(5.2)
             b.tapExcitedUntil = now.addingTimeInterval(4.0)
@@ -518,9 +615,11 @@ final class SunroomRoamingEngine {
             x: max(0.12, min(0.88, spotUV.x + 0.06)),
             y: max(0.22, min(0.84, spotUV.y + 0.06))
         )
-        if var actor = actors[petID] {
+        if let previous = actors[petID] {
+            var actor = previous
             actor.position = revealUV
             actor.behavior = .playingBall(until: now.addingTimeInterval(3.2), spotIndex: nil)
+            actor.preparePose(from: previous, at: now, startled: true)
             actor.speechBubble = "被你找到啦！♡"
             actor.bubbleExpiresAt = now.addingTimeInterval(3.6)
             actor.tapExcitedUntil = now.addingTimeInterval(2.6)
@@ -536,8 +635,7 @@ final class SunroomRoamingEngine {
         actor.position = cur
         let doorUV = CGPoint(x: 0.91, y: 0.48)
         let dist = hypot(doorUV.x - cur.x, doorUV.y - cur.y)
-        actor.facingRight = true
-        actor.behavior = .walking(from: cur, to: doorUV, startedAt: now, duration: max(1.4, min(3.8, Double(dist) * 8.0)), arrivalSpotIndex: nil)
+        actor.beginWalk(from: cur, to: doorUV, at: now, duration: max(1.4, min(3.8, Double(dist) * 8.0)), facingRight: true)
         actor.speechBubble = "去\(destination)探險囉♪"
         actor.bubbleExpiresAt = now.addingTimeInterval(4.2)
         actor.tapExcitedUntil = now.addingTimeInterval(3.0)
@@ -551,8 +649,7 @@ final class SunroomRoamingEngine {
         let centerUV = CGPoint(x: 0.56, y: 0.56)
         if var actor = actors[petID] {
             actor.position = doorUV
-            actor.facingRight = false
-            actor.behavior = .walking(from: doorUV, to: centerUV, startedAt: now, duration: 2.2, arrivalSpotIndex: nil)
+            actor.beginWalk(from: doorUV, to: centerUV, at: now, duration: 2.2, facingRight: false)
             actor.speechBubble = "我回來囉！帶禮物給你♡"
             actor.bubbleExpiresAt = now.addingTimeInterval(4.5)
             actor.tapExcitedUntil = now.addingTimeInterval(3.5)
@@ -579,14 +676,14 @@ final class SunroomRoamingEngine {
         let dist = hypot(clamped.x - startPos.x, clamped.y - startPos.y)
         if dist < 0.11 {
             actor.behavior = .playingBall(until: now.addingTimeInterval(1.4), spotIndex: nil)
+            actor.preparePose(from: nearest, at: now)
             actor.speechBubble = "抓到羽毛啦！✦"
             actor.bubbleExpiresAt = now.addingTimeInterval(2.0)
             actor.tapExcitedUntil = now.addingTimeInterval(1.5)
             emitFloatingBurst(at: clamped, text: "✦ 撲住羽毛！", colorHex: "#E87A6A", now: now)
         } else {
             let dur = max(0.85, min(2.6, Double(dist) * 5.2))
-            actor.facingRight = clamped.x > startPos.x
-            actor.behavior = .walking(from: startPos, to: clamped, startedAt: now, duration: dur, arrivalSpotIndex: nil)
+            actor.beginWalk(from: startPos, to: clamped, at: now, duration: dur)
             actor.tapExcitedUntil = now.addingTimeInterval(1.4)
         }
         actors[actor.petID] = actor

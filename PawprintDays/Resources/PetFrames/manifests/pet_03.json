@@ -1,0 +1,160 @@
+{
+  "clips" : {
+    "eat" : {
+      "bank" : "e",
+      "events" : {
+        "chew" : [
+          5,
+          7
+        ]
+      },
+      "fps" : 10,
+      "frames" : 10,
+      "loop" : "once",
+      "next" : "idle"
+    },
+    "happy" : {
+      "bank" : "h",
+      "fps" : 10,
+      "frames" : 10,
+      "holds" : {
+        "5" : 2,
+        "6" : 2,
+        "7" : 2,
+        "8" : 2
+      },
+      "loop" : "loop"
+    },
+    "hop" : {
+      "bank" : "j",
+      "events" : {
+        "land" : [
+          7
+        ]
+      },
+      "fps" : 12,
+      "frames" : 9,
+      "loop" : "once",
+      "next" : "idle"
+    },
+    "idle" : {
+      "bank" : "i",
+      "events" : {
+        "blink" : [
+          14
+        ]
+      },
+      "fps" : 8,
+      "frames" : 16,
+      "holds" : {
+        "6" : 3,
+        "13" : 3
+      },
+      "loop" : "loop"
+    },
+    "lie_down" : {
+      "bank" : "ld",
+      "fps" : 12,
+      "frames" : 8,
+      "loop" : "once",
+      "next" : "sleep"
+    },
+    "mouth" : {
+      "bank" : "m",
+      "fps" : 10,
+      "frames" : 8,
+      "holds" : {
+        "1" : 2,
+        "5" : 2
+      },
+      "loop" : "loop"
+    },
+    "play" : {
+      "bank" : "p",
+      "fps" : 10,
+      "frames" : 8,
+      "holds" : {
+        "1" : 2
+      },
+      "loop" : "loop"
+    },
+    "sit_to_stand" : {
+      "bank" : "tu",
+      "fps" : 12,
+      "frames" : 6,
+      "loop" : "once",
+      "next" : "walk"
+    },
+    "sleep" : {
+      "bank" : "s",
+      "fps" : 4,
+      "frames" : 8,
+      "holds" : {
+        "1" : 3,
+        "8" : 2
+      },
+      "loop" : "pingpong"
+    },
+    "stand_to_sit" : {
+      "bank" : "td",
+      "fps" : 12,
+      "frames" : 6,
+      "loop" : "once",
+      "next" : "idle"
+    },
+    "startle" : {
+      "bank" : "r",
+      "events" : {
+        "land" : [
+          4
+        ]
+      },
+      "fps" : 12,
+      "frames" : 6,
+      "loop" : "once",
+      "next" : "idle"
+    },
+    "turn" : {
+      "bank" : "tn",
+      "fps" : 12,
+      "frames" : 8,
+      "loop" : "once",
+      "next" : "walk"
+    },
+    "wake" : {
+      "bank" : "wk",
+      "fps" : 12,
+      "frames" : 8,
+      "loop" : "once",
+      "next" : "idle"
+    },
+    "walk" : {
+      "bank" : "w",
+      "events" : {
+        "footContact" : [
+          1,
+          7
+        ]
+      },
+      "fps" : 12,
+      "frames" : 12,
+      "loop" : "loop",
+      "strideLengthUV" : 0.13390
+    },
+    "walk_right" : {
+      "bank" : "wr",
+      "events" : {
+        "footContact" : [
+          1,
+          7
+        ]
+      },
+      "fps" : 12,
+      "frames" : 12,
+      "loop" : "loop",
+      "strideLengthUV" : 0.062810000000000005
+    }
+  },
+  "pet" : "pet_03",
+  "spec" : 2
+}

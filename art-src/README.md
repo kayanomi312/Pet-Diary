@@ -1,0 +1,63 @@
+# Pawprint Days cel sources
+
+Put transparent sRGB 768 × 768 PNGs in `petframes/pet_XX/<bank>/01.png` through
+`NN.png`. Use Git LFS for these PNGs. Run `git lfs install` for your checkout
+and `git lfs pull` to fetch any missing source images.
+
+Import [guide_768.png](templates/guide_768.png) as a separate guide layer.
+Red marks the y=690 ground line, and blue marks the y=170 head line.
+Center the body at x=384 in stationary poses. Hide the guide layer before
+export. Check the alpha edges on white and black.
+
+From a macOS checkout with Xcode command-line tools:
+
+```sh
+tools/frames/build pet_03 w
+tools/frames/lint pet_03 w
+tools/frames/preview pet_03 w
+```
+
+Omit the bank to work on all source banks for the pet, or omit both arguments
+to work on all source pets. Build converts to quality-0.8 HEIC with alpha,
+updates the per-pet manifest, and removes obsolete higher-numbered HEICs for
+the selected banks. Review the generated changes before committing them.
+Use `tools/frames/build --guide` to regenerate the template.
+
+The [schema](../PawprintDays/Resources/PetFrames/manifests/schema.json) and
+[example](../PawprintDays/Resources/PetFrames/manifests/pet_03.example.json)
+show the manifest format. Each source bank has one clip. If the number of
+drawings changes, update `frames` and any affected holds and event indices
+before rebuilding. Frame indices start at 1. A hold of 3 means the drawing
+occupies three frame intervals in total. Record holds in JSON and export each
+drawing once. `strideLengthUV` is distance in room UV per full cycle and can
+be provided per locomotion clip or as a pet-wide default.
+
+Lint checks source banks whose PNGs are present. With no matching sources it
+reports measurements for the corresponding legacy HEICs. Use
+`tools/frames/lint --legacy` to audit the committed bundle explicitly.
+The halo check is a fringe heuristic. For an anatomical head-height check,
+place `crown-landmarks.json` alongside a bank's PNGs. List one integer
+`[x, y]` pair per drawing, from `01.png` onward, with the origin at the
+top left. Measure the skull crown on the opaque drawing, excluding ears,
+horns and antlers. Lint compares marked banks with the marked idle crown
+and uses the broad silhouette when a bank has no landmarks. Update the
+landmarks when the drawings move or change. Check them against the guide
+on the contact sheet before committing.
+
+Preview writes a contact sheet and timed GIF per selected bank under the
+ignored `art-src/previews/pet_XX/` directory. The default shows adjacent
+drawings at 30% opacity, with the registration guides on top. Add
+`--black` to inspect edges against black or `--clean` to hide neighboring
+drawings. GIFs follow manifest timing, ping-pong order, and holds.
+
+Locomotion banks are `w` (left), `wr` (right), `wf` (toward camera), and
+`wb` (away). Author `tn` to end facing left and `tr` to end facing right.
+Pets with a `wr` clip use the authored right-facing art. Without directional
+banks the app keeps the legacy side-walk behavior.
+
+## Effects sheets
+
+Add transparent sRGB strips to the asset catalog with the names `fx_floor_ripple`,
+`fx_dust`, `fx_heart`, `fx_sparkle`, `fx_coin`, `fx_sleep`, `fx_steam`, and
+`fx_rain_splash`. Place square frames left to right with no gaps. The player
+runs at 12 fps and expects six cells per strip, with eight for heart.

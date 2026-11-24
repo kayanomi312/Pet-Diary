@@ -1,0 +1,124 @@
+Steps and seams are mean absolute alpha differences (0–255) at 192². Geometry is in 768² pixels.
+pet_01/e | 10f @ 10.00 once | steps [6.23, 30.83, 8.97, 20.47, 2.47, 31.31, 7.22, 14.17, 9.51] | median 9.51 | max 31.31 | seam 1.13 | centroid Δ30.73 px | baseline 690–690 | top 108–324 | PASS
+pet_01/h | 10f @ 10.00 loop | steps [2.26, 2.08, 1.20, 0.77, 1.81, 2.36, 2.04, 1.05, 0.77] | median 1.81 | max 2.36 | seam 1.69 | centroid Δ3.81 px | baseline 688–688 | top 119–121 | PASS
+pet_01/i | 16f @ 8.00 loop | steps [1.22, 1.21, 1.20, 1.18, 1.16, 1.12, 1.16, 1.18, 1.20, 1.21, 1.21, 1.22, 1.21, 1.18, 1.22] | median 1.20 | max 1.22 | seam 1.22 | centroid Δ5.79 px | baseline 688–688 | top 110–127 | PASS
+pet_01/j | 9f @ 12.00 once | steps [51.59, 6.08, 50.67, 24.33, 32.84, 32.31, 7.99, 53.40] | median 32.57 | max 53.40 | seam 2.23 | centroid Δ19.69 px | baseline 580–690 | top 110–210 | PASS
+pet_01/ld | 8f @ 12.00 once | steps [8.78, 17.05, 17.26, 8.16, 14.30, 9.47, 4.01] | median 9.47 | max 17.26 | seam 40.16 | centroid Δ22.60 px | baseline 688–689 | top 119–353 | PASS
+pet_01/m | 8f @ 10.00 loop | steps [2.75, 2.13, 1.22, 2.09, 2.86, 2.05, 1.17] | median 2.09 | max 2.86 | seam 2.00 | centroid Δ4.12 px | baseline 688–688 | top 106–108 | PASS
+pet_01/p | 8f @ 10.00 loop | steps [2.07, 2.07, 1.38, 1.63, 2.07, 2.04, 1.36] | median 2.04 | max 2.07 | seam 1.61 | centroid Δ5.45 px | baseline 690–690 | top 132–137 | PASS
+pet_01/r | 6f @ 12.00 once | steps [30.44, 53.15, 47.41, 44.26, 10.62] | median 44.26 | max 53.15 | seam 1.22 | centroid Δ120.66 px | baseline 645–688 | top 111–188 | PASS
+pet_01/s | 8f @ 4.00 pingpong | steps [0.66, 0.65, 0.64, 0.63, 0.62, 0.60, 0.59] | median 0.63 | max 0.66 | seam 4.35 | centroid Δ5.13 px | baseline 688–688 | top 290–311 | PASS
+pet_01/td | 6f @ 12.00 once | steps [5.82, 28.60, 6.77, 38.94, 5.05] | median 6.77 | max 38.94 | seam 54.90 | centroid Δ15.70 px | baseline 690–690 | top 105–177 | PASS
+pet_01/tn | 8f @ 12.00 once | steps [8.10, 20.13, 4.69, 5.48, 19.81, 12.47, 17.88] | median 12.47 | max 20.13 | seam 44.79 | centroid Δ6.03 px | baseline 688–689 | top 119–120 | PASS
+pet_01/tu | 6f @ 12.00 once | steps [5.05, 38.94, 6.77, 28.60, 5.82] | median 6.77 | max 38.94 | seam 54.90 | centroid Δ15.70 px | baseline 690–690 | top 105–177 | PASS
+pet_01/w | 16f @ 10.00 loop | steps [7.46, 8.17, 5.82, 8.05, 6.17, 7.38, 7.92, 6.22, 7.23, 5.36, 7.00, 6.58, 7.05, 7.05, 5.39] | median 7.05 | max 8.17 | seam 7.90 | centroid Δ0.06 px | baseline 688–689 | top 67–83 | PASS
+pet_01/wk | 8f @ 12.00 once | steps [4.01, 9.47, 14.30, 8.16, 17.26, 17.05, 8.78] | median 9.47 | max 17.26 | seam 40.16 | centroid Δ22.60 px | baseline 688–689 | top 119–353 | PASS
+pet_01/wr | 12f @ 12.00 loop | steps [17.81, 17.96, 21.16, 24.35, 13.37, 26.53, 26.17, 10.64, 25.00, 22.54, 15.74] | median 21.16 | max 26.53 | seam 20.49 | centroid Δ0.01 px | baseline 688–688 | top 42–57 | PASS
+pet_02/e | 10f @ 10.00 once | steps [8.34, 30.48, 11.41, 31.04, 3.39, 39.48, 8.82, 21.60, 19.39] | median 19.39 | max 39.48 | seam 1.65 | centroid Δ43.06 px | baseline 690–690 | top 111–285 | PASS
+pet_02/h | 10f @ 10.00 loop | steps [3.27, 3.16, 1.96, 1.03, 2.45, 3.39, 3.08, 1.77, 0.99] | median 2.45 | max 3.39 | seam 2.30 | centroid Δ3.42 px | baseline 688–688 | top 104–106 | PASS
+pet_02/i | 16f @ 8.00 loop | steps [2.03, 2.07, 2.11, 2.13, 2.17, 2.02, 2.20, 2.17, 2.14, 2.09, 2.06, 2.01, 1.97, 1.78, 1.94] | median 2.07 | max 2.20 | seam 1.99 | centroid Δ6.58 px | baseline 688–688 | top 109–125 | PASS
+pet_02/j | 9f @ 12.00 once | steps [51.88, 8.87, 65.54, 31.56, 41.43, 43.24, 11.87, 58.94] | median 42.33 | max 65.54 | seam 3.72 | centroid Δ56.98 px | baseline 580–690 | top 118–211 | PASS
+pet_02/ld | 8f @ 12.00 once | steps [16.07, 25.25, 27.02, 20.47, 16.99, 7.22, 3.01] | median 16.99 | max 27.02 | seam 42.60 | centroid Δ33.33 px | baseline 688–689 | top 118–308 | PASS
+pet_02/m | 8f @ 10.00 loop | steps [3.99, 3.41, 1.87, 2.86, 4.17, 3.17, 1.73] | median 3.17 | max 4.17 | seam 2.65 | centroid Δ3.35 px | baseline 688–688 | top 104–106 | PASS
+pet_02/p | 8f @ 10.00 loop | steps [1.78, 1.70, 1.37, 1.47, 1.75, 1.68, 1.38] | median 1.68 | max 1.78 | seam 1.47 | centroid Δ3.84 px | baseline 690–690 | top 103–106 | PASS
+pet_02/r | 6f @ 12.00 once | steps [44.95, 75.83, 60.94, 49.30, 17.16] | median 49.30 | max 75.83 | seam 2.03 | centroid Δ151.04 px | baseline 645–689 | top 109–186 | PASS
+pet_02/s | 8f @ 4.00 pingpong | steps [1.11, 1.10, 1.10, 1.09, 1.07, 1.06, 1.05] | median 1.09 | max 1.11 | seam 6.34 | centroid Δ7.95 px | baseline 688–688 | top 249–264 | PASS
+pet_02/td | 6f @ 12.00 once | steps [10.04, 39.58, 10.34, 41.25, 6.53] | median 10.34 | max 41.25 | seam 62.41 | centroid Δ51.37 px | baseline 690–690 | top 118–155 | PASS
+pet_02/tn | 8f @ 12.00 once | steps [11.84, 22.32, 5.74, 5.66, 19.17, 16.47, 18.04] | median 16.47 | max 22.32 | seam 44.09 | centroid Δ20.97 px | baseline 688–688 | top 118–118 | PASS
+pet_02/tu | 6f @ 12.00 once | steps [6.53, 41.25, 10.34, 39.58, 10.04] | median 10.34 | max 41.25 | seam 62.41 | centroid Δ51.37 px | baseline 690–690 | top 118–155 | PASS
+pet_02/w | 12f @ 12.00 loop | steps [7.51, 11.71, 7.30, 16.13, 22.82, 16.35, 19.20, 27.27, 12.89, 11.99, 17.06] | median 16.13 | max 27.27 | seam 12.30 | centroid Δ38.28 px | baseline 690–690 | top 43–59 | side-walk centroid range > 10 px
+pet_02/wk | 8f @ 12.00 once | steps [3.01, 7.22, 16.99, 20.47, 27.02, 25.25, 16.07] | median 16.99 | max 27.02 | seam 42.60 | centroid Δ33.33 px | baseline 688–689 | top 118–308 | PASS
+pet_02/wr | 12f @ 12.00 loop | steps [20.71, 24.46, 19.75, 25.52, 32.65, 18.53, 15.94, 24.70, 20.22, 23.39, 18.28] | median 20.71 | max 32.65 | seam 24.50 | centroid Δ0.01 px | baseline 688–688 | top 85–95 | PASS
+pet_02/x | 10f @ 10.00 once | steps [13.91, 45.23, 33.34, 8.83, 52.26, 27.18, 27.36, 9.89, 0.35] | median 27.18 | max 52.26 | seam 0.23 | centroid Δ67.35 px | baseline 690–690 | top 103–265 | PASS
+pet_03/e | 10f @ 10.00 once | steps [7.15, 25.30, 11.39, 33.06, 3.45, 39.57, 8.98, 15.68, 16.11] | median 15.68 | max 39.57 | seam 1.57 | centroid Δ48.25 px | baseline 690–690 | top 104–253 | PASS
+pet_03/h | 10f @ 10.00 loop | steps [2.85, 2.62, 1.57, 0.95, 2.18, 2.89, 2.56, 1.49, 0.92] | median 2.18 | max 2.89 | seam 2.09 | centroid Δ3.78 px | baseline 688–688 | top 107–109 | PASS
+pet_03/i | 16f @ 8.00 loop | steps [2.16, 2.18, 2.20, 2.22, 2.22, 2.02, 2.22, 2.23, 2.23, 2.20, 2.18, 2.15, 2.11, 1.91, 2.09] | median 2.18 | max 2.23 | seam 2.14 | centroid Δ5.88 px | baseline 688–688 | top 98–115 | PASS
+pet_03/j | 9f @ 12.00 once | steps [61.42, 6.99, 75.34, 31.40, 41.40, 45.61, 10.54, 57.20] | median 43.50 | max 75.34 | seam 4.22 | centroid Δ44.24 px | baseline 580–690 | top 55–225 | PASS
+pet_03/ld | 8f @ 12.00 once | steps [16.77, 35.66, 33.13, 28.94, 16.20, 7.21, 11.10] | median 16.77 | max 35.66 | seam 34.26 | centroid Δ22.84 px | baseline 688–689 | top 109–280 | PASS
+pet_03/m | 8f @ 10.00 loop | steps [3.20, 2.80, 1.62, 2.62, 3.87, 2.43, 1.55] | median 2.62 | max 3.87 | seam 2.51 | centroid Δ3.61 px | baseline 687–689 | top 106–108 | PASS
+pet_03/p | 8f @ 10.00 loop | steps [1.81, 1.69, 1.30, 1.54, 1.78, 1.67, 1.33] | median 1.67 | max 1.81 | seam 1.57 | centroid Δ3.83 px | baseline 690–690 | top 67–68 | PASS
+pet_03/r | 6f @ 12.00 once | steps [30.86, 59.28, 53.54, 43.50, 17.54] | median 43.50 | max 59.28 | seam 2.16 | centroid Δ71.24 px | baseline 646–688 | top 100–187 | PASS
+pet_03/s | 8f @ 4.00 pingpong | steps [0.89, 0.87, 0.85, 0.83, 0.81, 0.78, 0.77] | median 0.83 | max 0.89 | seam 5.41 | centroid Δ6.55 px | baseline 688–688 | top 221–235 | PASS
+pet_03/td | 6f @ 12.00 once | steps [8.96, 28.62, 11.08, 41.40, 6.15] | median 11.08 | max 41.40 | seam 55.68 | centroid Δ50.21 px | baseline 690–690 | top 107–154 | PASS
+pet_03/tn | 8f @ 12.00 once | steps [19.63, 27.53, 43.88, 21.07, 25.18, 12.58, 13.49] | median 21.07 | max 43.88 | seam 74.28 | centroid Δ86.93 px | baseline 688–689 | top 91–104 | PASS
+pet_03/tu | 6f @ 12.00 once | steps [6.15, 41.40, 11.08, 28.62, 8.96] | median 11.08 | max 41.40 | seam 55.68 | centroid Δ50.21 px | baseline 690–690 | top 107–154 | PASS
+pet_03/w | 12f @ 12.00 loop | steps [17.23, 16.46, 23.03, 20.36, 8.84, 26.76, 16.81, 10.38, 27.77, 22.29, 17.26] | median 17.26 | max 27.77 | seam 25.51 | centroid Δ7.18 px | baseline 688–688 | top 35–42 | PASS
+pet_03/wk | 8f @ 12.00 once | steps [11.10, 7.21, 16.20, 28.94, 33.13, 35.66, 16.77] | median 16.77 | max 35.66 | seam 34.26 | centroid Δ22.84 px | baseline 688–689 | top 109–280 | PASS
+pet_03/wr | 12f @ 12.00 loop | steps [7.39, 10.32, 8.14, 8.82, 14.21, 8.99, 8.67, 11.56, 9.06, 7.90, 10.18] | median 8.99 | max 14.21 | seam 7.71 | centroid Δ11.01 px | baseline 690–690 | top 91–95 | side-walk centroid range > 10 px
+pet_04/e | 10f @ 10.00 once | steps [9.81, 27.35, 9.25, 28.01, 2.70, 37.76, 7.12, 19.71, 18.26] | median 18.26 | max 37.76 | seam 1.57 | centroid Δ36.01 px | baseline 689–690 | top 71–368 | PASS
+pet_04/h | 10f @ 10.00 loop | steps [2.36, 2.13, 1.24, 0.92, 1.85, 2.40, 2.14, 1.18, 0.93] | median 1.85 | max 2.40 | seam 1.81 | centroid Δ5.18 px | baseline 688–688 | top 89–90 | PASS
+pet_04/i | 16f @ 8.00 loop | steps [1.68, 1.69, 1.70, 1.68, 1.68, 1.53, 1.69, 1.70, 1.70, 1.70, 1.71, 1.69, 1.69, 1.55, 1.67] | median 1.69 | max 1.71 | seam 1.69 | centroid Δ3.78 px | baseline 688–688 | top 68–80 | PASS
+pet_04/j | 9f @ 12.00 once | steps [63.99, 7.96, 58.86, 28.10, 37.86, 37.01, 9.00, 63.87] | median 37.44 | max 63.99 | seam 3.82 | centroid Δ16.27 px | baseline 580–690 | top 76–194 | PASS
+pet_04/ld | 8f @ 12.00 once | steps [11.16, 22.96, 21.23, 12.92, 18.19, 14.86, 6.90] | median 14.86 | max 22.96 | seam 46.85 | centroid Δ60.08 px | baseline 688–688 | top 75–264 | PASS
+pet_04/m | 8f @ 10.00 loop | steps [2.87, 2.21, 1.38, 2.18, 2.93, 2.17, 1.35] | median 2.18 | max 2.93 | seam 2.15 | centroid Δ5.98 px | baseline 688–688 | top 88–89 | PASS
+pet_04/p | 8f @ 10.00 loop | steps [2.16, 1.95, 1.19, 1.64, 2.14, 1.92, 1.19] | median 1.92 | max 2.16 | seam 1.62 | centroid Δ4.62 px | baseline 690–690 | top 78–80 | PASS
+pet_04/r | 6f @ 12.00 once | steps [34.04, 68.61, 53.97, 51.23, 15.88] | median 51.23 | max 68.61 | seam 1.68 | centroid Δ96.49 px | baseline 646–688 | top 68–148 | PASS
+pet_04/s | 8f @ 4.00 pingpong | steps [0.79, 0.77, 0.75, 0.73, 0.71, 0.69, 0.68] | median 0.73 | max 0.79 | seam 4.64 | centroid Δ6.50 px | baseline 688–688 | top 225–233 | PASS
+pet_04/td | 6f @ 12.00 once | steps [7.59, 53.42, 6.10, 38.79, 7.49] | median 7.59 | max 53.42 | seam 74.30 | centroid Δ14.10 px | baseline 690–690 | top 76–169 | PASS
+pet_04/tn | 8f @ 12.00 once | steps [33.85, 25.35, 57.87, 28.47, 49.63, 30.21, 11.13] | median 30.21 | max 57.87 | seam 73.57 | centroid Δ101.98 px | baseline 688–688 | top 85–114 | PASS
+pet_04/tu | 6f @ 12.00 once | steps [7.49, 38.79, 6.10, 53.42, 7.59] | median 7.59 | max 53.42 | seam 74.30 | centroid Δ14.10 px | baseline 690–690 | top 76–169 | PASS
+pet_04/w | 12f @ 12.00 loop | steps [11.44, 16.92, 11.69, 10.46, 21.44, 13.11, 6.81, 19.84, 6.35, 6.74, 22.87] | median 11.69 | max 22.87 | seam 15.02 | centroid Δ8.35 px | baseline 689–690 | top 70–92 | max step > 1.8× median
+pet_04/wk | 8f @ 12.00 once | steps [6.90, 14.86, 18.19, 12.92, 21.23, 22.96, 11.16] | median 14.86 | max 22.96 | seam 46.85 | centroid Δ60.08 px | baseline 688–688 | top 75–264 | PASS
+pet_04/wr | 12f @ 12.00 loop | steps [9.92, 13.34, 10.13, 9.47, 13.77, 9.32, 17.93, 22.21, 7.44, 6.88, 15.99] | median 10.13 | max 22.21 | seam 9.48 | centroid Δ17.65 px | baseline 690–690 | top 71–86 | max step > 1.8× median, side-walk centroid range > 10 px
+pet_04/x | 10f @ 10.00 once | steps [18.45, 40.42, 50.50, 33.08, 0.63, 66.32, 34.70, 14.80, 3.99] | median 33.08 | max 66.32 | seam 0.23 | centroid Δ66.61 px | baseline 690–690 | top 16–84 | PASS
+pet_05/e | 10f @ 10.00 once | steps [9.15, 31.30, 9.24, 24.46, 2.57, 33.01, 6.91, 15.94, 18.18] | median 15.94 | max 33.01 | seam 1.33 | centroid Δ35.17 px | baseline 690–690 | top 92–353 | PASS
+pet_05/h | 10f @ 10.00 loop | steps [5.13, 4.20, 2.84, 3.26, 4.66, 4.74, 4.19, 2.79, 3.27] | median 4.19 | max 5.13 | seam 3.70 | centroid Δ15.32 px | baseline 690–690 | top 85–106 | PASS
+pet_05/i | 16f @ 8.00 loop | steps [2.38, 2.00, 0.90, 0.83, 1.93, 2.00, 1.05, 1.32, 2.46, 1.13, 1.06, 0.67, 0.53, 0.76, 0.97] | median 1.06 | max 2.46 | seam 1.78 | centroid Δ9.88 px | baseline 690–690 | top 84–111 | max step > 1.8× median, seam > 1.5× median
+pet_05/j | 9f @ 12.00 once | steps [52.52, 6.35, 52.48, 22.61, 30.59, 38.65, 7.51, 55.62] | median 34.62 | max 55.62 | seam 2.74 | centroid Δ27.58 px | baseline 580–690 | top 97–330 | PASS
+pet_05/ld | 8f @ 12.00 once | steps [17.68, 21.86, 21.77, 9.66, 13.68, 17.84, 6.02] | median 17.68 | max 21.86 | seam 44.32 | centroid Δ33.33 px | baseline 688–689 | top 95–338 | PASS
+pet_05/m | 8f @ 10.00 loop | steps [4.05, 3.65, 2.93, 3.26, 4.42, 4.61, 3.11] | median 3.65 | max 4.61 | seam 3.23 | centroid Δ5.47 px | baseline 690–690 | top 80–99 | PASS
+pet_05/p | 8f @ 10.00 loop | steps [4.61, 4.47, 3.82, 4.18, 5.18, 4.75, 3.97] | median 4.47 | max 5.18 | seam 4.29 | centroid Δ9.67 px | baseline 690–690 | top 101–122 | PASS
+pet_05/r | 6f @ 12.00 once | steps [29.54, 41.75, 42.02, 34.65, 9.45] | median 34.65 | max 42.02 | seam 2.38 | centroid Δ79.75 px | baseline 645–688 | top 87–165 | PASS
+pet_05/s | 8f @ 4.00 pingpong | steps [0.16, 0.21, 0.40, 0.48, 0.27, 0.16, 0.71] | median 0.27 | max 0.71 | seam 1.85 | centroid Δ1.60 px | baseline 690–690 | top 335–340 | max step > 1.8× median
+pet_05/td | 6f @ 12.00 once | steps [6.66, 35.05, 4.13, 28.94, 6.36] | median 6.66 | max 35.05 | seam 54.01 | centroid Δ28.08 px | baseline 690–690 | top 97–161 | PASS
+pet_05/tn | 8f @ 12.00 once | steps [17.22, 9.03, 9.10, 4.13, 17.24, 19.50, 19.01] | median 17.22 | max 19.50 | seam 43.93 | centroid Δ9.80 px | baseline 688–689 | top 94–95 | PASS
+pet_05/tu | 6f @ 12.00 once | steps [6.36, 28.94, 4.13, 35.05, 6.66] | median 6.66 | max 35.05 | seam 54.01 | centroid Δ28.08 px | baseline 690–690 | top 97–161 | PASS
+pet_05/w | 12f @ 12.00 loop | steps [21.67, 20.30, 21.05, 23.65, 14.73, 24.55, 19.16, 22.36, 28.27, 13.14, 17.89] | median 21.05 | max 28.27 | seam 26.92 | centroid Δ0.06 px | baseline 687–688 | top 45–49 | PASS
+pet_05/wk | 8f @ 12.00 once | steps [6.02, 17.84, 13.68, 9.66, 21.77, 21.86, 17.68] | median 17.68 | max 21.86 | seam 44.32 | centroid Δ33.33 px | baseline 688–689 | top 95–338 | PASS
+pet_05/wr | 12f @ 12.00 loop | steps [25.96, 18.37, 16.12, 11.98, 18.13, 23.53, 20.47, 13.84, 15.66, 21.89, 12.36] | median 18.13 | max 25.96 | seam 22.80 | centroid Δ0.01 px | baseline 688–688 | top 98–103 | PASS
+pet_06/e | 10f @ 10.00 once | steps [6.20, 24.64, 9.15, 24.17, 2.80, 30.31, 7.36, 16.38, 16.29] | median 16.29 | max 30.31 | seam 1.32 | centroid Δ44.01 px | baseline 690–690 | top 109–328 | PASS
+pet_06/h | 10f @ 10.00 loop | steps [5.01, 4.60, 3.08, 3.02, 4.27, 5.78, 4.74, 3.63, 3.18] | median 4.27 | max 5.78 | seam 3.98 | centroid Δ15.33 px | baseline 690–690 | top 132–146 | PASS
+pet_06/i | 16f @ 8.00 loop | steps [2.30, 2.03, 1.17, 1.11, 1.25, 1.18, 1.61, 1.60, 2.86, 1.90, 1.41, 0.93, 0.99, 1.14, 1.54] | median 1.41 | max 2.86 | seam 1.36 | centroid Δ8.72 px | baseline 690–690 | top 128–147 | max step > 1.8× median
+pet_06/j | 9f @ 12.00 once | steps [52.01, 7.44, 62.23, 29.00, 38.77, 41.85, 9.42, 54.02] | median 40.31 | max 62.23 | seam 2.81 | centroid Δ43.92 px | baseline 580–690 | top 100–321 | PASS
+pet_06/ld | 8f @ 12.00 once | steps [9.70, 19.88, 21.79, 12.45, 13.16, 17.49, 8.90] | median 13.16 | max 21.79 | seam 44.40 | centroid Δ5.31 px | baseline 688–688 | top 136–340 | PASS
+pet_06/m | 8f @ 10.00 loop | steps [4.37, 4.57, 2.97, 3.36, 4.78, 4.76, 3.11] | median 4.37 | max 4.78 | seam 2.96 | centroid Δ8.20 px | baseline 690–690 | top 128–142 | PASS
+pet_06/p | 8f @ 10.00 loop | steps [8.94, 7.85, 5.34, 6.91, 9.24, 8.37, 5.09] | median 7.85 | max 9.24 | seam 7.12 | centroid Δ12.80 px | baseline 690–690 | top 41–64 | PASS
+pet_06/r | 6f @ 12.00 once | steps [19.09, 48.81, 49.35, 38.85, 14.80] | median 38.85 | max 49.35 | seam 2.29 | centroid Δ87.06 px | baseline 645–689 | top 127–202 | PASS
+pet_06/s | 12f @ 4.00 pingpong | steps [1.17, 1.21, 1.26, 1.03, 1.21, 1.06, 1.52, 1.54, 1.45, 1.12, 0.95] | median 1.21 | max 1.54 | seam 1.01 | centroid Δ1.41 px | baseline 690–690 | top 301–307 | PASS
+pet_06/td | 6f @ 12.00 once | steps [7.73, 31.62, 10.13, 30.03, 4.70] | median 10.13 | max 31.62 | seam 54.64 | centroid Δ54.90 px | baseline 690–691 | top 131–155 | PASS
+pet_06/tn | 8f @ 12.00 once | steps [8.98, 22.04, 4.48, 7.71, 14.42, 13.40, 13.25] | median 13.25 | max 22.04 | seam 39.93 | centroid Δ0.01 px | baseline 688–689 | top 135–136 | PASS
+pet_06/tu | 6f @ 12.00 once | steps [4.70, 30.03, 10.13, 31.62, 7.73] | median 10.13 | max 31.62 | seam 54.64 | centroid Δ54.90 px | baseline 690–691 | top 131–155 | PASS
+pet_06/w | 12f @ 12.00 loop | steps [8.48, 13.97, 7.73, 9.22, 28.28, 15.41, 8.22, 18.39, 5.57, 12.21, 20.96] | median 12.21 | max 28.28 | seam 8.53 | centroid Δ12.64 px | baseline 690–690 | top 108–128 | max step > 1.8× median, side-walk centroid range > 10 px
+pet_06/wk | 8f @ 12.00 once | steps [8.90, 17.49, 13.16, 12.45, 21.79, 19.88, 9.70] | median 13.16 | max 21.79 | seam 44.40 | centroid Δ5.31 px | baseline 688–688 | top 136–340 | PASS
+pet_06/wr | 12f @ 12.00 loop | steps [13.46, 25.25, 19.20, 20.93, 23.20, 33.43, 38.80, 22.09, 23.07, 19.57, 21.33] | median 22.09 | max 38.80 | seam 23.91 | centroid Δ0.01 px | baseline 687–688 | top 99–109 | PASS
+pet_07/e | 10f @ 10.00 once | steps [6.89, 20.64, 8.72, 23.26, 2.94, 28.69, 7.13, 10.34, 9.81] | median 9.81 | max 28.69 | seam 1.35 | centroid Δ48.11 px | baseline 690–690 | top 157–320 | PASS
+pet_07/h | 10f @ 10.00 loop | steps [4.70, 3.95, 2.24, 3.03, 4.34, 3.71, 3.16, 2.32, 2.84] | median 3.16 | max 4.70 | seam 3.07 | centroid Δ10.09 px | baseline 690–690 | top 159–170 | PASS
+pet_07/i | 16f @ 8.00 loop | steps [1.55, 1.52, 1.31, 0.93, 0.84, 1.13, 1.35, 1.52, 2.42, 1.39, 1.23, 0.96, 0.86, 1.14, 1.34] | median 1.31 | max 2.42 | seam 1.46 | centroid Δ5.03 px | baseline 690–690 | top 163–176 | max step > 1.8× median
+pet_07/j | 9f @ 12.00 once | steps [41.41, 5.97, 51.25, 21.08, 29.09, 34.94, 7.30, 41.78] | median 32.01 | max 51.25 | seam 3.09 | centroid Δ36.00 px | baseline 580–690 | top 141–339 | PASS
+pet_07/ld | 8f @ 12.00 once | steps [8.96, 21.00, 17.83, 10.30, 12.77, 5.72, 6.01] | median 10.30 | max 21.00 | seam 37.27 | centroid Δ1.89 px | baseline 688–688 | top 167–356 | PASS
+pet_07/m | 8f @ 10.00 loop | steps [5.16, 4.19, 3.15, 4.57, 5.53, 4.39, 3.27] | median 4.39 | max 5.53 | seam 4.39 | centroid Δ8.81 px | baseline 690–690 | top 163–177 | PASS
+pet_07/p | 8f @ 10.00 loop | steps [6.47, 5.34, 4.94, 6.17, 6.62, 5.46, 5.28] | median 5.46 | max 6.62 | seam 6.50 | centroid Δ11.08 px | baseline 690–690 | top 158–175 | PASS
+pet_07/r | 6f @ 12.00 once | steps [24.60, 42.95, 37.23, 31.79, 13.06] | median 31.79 | max 42.95 | seam 1.56 | centroid Δ91.69 px | baseline 645–689 | top 156–229 | PASS
+pet_07/s | 8f @ 4.00 pingpong | steps [0.27, 0.74, 0.64, 0.62, 0.73, 0.27, 0.67] | median 0.64 | max 0.74 | seam 3.10 | centroid Δ1.69 px | baseline 690–690 | top 341–348 | PASS
+pet_07/td | 6f @ 12.00 once | steps [5.08, 23.04, 4.76, 18.67, 4.78] | median 5.08 | max 23.04 | seam 40.39 | centroid Δ37.90 px | baseline 690–690 | top 169–190 | PASS
+pet_07/tn | 8f @ 12.00 once | steps [7.72, 10.10, 7.83, 5.75, 9.69, 7.17, 4.79] | median 7.72 | max 10.10 | seam 31.66 | centroid Δ0.00 px | baseline 688–689 | top 166–167 | PASS
+pet_07/tu | 6f @ 12.00 once | steps [4.78, 18.67, 4.76, 23.04, 5.08] | median 5.08 | max 23.04 | seam 40.39 | centroid Δ37.90 px | baseline 690–690 | top 169–190 | PASS
+pet_07/w | 16f @ 10.00 loop | steps [4.55, 5.71, 5.02, 5.07, 5.16, 5.10, 5.58, 4.93, 5.37, 4.28, 5.02, 5.68, 4.92, 5.01, 5.33] | median 5.07 | max 5.71 | seam 5.41 | centroid Δ0.07 px | baseline 688–689 | top 154–181 | PASS
+pet_07/wk | 8f @ 12.00 once | steps [6.01, 5.72, 12.77, 10.30, 17.83, 21.00, 8.96] | median 10.30 | max 21.00 | seam 37.27 | centroid Δ1.89 px | baseline 688–688 | top 167–356 | PASS
+pet_07/wr | 12f @ 12.00 loop | steps [8.61, 11.29, 11.54, 14.77, 8.45, 18.46, 19.61, 12.98, 10.60, 13.74, 10.98] | median 11.54 | max 19.61 | seam 13.54 | centroid Δ0.00 px | baseline 688–688 | top 159–163 | PASS
+pet_08/e | 10f @ 10.00 once | steps [7.85, 28.75, 12.28, 29.52, 5.24, 41.05, 9.81, 15.16, 13.44] | median 13.44 | max 41.05 | seam 1.58 | centroid Δ38.26 px | baseline 690–690 | top 58–309 | PASS
+pet_08/h | 10f @ 10.00 loop | steps [5.33, 4.72, 2.91, 4.47, 5.28, 5.57, 5.46, 2.94, 4.06] | median 4.72 | max 5.57 | seam 5.33 | centroid Δ10.80 px | baseline 690–690 | top 56–77 | PASS
+pet_08/i | 16f @ 8.00 loop | steps [2.53, 2.28, 1.51, 0.75, 2.36, 1.34, 1.46, 1.88, 3.98, 1.52, 1.84, 0.67, 0.85, 1.43, 1.25] | median 1.51 | max 3.98 | seam 1.44 | centroid Δ7.14 px | baseline 690–690 | top 59–84 | max step > 1.8× median
+pet_08/j | 9f @ 12.00 once | steps [56.25, 9.24, 58.55, 33.04, 41.09, 31.62, 12.79, 59.15] | median 37.07 | max 59.15 | seam 3.90 | centroid Δ49.12 px | baseline 580–690 | top 69–330 | PASS
+pet_08/ld | 8f @ 12.00 once | steps [23.84, 44.05, 25.56, 21.10, 20.48, 12.37, 10.55] | median 21.10 | max 44.05 | seam 46.57 | centroid Δ20.23 px | baseline 688–689 | top 48–336 | PASS
+pet_08/m | 8f @ 10.00 loop | steps [4.49, 3.55, 1.96, 3.39, 4.37, 3.62, 2.00] | median 3.55 | max 4.49 | seam 3.18 | centroid Δ3.19 px | baseline 690–690 | top 67–87 | PASS
+pet_08/p | 8f @ 10.00 loop | steps [7.84, 5.67, 4.95, 7.70, 8.24, 6.27, 5.38] | median 6.27 | max 8.24 | seam 7.45 | centroid Δ6.42 px | baseline 690–690 | top 49–74 | PASS
+pet_08/r | 6f @ 12.00 once | steps [16.79, 48.46, 41.08, 38.11, 17.84] | median 38.11 | max 48.46 | seam 2.54 | centroid Δ114.33 px | baseline 646–688 | top 62–141 | PASS
+pet_08/s | 8f @ 4.00 pingpong | steps [0.28, 0.71, 0.80, 1.18, 0.74, 0.28, 1.61] | median 0.74 | max 1.61 | seam 2.81 | centroid Δ3.34 px | baseline 690–690 | top 305–311 | max step > 1.8× median
+pet_08/td | 6f @ 12.00 once | steps [10.92, 38.42, 12.48, 37.02, 6.71] | median 12.48 | max 38.42 | seam 63.02 | centroid Δ51.80 px | baseline 690–690 | top 55–84 | PASS
+pet_08/tn | 8f @ 12.00 once | steps [42.86, 32.52, 39.29, 31.99, 52.24, 18.58, 21.12] | median 32.52 | max 52.24 | seam 61.04 | centroid Δ85.16 px | baseline 687–688 | top 10–45 | PASS
+pet_08/tu | 6f @ 12.00 once | steps [6.71, 37.02, 12.48, 38.42, 10.92] | median 12.48 | max 38.42 | seam 63.02 | centroid Δ51.80 px | baseline 690–690 | top 55–84 | PASS
+pet_08/w | 16f @ 10.00 loop | steps [5.59, 5.95, 6.11, 6.08, 5.99, 6.61, 5.92, 6.08, 3.79, 5.98, 5.89, 5.67, 6.60, 6.35, 6.95] | median 5.99 | max 6.95 | seam 6.20 | centroid Δ0.08 px | baseline 688–688 | top 67–80 | PASS
+pet_08/wk | 8f @ 12.00 once | steps [10.55, 12.37, 20.48, 21.10, 25.56, 44.05, 23.84] | median 21.10 | max 44.05 | seam 46.57 | centroid Δ20.23 px | baseline 688–689 | top 48–336 | PASS
+pet_08/wr | 12f @ 12.00 loop | steps [17.10, 33.24, 9.59, 16.64, 27.10, 9.00, 11.08, 13.21, 7.99, 11.67, 20.75] | median 13.21 | max 33.24 | seam 11.92 | centroid Δ7.15 px | baseline 690–690 | top 47–74 | max step > 1.8× median
+12 of 122 banks failed smoothness

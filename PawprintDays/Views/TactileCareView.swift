@@ -2,6 +2,7 @@ import SwiftUI
 
 /// 近距離撫摸梳毛與木製掛衣架（繁體中文）
 struct TactileCareView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var coordinator: GameCoordinator
     let petID: String
 
@@ -78,7 +79,7 @@ struct TactileCareView: View {
                         accessibilityLabelText: "更多照護選項"
                     ) {
                         CozySoundEngine.shared.playPaperFlip()
-                        withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
+                        withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
                             showMoreActionsPopover.toggle()
                         }
                     }
@@ -99,12 +100,14 @@ struct TactileCareView: View {
                                     .font(.system(size: 12, weight: .bold))
                                     .foregroundStyle(idx < brushStrokeCount ? Color(hex: "#E36B5E") : Color(hex: "#CBBAA0"))
                                     .scaleEffect(idx < brushStrokeCount ? 1.15 : 1.0)
-                                    .animation(.spring(response: 0.3, dampingFraction: 0.55), value: brushStrokeCount)
+                                    .animation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion), value: brushStrokeCount)
                             }
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(Color(hex: "#FFF7EC"), in: Capsule())
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("今日照護進度 \(min(3, brushStrokeCount)) / 3")
                     }
 
                     HStack(spacing: 6) {
@@ -114,8 +117,9 @@ struct TactileCareView: View {
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(Color(hex: petSpec.gender.badgeHex), in: Capsule())
+                            .accessibilityHidden(true)
                         SpeciesFolkloreBadgeView(kind: petSpec.kind)
-                        Text("\(resident?.milestoneTitle ?? "初次相遇") · 相伴 \(resident?.sharedDaysCount ?? 1) 天")
+                        Text(resident?.relationshipStatusLabel ?? "陽光室室友 · 第 1 天")
                             .font(.system(size: 11.5, weight: .medium, design: .rounded))
                             .foregroundStyle(AppTheme.softInk)
                     }
@@ -161,10 +165,10 @@ struct TactileCareView: View {
 
                     // 拋出金色小魚餅飛向毛孩的弧線動畫！
                     if let p = flyingSnackProgress {
-                        let x = -110 + p * 110
-                        let y = 70 - sin(p * .pi) * 145
+                        let x = reduceMotion ? 0 : -110 + p * 110
+                        let y = reduceMotion ? 42 : 70 - sin(p * .pi) * 145
                         CuteCareToyIcon(kind: .fishSnack, size: 34)
-                            .rotationEffect(.degrees(Double(p) * 320))
+                            .rotationEffect(.degrees(reduceMotion ? 0 : Double(p) * 320))
                             .offset(x: x, y: y)
                             .allowsHitTesting(false)
                     }
@@ -172,9 +176,9 @@ struct TactileCareView: View {
                     // 揮動粉色羽毛逗貓棒動畫！
                     if wavingTeaserActive {
                         CuteCareToyIcon(kind: .teaserWand, size: 42)
-                            .rotationEffect(.degrees(wavingTeaserActive ? 18 : -18))
+                            .rotationEffect(.degrees(reduceMotion ? 0 : (wavingTeaserActive ? 18 : -18)))
                             .offset(x: 68, y: -58)
-                            .transition(.scale.combined(with: .opacity))
+                            .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
                             .allowsHitTesting(false)
                     }
 
@@ -250,7 +254,7 @@ struct TactileCareView: View {
                                     coordinator.completeTactileCare(petID: petID)
                                     HapticsEngine.shared.playCurioUnpack()
                                     CozySoundEngine.shared.playCompassChime()
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
+                                    withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) {
                                         showCareStamp = true
                                     }
                                     Task { @MainActor in
@@ -295,10 +299,14 @@ struct TactileCareView: View {
                 Text(activePlayAction == .cozyNap
                      ? "\(petSpec.name)蓋著小被子發出甜甜的呼嚕聲…"
                      : "輕點頭頂、抓下巴、戳肚皮或滑動梳毛來陪伴\(petSpec.name)")
-                    .font(.system(size: 12.5, weight: .medium, design: .rounded))
-                    .foregroundStyle(Color(hex: "#6B5E53"))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppTheme.deepPineInk)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(AppTheme.warmPaper.opacity(0.88), in: Capsule())
+                    .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.30), lineWidth: 0.8))
+                    .padding(.horizontal, 20)
                     .padding(.bottom, 10)
 
                 // MARK: Clean Unified Warm-Linen Bottom Care Tray (2 Tidy Tabs: 互動陪玩 / 換上衣飾)
@@ -323,11 +331,11 @@ struct TactileCareView: View {
 
                     if activeTrayTab == 0 {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 10) {
+                            HStack(spacing: 8) {
                                 careToyChip(title: petSpec.kind.isCatFamily ? "逗貓棒" : "滾布球", kind: .teaserWand, active: activePlayAction == .pounceHop) {
                                     HapticsEngine.shared.playDogBallRoll()
                                     CozySoundEngine.shared.playBrushSwish()
-                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.5)) { wavingTeaserActive = true }
+                                    withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) { wavingTeaserActive = true }
                                     triggerPlayfulAction(.pounceHop, bubble: cuteReactionLine(for: .pounceHop))
                                     coordinator.completeTactileCare(petID: petID)
                                     Task { @MainActor in
@@ -347,7 +355,7 @@ struct TactileCareView: View {
                                     if activePlayAction == .cozyNap {
                                         triggerPlayfulAction(.bellyBoop, bubble: "伸個大懶腰～早安！")
                                     } else {
-                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.72)) {
+                                        withAnimation(AppTheme.Motion.resolved(.gentle, reduceMotion: reduceMotion)) {
                                             activePlayAction = .cozyNap
                                             actionTriggerDate = Date()
                                             liveReactionBubble = "蓋好被被…呼呼…"
@@ -384,7 +392,7 @@ struct TactileCareView: View {
                                     )
                                 }
                             }
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 14)
                         }
                     } else {
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -431,7 +439,7 @@ struct TactileCareView: View {
                                                     CozySoundEngine.shared.playWardrobeSnap(withBell: item.id == "outfit.occasion_collar")
                                                     triggerPetBounce()
                                                 }
-                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) {
+                                                withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                                                     draggingOutfitID = nil
                                                     draggingOffset = .zero
                                                 }
@@ -439,7 +447,7 @@ struct TactileCareView: View {
                                     )
                                 }
                             }
-                            .padding(.horizontal, 16)
+                            .padding(.horizontal, 14)
                         }
                     }
                 }
@@ -510,7 +518,7 @@ struct TactileCareView: View {
                     .padding(.trailing, 16)
                     Spacer()
                 }
-                .transition(.scale(scale: 0.92, anchor: .topTrailing).combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : .scale(scale: 0.92, anchor: .topTrailing).combined(with: .opacity))
             }
         }
         .sheet(isPresented: $showMentorshipSheet) {
@@ -573,7 +581,7 @@ struct TactileCareView: View {
     }
 
     private func triggerPetBounce() {
-        withAnimation(.spring(response: 0.22, dampingFraction: 0.45)) {
+        withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) {
             petBounce = 1.0
         }
         Task { @MainActor in
@@ -611,7 +619,7 @@ struct TactileCareView: View {
     }
 
     private func triggerPlayfulAction(_ action: PetPlayfulAction, bubble: String) {
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.65)) {
+        withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) {
             activePlayAction = action
             actionTriggerDate = Date()
             liveReactionBubble = bubble
@@ -653,7 +661,7 @@ struct TactileCareView: View {
         let active = (activeTrayTab == index)
         return Button {
             HapticsEngine.shared.playBrushStrokeTick()
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+            withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
                 activeTrayTab = index
             }
         } label: {

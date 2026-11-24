@@ -2,6 +2,7 @@ import SwiftUI
 
 /// 黃銅懷錶羅盤（左下角實體道具 — 含微幅擺動指針、弧面玻璃反光與彈跳按壓手感）
 struct BrassPocketCompassButton: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let destinationLabel: String
     let iconSystemName: String
     let onTap: () -> Void
@@ -10,9 +11,9 @@ struct BrassPocketCompassButton: View {
     @State private var isPressed = false
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            let needleSwing = sin(t * 1.6) * 8.0
+        TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 20.0, reduceMotion: reduceMotion))) { timeline in
+            let t = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
+            let needleSwing = reduceMotion ? 0 : sin(t * 1.6) * 8.0
 
             VStack(spacing: 3) {
                 ZStack {
@@ -91,7 +92,7 @@ struct BrassPocketCompassButton: View {
                 .frame(width: 68, height: 68)
                 .scaleEffect(isPressed ? 0.92 : 1.0)
                 .offset(y: isPressed ? 2.5 : 0)
-                .animation(.spring(response: 0.22, dampingFraction: 0.65), value: isPressed)
+                .animation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion), value: isPressed)
 
                 Text(iconSystemName == "house.fill" ? "回陽光室" : "去散步")
                     .font(AppTheme.diegeticLabel(11))
@@ -123,6 +124,7 @@ struct BrassPocketCompassButton: View {
 
 /// 散步夥伴圓章（右下角實體道具 — 綠藤隨 1,400 步口袋拾遺生長，剩 200 步泛暖金微光）
 struct CompanionMedallionView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let pet: PetSpec?
     let outfitID: String?
     let progressSteps: Int
@@ -208,7 +210,7 @@ struct CompanionMedallionView: View {
                         .offset(y: 12)
                         .frame(width: 48, height: 48)
                         .clipShape(Circle())
-                        .offset(y: isNearFind && pulse ? -1.5 : 0)
+                        .offset(y: isNearFind && pulse && !reduceMotion ? -1.5 : 0)
                     } else {
                         Image(systemName: "pawprint.fill")
                             .font(.system(size: 20))
@@ -232,7 +234,7 @@ struct CompanionMedallionView: View {
         }
         .buttonStyle(TactileGameButtonStyle())
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.3).repeatForever(autoreverses: true)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 1.3).repeatForever(autoreverses: true)) {
                 pulse = true
             }
         }

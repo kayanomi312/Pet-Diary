@@ -1,6 +1,31 @@
 import SwiftUI
 
 enum AppTheme {
+    enum Motion {
+        static let short = 0.16
+        static let standard = 0.28
+        static let relaxed = 0.42
+        static let reduced = Animation.easeInOut(duration: short)
+
+        enum Preset {
+            case gentle, bouncy, snappy, settle
+        }
+
+        static func resolved(_ preset: Preset, reduceMotion: Bool) -> Animation {
+            if reduceMotion { return reduced }
+            switch preset {
+            case .gentle: return .spring(response: relaxed, dampingFraction: 0.83)
+            case .bouncy: return .spring(response: standard, dampingFraction: 0.58)
+            case .snappy: return .spring(response: 0.23, dampingFraction: 0.8)
+            case .settle: return .spring(response: 0.32, dampingFraction: 0.78)
+            }
+        }
+
+        static func interval(fps: Double, reduceMotion: Bool) -> TimeInterval {
+            reduceMotion ? 1 : 1 / fps
+        }
+    }
+
     // WCAG 2.2 AAA Outdoor Contrast Palette
     static let warmPaper = Color(hex: "#FAF6EE")         // Cotton-rag paper
     static let parchmentTray = Color(hex: "#F3ECE0")     // Tactile drawer surface
@@ -27,21 +52,33 @@ enum AppTheme {
     static let rainySlate = Color(hex: "#6F8592")
     static let duskAmber = Color(hex: "#D69F5E")
 
-    // Storybook Typography (scales with Dynamic Type up to AX3)
+    // Storybook Typography (scales dynamically with Dynamic Type)
     static func serifTitle(_ size: CGFloat = 22) -> Font {
-        .system(size: size, weight: .semibold, design: .serif)
+        .system(textStyle(for: size), design: .serif).weight(.semibold)
     }
 
     static func serifBody(_ size: CGFloat = 16) -> Font {
-        .system(size: size, weight: .regular, design: .serif)
+        .system(textStyle(for: size), design: .serif)
     }
 
     static func handwritten(_ size: CGFloat = 16) -> Font {
-        .system(size: size, weight: .regular, design: .serif).italic()
+        .system(textStyle(for: size), design: .serif).italic()
     }
 
     static func diegeticLabel(_ size: CGFloat = 13) -> Font {
-        .system(size: size, weight: .semibold, design: .rounded)
+        .system(textStyle(for: size), design: .rounded).weight(.semibold)
+    }
+
+    private static func textStyle(for size: CGFloat) -> Font.TextStyle {
+        switch size {
+        case 24...: return .title
+        case 20..<24: return .title2
+        case 17..<20: return .title3
+        case 14.5..<17: return .subheadline
+        case 12.5..<14.5: return .footnote
+        case 11.2..<12.5: return .caption
+        default: return .caption2
+        }
     }
 }
 

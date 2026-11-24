@@ -2,6 +2,7 @@ import SwiftUI
 
 /// 出門前的「帆布散步袋」準備畫面（選同行奇幻夥伴 ＋ 選配單趟輕小物，空手也能免費出發）
 struct StartStrollSatchelSheet: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Bindable var coordinator: GameCoordinator
     @Environment(\.dismiss) private var dismiss
 
@@ -56,7 +57,7 @@ struct StartStrollSatchelSheet: View {
                                     let isSelected = (selectedPetID == spec.id)
                                     let outfitID = coordinator.resident(for: spec.id)?.activeOutfitID
                                     Button {
-                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.72)) {
+                                        withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
                                             selectedPetID = spec.id
                                         }
                                         HapticsEngine.shared.playBrushStrokeTick()
@@ -143,7 +144,7 @@ struct StartStrollSatchelSheet: View {
                                 let canAfford = coordinator.ledger.coinBalance >= charm.priceCoins
                                 Button {
                                     guard canAfford else { return }
-                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.72)) {
+                                    withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
                                         selectedCharm = charm
                                     }
                                     HapticsEngine.shared.playBrushStrokeTick()

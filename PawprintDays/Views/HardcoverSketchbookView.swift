@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 
 /// 精裝手繪日記本（繁體中文：單日書頁、月曆跨頁、年度約定「改天再來一次」、單日地點抹除）
 struct HardcoverSketchbookView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     enum DiaryTab: String, CaseIterable {
         case pages = "日記頁"
         case month = "月曆跨頁"
@@ -92,7 +93,7 @@ struct HardcoverSketchbookView: View {
                         accessibilityLabelText: "日記備份與還原"
                     ) {
                         CozySoundEngine.shared.playPaperFlip()
-                        withAnimation(.spring(response: 0.25, dampingFraction: 0.82)) {
+                        withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
                             showBackupPopover.toggle()
                         }
                     }
@@ -204,7 +205,7 @@ struct HardcoverSketchbookView: View {
                     .padding(.trailing, 18)
                     Spacer()
                 }
-                .transition(.scale(scale: 0.92, anchor: .topTrailing).combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : .scale(scale: 0.92, anchor: .topTrailing).combined(with: .opacity))
             }
         }
         .confirmationDialog(
@@ -418,7 +419,7 @@ private struct MonthSpreadGridView: View {
 
                     Spacer()
 
-                    Text("\(displayedYear)年\(displayedMonth)月")
+                    Text("\(String(displayedYear))年\(displayedMonth)月")
                         .font(AppTheme.serifTitle(20))
                         .foregroundStyle(AppTheme.deepPineInk)
 

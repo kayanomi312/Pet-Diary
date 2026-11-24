@@ -154,7 +154,7 @@ struct SidewalkEncounterView: View {
                     if isHoldingUmbrella || (committedLog?.gestureChosen == .holdUmbrella) {
                         WatercolorUmbrellaCanopyOverlay(progress: committedLog != nil ? 1.0 : umbrellaProgress)
                             .frame(width: 260, height: 140)
-                            .offset(y: -48 + (1.0 - (committedLog != nil ? 1.0 : umbrellaProgress)) * -52)
+                            .offset(y: reduceMotion ? -48 : -48 + (1.0 - (committedLog != nil ? 1.0 : umbrellaProgress)) * -52)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                             .allowsHitTesting(false)
                     }
@@ -179,7 +179,7 @@ struct SidewalkEncounterView: View {
                                 )
                                 .rotationEffect(.degrees(Double(ballRollingProgress) * 520))
                         }
-                        .offset(x: -90, y: 210 - ballRollingProgress * 120)
+                        .offset(x: -90, y: reduceMotion ? 154 : 210 - ballRollingProgress * 120)
                         .allowsHitTesting(false)
                     }
 
@@ -218,7 +218,7 @@ struct SidewalkEncounterView: View {
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#D96B7E").opacity(0.55), lineWidth: 1.2))
                     .padding(.horizontal, 20)
                     .padding(.top, 6)
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
                 }
 
                 if let quest = walkQuestOffer {
@@ -235,7 +235,7 @@ struct SidewalkEncounterView: View {
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.forestTeal.opacity(0.5), lineWidth: 1.2))
                     .padding(.horizontal, 20)
                     .padding(.top, 6)
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
                 }
 
                 if let gift = bonusGiftWhisper {
@@ -252,7 +252,7 @@ struct SidewalkEncounterView: View {
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.pawStrollChain.opacity(0.65), lineWidth: 1.3))
                     .padding(.horizontal, 20)
                     .padding(.top, 6)
-                    .transition(.scale.combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
                 }
 
                 if let chainTargetID = committedLog?.strollChainTargetSiteID,
@@ -346,7 +346,7 @@ struct SidewalkEncounterView: View {
                             }
                         }
                         .scaleEffect(isHoldingCobblestone ? 1.07 : 1.0)
-                        .animation(.spring(response: 0.28, dampingFraction: 0.65), value: isHoldingCobblestone)
+                        .animation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion), value: isHoldingCobblestone)
                         .onLongPressGesture(
                             minimumDuration: 2.5,
                             maximumDistance: 44,
@@ -356,6 +356,8 @@ struct SidewalkEncounterView: View {
                             perform: { completeGreeting(with: .offerHand) }
                         )
                         .accessibilityLabel("長按 2.5 秒向\(petSpec.name)伸手打招呼")
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityHint("按住 2.5 秒向\(petDisplayName)伸出手")
 
                         ViewThatFits(in: .horizontal) {
                             HStack(spacing: 12) { secondaryGestureButtons }
@@ -381,7 +383,7 @@ struct SidewalkEncounterView: View {
                                     .offset(y: -6)
                             }
                             .rotationEffect(.degrees(1.2))
-                            .transition(.scale(scale: 0.7).combined(with: .opacity))
+                            .transition(reduceMotion ? .opacity : .scale(scale: 0.7).combined(with: .opacity))
                         }
 
                         ViewThatFits(in: .horizontal) {
@@ -459,7 +461,7 @@ struct SidewalkEncounterView: View {
                         ballDragOffset = value.translation
                     }
                     .onEnded { value in
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                             ballDragOffset = .zero
                         }
                         if value.translation.height < -24 {
@@ -468,6 +470,10 @@ struct SidewalkEncounterView: View {
                     }
             )
             .accessibilityLabel("向上滑動或輕點滾出縫布球給\(petDisplayName)")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                launchBallFlickRitual()
+            }
         } else if coordinator.activeWeather.isRainy {
             // Interactive Rain Umbrella Shelter Hold (hold 1.2s to shelter pet under watercolor umbrella!)
             HStack(spacing: 6) {
@@ -557,8 +563,8 @@ struct SidewalkEncounterView: View {
         isHoldingCobblestone = true
         holdProgress = 0
         holdRipplePulse = false
-        withAnimation(.easeOut(duration: 1.1).repeatForever(autoreverses: false)) {
-            holdRipplePulse = true
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 1.1).repeatForever(autoreverses: false)) {
+            holdRipplePulse = !reduceMotion
         }
         HapticsEngine.shared.startHoldToGreetPurr()
         holdTask?.cancel()
@@ -663,7 +669,7 @@ struct SidewalkEncounterView: View {
             gesture: gesture,
             inviteHome: true
         ) {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.55)) {
+            withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) {
                 committedLog = log
                 petTapBounce = 1.0
                 greetingFeedback = coordinator.lastGreetingFeedback
@@ -672,7 +678,7 @@ struct SidewalkEncounterView: View {
                 }
             }
             if let gift = coordinator.awardStreetEncounterBonusGiftIfEligible(petID: petID) {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.72)) {
+                withAnimation(AppTheme.Motion.resolved(.gentle, reduceMotion: reduceMotion)) {
                     bonusGiftWhisper = gift
                 }
             }
@@ -688,11 +694,12 @@ struct SidewalkEncounterView: View {
 
 /// Hand-painted forest-green watercolor umbrella dome with bouncing raindrop splashes!
 private struct WatercolorUmbrellaCanopyOverlay: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let progress: CGFloat
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
+        TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 24.0, reduceMotion: reduceMotion))) { timeline in
+            let t = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
             Canvas { ctx, size in
                 let w = size.width, h = size.height
                 let ink = Color(hex: "#1E3A38").opacity(0.75)
@@ -731,6 +738,9 @@ private struct WatercolorUmbrellaCanopyOverlay: View {
                     let baseY = h * (0.48 - sin(Double(idx) / 4.0 * .pi) * 0.14)
                     let bounceY = baseY - CGFloat(sin(phase * .pi)) * 14
                     let alpha = sin(phase * .pi) * 0.75 * Double(progress)
+                    let rect = CGRect(x: rx - 10, y: baseY - 16, width: 20, height: 20)
+                    if SpriteFXLibrary.draw(.rainSplash, age: phase * SpriteFXKind.rainSplash.duration,
+                                            in: rect, context: ctx, opacity: alpha) { continue }
                     ctx.fill(
                         Path(ellipseIn: CGRect(x: rx - 2.2, y: bounceY - 2.2, width: 4.4, height: 4.4)),
                         with: .color(Color.white.opacity(alpha))
