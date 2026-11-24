@@ -114,7 +114,7 @@
     "turn" : {
       "bank" : "tn",
       "fps" : 12,
-      "frames" : 5,
+      "frames" : 8,
       "loop" : "once",
       "next" : "walk"
     },
