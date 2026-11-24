@@ -229,7 +229,7 @@ struct CutePawSignpostIcon: View {
     }
 }
 
-// MARK: - 6. Cute Care Playground Toy Icons (Fish Biscuit, Teaser Wand, Blanket, Dance Note, Belly Poke)
+// MARK: - 6. Cute Care Playground Toy Icons (Watercolor-Shaded Kawaii Props)
 struct CuteCareToyIcon: View {
     enum Kind {
         case bellyPoke
@@ -246,73 +246,261 @@ struct CuteCareToyIcon: View {
     var body: some View {
         Canvas { ctx, s in
             let w = s.width, h = s.height
-            let ink = Color(hex: "#3A2B24").opacity(0.80)
+            let ink = Color(hex: "#5A4032").opacity(0.68)
+            let softGlow = Color(hex: "#FFF9EE").opacity(0.62)
 
             switch kind {
             case .bellyPoke:
-                // Plump rosy paw pad
-                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.24, y: h * 0.46, width: w * 0.52, height: h * 0.40)), with: .color(Color(hex: "#F4A499")))
-                ctx.stroke(Path(ellipseIn: CGRect(x: w * 0.24, y: h * 0.46, width: w * 0.52, height: h * 0.40)), with: .color(ink), lineWidth: 1.1)
-                for (dx, dy) in [(0.14, 0.26), (0.34, 0.14), (0.56, 0.14), (0.74, 0.26)] {
-                    let toe = Path(ellipseIn: CGRect(x: w * dx, y: h * dy, width: w * 0.16, height: h * 0.18))
-                    ctx.fill(toe, with: .color(Color(hex: "#F4A499")))
-                    ctx.stroke(toe, with: .color(ink), lineWidth: 1.0)
+                // Soft rosy watercolor wash halo behind paw
+                ctx.fill(
+                    Path(ellipseIn: CGRect(x: w * 0.10, y: h * 0.14, width: w * 0.80, height: h * 0.76)),
+                    with: .radialGradient(
+                        Gradient(colors: [Color(hex: "#FBE2DA").opacity(0.75), .clear]),
+                        center: CGPoint(x: w * 0.50, y: h * 0.54),
+                        startRadius: 2,
+                        endRadius: w * 0.44
+                    )
+                )
+                // Plump rosy bean-shaped main paw pad
+                let mainPad = Path(ellipseIn: CGRect(x: w * 0.22, y: h * 0.45, width: w * 0.56, height: h * 0.42))
+                ctx.fill(
+                    mainPad,
+                    with: .radialGradient(
+                        Gradient(colors: [Color(hex: "#FBC7BD"), Color(hex: "#EE988D"), Color(hex: "#DC7E74")]),
+                        center: CGPoint(x: w * 0.42, y: h * 0.56),
+                        startRadius: 1,
+                        endRadius: w * 0.34
+                    )
+                )
+                ctx.stroke(mainPad, with: .color(ink), style: StrokeStyle(lineWidth: 1.05, lineCap: .round))
+                // Soft cream highlight crescent on main pad
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.33, y: h * 0.53, width: w * 0.18, height: h * 0.10)), with: .color(softGlow))
+
+                // 4 chubby rounded toe beans
+                let toes: [(CGFloat, CGFloat, CGFloat, CGFloat)] = [
+                    (0.11, 0.28, 0.18, 0.20),
+                    (0.31, 0.13, 0.18, 0.21),
+                    (0.52, 0.13, 0.18, 0.21),
+                    (0.72, 0.28, 0.18, 0.20)
+                ]
+                for (dx, dy, tw, th) in toes {
+                    let rect = CGRect(x: w * dx, y: h * dy, width: w * tw, height: h * th)
+                    let toe = Path(ellipseIn: rect)
+                    ctx.fill(
+                        toe,
+                        with: .radialGradient(
+                            Gradient(colors: [Color(hex: "#FCCBC2"), Color(hex: "#EC9489")]),
+                            center: CGPoint(x: rect.minX + rect.width * 0.38, y: rect.minY + rect.height * 0.35),
+                            startRadius: 0.5,
+                            endRadius: rect.width * 0.72
+                        )
+                    )
+                    ctx.stroke(toe, with: .color(ink), lineWidth: 0.95)
+                    ctx.fill(Path(ellipseIn: CGRect(x: rect.minX + rect.width * 0.25, y: rect.minY + rect.height * 0.22, width: rect.width * 0.32, height: rect.height * 0.24)), with: .color(softGlow))
                 }
 
             case .teaserWand:
-                // Wooden stick + pastel pink feather + gold bell
+                // Warm honey-cedar wand stick
                 var stick = Path()
                 stick.move(to: CGPoint(x: w * 0.14, y: h * 0.86))
-                stick.addLine(to: CGPoint(x: w * 0.68, y: h * 0.22))
-                ctx.stroke(stick, with: .color(Color(hex: "#B5814E")), style: StrokeStyle(lineWidth: 2.8, lineCap: .round))
-                let feather = Path(ellipseIn: CGRect(x: w * 0.52, y: h * 0.22, width: w * 0.38, height: h * 0.24))
-                ctx.fill(feather, with: .color(Color(hex: "#F29C8E")))
+                stick.addQuadCurve(to: CGPoint(x: w * 0.62, y: h * 0.26), control: CGPoint(x: w * 0.34, y: h * 0.52))
+                ctx.stroke(stick, with: .color(Color(hex: "#C8955E")), style: StrokeStyle(lineWidth: 3.1, lineCap: .round))
+                ctx.stroke(stick, with: .color(ink.opacity(0.45)), style: StrokeStyle(lineWidth: 0.8, lineCap: .round))
+
+                // Soft fluffy secondary peach feather plume
+                let backFeather = Path(ellipseIn: CGRect(x: w * 0.48, y: h * 0.30, width: w * 0.38, height: h * 0.24))
+                ctx.fill(
+                    backFeather,
+                    with: .linearGradient(
+                        Gradient(colors: [Color(hex: "#FBE0C4"), Color(hex: "#F3B69B")]),
+                        startPoint: CGPoint(x: w * 0.48, y: h * 0.30),
+                        endPoint: CGPoint(x: w * 0.86, y: h * 0.54)
+                    )
+                )
+                ctx.stroke(backFeather, with: .color(ink.opacity(0.6)), lineWidth: 0.9)
+
+                // Plump main coral-blush feather
+                let feather = Path(ellipseIn: CGRect(x: w * 0.50, y: h * 0.20, width: w * 0.40, height: h * 0.24))
+                ctx.fill(
+                    feather,
+                    with: .linearGradient(
+                        Gradient(colors: [Color(hex: "#FBC0B4"), Color(hex: "#EB897B")]),
+                        startPoint: CGPoint(x: w * 0.50, y: h * 0.20),
+                        endPoint: CGPoint(x: w * 0.90, y: h * 0.44)
+                    )
+                )
                 ctx.stroke(feather, with: .color(ink), lineWidth: 1.0)
-                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.62, y: h * 0.14, width: w * 0.16, height: h * 0.16)), with: .color(Color(hex: "#F5C85B")))
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.58, y: h * 0.25, width: w * 0.16, height: h * 0.08)), with: .color(softGlow))
+
+                // Plump golden bell at wand tip
+                let bell = Path(ellipseIn: CGRect(x: w * 0.55, y: h * 0.12, width: w * 0.20, height: h * 0.20))
+                ctx.fill(
+                    bell,
+                    with: .radialGradient(
+                        Gradient(colors: [Color(hex: "#FFF3B0"), Color(hex: "#F3C355"), Color(hex: "#CE9330")]),
+                        center: CGPoint(x: w * 0.62, y: h * 0.18),
+                        startRadius: 0.5,
+                        endRadius: w * 0.14
+                    )
+                )
+                ctx.stroke(bell, with: .color(ink), lineWidth: 0.95)
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.60, y: h * 0.16, width: w * 0.06, height: h * 0.06)), with: .color(softGlow))
 
             case .fishSnack:
-                // Adorable golden taiyaki fish biscuit
+                // Chubby rounded golden taiyaki biscuit tail
                 var tail = Path()
-                tail.move(to: CGPoint(x: w * 0.68, y: h * 0.50))
-                tail.addLine(to: CGPoint(x: w * 0.90, y: h * 0.30))
-                tail.addLine(to: CGPoint(x: w * 0.90, y: h * 0.70))
+                tail.move(to: CGPoint(x: w * 0.64, y: h * 0.50))
+                tail.addQuadCurve(to: CGPoint(x: w * 0.90, y: h * 0.28), control: CGPoint(x: w * 0.80, y: h * 0.30))
+                tail.addQuadCurve(to: CGPoint(x: w * 0.86, y: h * 0.50), control: CGPoint(x: w * 0.92, y: h * 0.42))
+                tail.addQuadCurve(to: CGPoint(x: w * 0.90, y: h * 0.72), control: CGPoint(x: w * 0.92, y: h * 0.58))
+                tail.addQuadCurve(to: CGPoint(x: w * 0.64, y: h * 0.50), control: CGPoint(x: w * 0.80, y: h * 0.70))
                 tail.closeSubpath()
-                ctx.fill(tail, with: .color(Color(hex: "#E5A557")))
-                ctx.stroke(tail, with: .color(ink), lineWidth: 1.1)
-                let body = Path(ellipseIn: CGRect(x: w * 0.12, y: h * 0.26, width: w * 0.62, height: h * 0.48))
-                ctx.fill(body, with: .color(Color(hex: "#F2BE72")))
-                ctx.stroke(body, with: .color(ink), lineWidth: 1.1)
-                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.26, y: h * 0.42, width: 3.2, height: 3.2)), with: .color(ink))
+                ctx.fill(
+                    tail,
+                    with: .linearGradient(
+                        Gradient(colors: [Color(hex: "#F5C97E"), Color(hex: "#D89344")]),
+                        startPoint: CGPoint(x: w * 0.64, y: h * 0.28),
+                        endPoint: CGPoint(x: w * 0.90, y: h * 0.72)
+                    )
+                )
+                ctx.stroke(tail, with: .color(ink), style: StrokeStyle(lineWidth: 1.0, lineJoin: .round))
+
+                // Plump toasted-honey taiyaki body
+                let bodyRect = CGRect(x: w * 0.10, y: h * 0.23, width: w * 0.64, height: h * 0.54)
+                let body = Path(ellipseIn: bodyRect)
+                ctx.fill(
+                    body,
+                    with: .radialGradient(
+                        Gradient(colors: [Color(hex: "#FCE3A8"), Color(hex: "#F1BC6E"), Color(hex: "#D58E43")]),
+                        center: CGPoint(x: w * 0.34, y: h * 0.36),
+                        startRadius: 1,
+                        endRadius: w * 0.40
+                    )
+                )
+                ctx.stroke(body, with: .color(ink), lineWidth: 1.05)
+
+                // Cute biscuit gill arc + tiny rosy cheek + glossy eye
+                var gill = Path()
+                gill.move(to: CGPoint(x: w * 0.40, y: h * 0.36))
+                gill.addQuadCurve(to: CGPoint(x: w * 0.40, y: h * 0.64), control: CGPoint(x: w * 0.47, y: h * 0.50))
+                ctx.stroke(gill, with: .color(Color(hex: "#B87332").opacity(0.55)), style: StrokeStyle(lineWidth: 1.0, lineCap: .round))
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.22, y: h * 0.43, width: w * 0.10, height: h * 0.10)), with: .color(ink))
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.24, y: h * 0.44, width: w * 0.035, height: h * 0.035)), with: .color(.white))
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.27, y: h * 0.55, width: w * 0.11, height: h * 0.07)), with: .color(Color(hex: "#E88474").opacity(0.55)))
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.26, y: h * 0.29, width: w * 0.22, height: h * 0.08)), with: .color(softGlow))
 
             case .cozyBlanket:
-                // Pastel folded quilted blanket + mini star
-                let quilt = Path(roundedRect: CGRect(x: w * 0.12, y: h * 0.28, width: w * 0.76, height: h * 0.52), cornerRadius: 8)
-                ctx.fill(quilt, with: .color(Color(hex: "#9ABBD0")))
-                ctx.stroke(quilt, with: .color(Color(hex: "#FFF9EE")), style: StrokeStyle(lineWidth: 1.4, dash: [3, 2]))
-                ctx.stroke(quilt, with: .color(ink), lineWidth: 1.1)
-                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.64, y: h * 0.12, width: 6, height: 6)), with: .color(Color(hex: "#F5C85B")))
+                // Plump folded pastel watercolor quilted blanket
+                let backFold = Path(roundedRect: CGRect(x: w * 0.14, y: h * 0.22, width: w * 0.72, height: h * 0.44), cornerRadius: w * 0.24)
+                ctx.fill(backFold, with: .color(Color(hex: "#7FA5BC")))
+                ctx.stroke(backFold, with: .color(ink.opacity(0.7)), lineWidth: 0.95)
+
+                let quiltRect = CGRect(x: w * 0.10, y: h * 0.32, width: w * 0.80, height: h * 0.50)
+                let quilt = Path(roundedRect: quiltRect, cornerRadius: w * 0.24)
+                ctx.fill(
+                    quilt,
+                    with: .linearGradient(
+                        Gradient(colors: [Color(hex: "#BED7E5"), Color(hex: "#8EB2C8")]),
+                        startPoint: CGPoint(x: quiltRect.minX, y: quiltRect.minY),
+                        endPoint: CGPoint(x: quiltRect.maxX, y: quiltRect.maxY)
+                    )
+                )
+                let stitchRect = quiltRect.insetBy(dx: w * 0.08, dy: h * 0.08)
+                ctx.stroke(
+                    Path(roundedRect: stitchRect, cornerRadius: w * 0.16),
+                    with: .color(Color(hex: "#FFF9EE").opacity(0.85)),
+                    style: StrokeStyle(lineWidth: 1.25, lineCap: .round, dash: [3, 2.5])
+                )
+                ctx.stroke(quilt, with: .color(ink), lineWidth: 1.05)
+
+                // Cute warm cream star charm tucked above blanket
+                let starCenter = CGPoint(x: w * 0.72, y: h * 0.18)
+                var star = Path()
+                for idx in 0..<8 {
+                    let angle = CGFloat(idx) * .pi / 4.0 - .pi / 2.0
+                    let r = (idx % 2 == 0) ? w * 0.14 : w * 0.055
+                    let pt = CGPoint(x: starCenter.x + cos(angle) * r, y: starCenter.y + sin(angle) * r)
+                    if idx == 0 { star.move(to: pt) } else { star.addLine(to: pt) }
+                }
+                star.closeSubpath()
+                ctx.fill(star, with: .color(Color(hex: "#F8CE62")))
+                ctx.stroke(star, with: .color(ink.opacity(0.65)), lineWidth: 0.75)
 
             case .happyTwirl:
-                // Sparkling music notes
-                let head1 = Path(ellipseIn: CGRect(x: w * 0.18, y: h * 0.58, width: w * 0.24, height: h * 0.20))
-                let head2 = Path(ellipseIn: CGRect(x: w * 0.56, y: h * 0.50, width: w * 0.24, height: h * 0.20))
-                ctx.fill(head1, with: .color(Color(hex: "#E67365")))
-                ctx.fill(head2, with: .color(Color(hex: "#F0AE4A")))
+                // Soft pastel music glow behind notes
+                ctx.fill(
+                    Path(ellipseIn: CGRect(x: w * 0.14, y: h * 0.16, width: w * 0.72, height: h * 0.70)),
+                    with: .radialGradient(
+                        Gradient(colors: [Color(hex: "#FFF1CC").opacity(0.75), .clear]),
+                        center: CGPoint(x: w * 0.50, y: h * 0.50),
+                        startRadius: 2,
+                        endRadius: w * 0.40
+                    )
+                )
+                // Bouncy curved ribbon stems
                 var stems = Path()
-                stems.move(to: CGPoint(x: w * 0.40, y: h * 0.66))
-                stems.addLine(to: CGPoint(x: w * 0.40, y: h * 0.24))
-                stems.addLine(to: CGPoint(x: w * 0.78, y: h * 0.18))
-                stems.addLine(to: CGPoint(x: w * 0.78, y: h * 0.58))
-                ctx.stroke(stems, with: .color(ink), style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+                stems.move(to: CGPoint(x: w * 0.39, y: h * 0.65))
+                stems.addLine(to: CGPoint(x: w * 0.39, y: h * 0.25))
+                stems.addQuadCurve(to: CGPoint(x: w * 0.77, y: h * 0.18), control: CGPoint(x: w * 0.58, y: h * 0.15))
+                stems.addLine(to: CGPoint(x: w * 0.77, y: h * 0.57))
+                ctx.stroke(stems, with: .color(ink), style: StrokeStyle(lineWidth: 2.3, lineCap: .round, lineJoin: .round))
+
+                // Plump watercolor coral & honey note heads with cream gleams
+                let head1 = Path(ellipseIn: CGRect(x: w * 0.15, y: h * 0.55, width: w * 0.28, height: h * 0.23))
+                ctx.fill(
+                    head1,
+                    with: .radialGradient(
+                        Gradient(colors: [Color(hex: "#FAA89C"), Color(hex: "#E46D60")]),
+                        center: CGPoint(x: w * 0.25, y: h * 0.62),
+                        startRadius: 0.5,
+                        endRadius: w * 0.20
+                    )
+                )
+                ctx.stroke(head1, with: .color(ink), lineWidth: 0.95)
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.21, y: h * 0.59, width: w * 0.08, height: h * 0.06)), with: .color(softGlow))
+
+                let head2 = Path(ellipseIn: CGRect(x: w * 0.53, y: h * 0.48, width: w * 0.28, height: h * 0.23))
+                ctx.fill(
+                    head2,
+                    with: .radialGradient(
+                        Gradient(colors: [Color(hex: "#FCE08E"), Color(hex: "#ECA442")]),
+                        center: CGPoint(x: w * 0.63, y: h * 0.55),
+                        startRadius: 0.5,
+                        endRadius: w * 0.20
+                    )
+                )
+                ctx.stroke(head2, with: .color(ink), lineWidth: 0.95)
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.59, y: h * 0.52, width: w * 0.08, height: h * 0.06)), with: .color(softGlow))
+
+                // Tiny floating golden twinkle dots
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.18, y: h * 0.24, width: w * 0.09, height: h * 0.09)), with: .color(Color(hex: "#F5C85B")))
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.80, y: h * 0.30, width: w * 0.07, height: h * 0.07)), with: .color(Color(hex: "#F29C8E")))
 
             case .walkBuddy:
-                // Cute glowing leash heart-bell
-                let heart = Path(ellipseIn: CGRect(x: w * 0.22, y: h * 0.22, width: w * 0.56, height: h * 0.56))
-                ctx.fill(heart, with: .color(Color(hex: "#67A885")))
-                ctx.stroke(heart, with: .color(ink), lineWidth: 1.2)
-                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.36, y: h * 0.44, width: w * 0.28, height: h * 0.20)), with: .color(Color(hex: "#FFFDF7")))
-                for dx in [0.34, 0.46, 0.58] {
-                    ctx.fill(Path(ellipseIn: CGRect(x: w * dx, y: h * 0.33, width: w * 0.08, height: h * 0.08)), with: .color(Color(hex: "#FFFDF7")))
+                // Tiny brass top collar ring
+                ctx.stroke(
+                    Path(ellipseIn: CGRect(x: w * 0.40, y: h * 0.10, width: w * 0.20, height: h * 0.16)),
+                    with: .color(Color(hex: "#D5A84A")),
+                    lineWidth: 1.8
+                )
+                // Plump sage-mint watercolor charm medallion
+                let charm = Path(ellipseIn: CGRect(x: w * 0.18, y: h * 0.21, width: w * 0.64, height: h * 0.64))
+                ctx.fill(
+                    charm,
+                    with: .radialGradient(
+                        Gradient(colors: [Color(hex: "#9AD2B2"), Color(hex: "#62A382"), Color(hex: "#468166")]),
+                        center: CGPoint(x: w * 0.40, y: h * 0.38),
+                        startRadius: 1,
+                        endRadius: w * 0.42
+                    )
+                )
+                ctx.stroke(charm, with: .color(ink), lineWidth: 1.05)
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.28, y: h * 0.28, width: w * 0.16, height: h * 0.09)), with: .color(softGlow))
+
+                // Cute cream paw emblem inside medallion
+                ctx.fill(Path(ellipseIn: CGRect(x: w * 0.35, y: h * 0.49, width: w * 0.30, height: h * 0.22)), with: .color(Color(hex: "#FFFDF7")))
+                for (dx, dy) in [(0.31, 0.39), (0.45, 0.35), (0.59, 0.39)] {
+                    ctx.fill(Path(ellipseIn: CGRect(x: w * dx, y: h * dy, width: w * 0.10, height: h * 0.10)), with: .color(Color(hex: "#FFFDF7")))
                 }
             }
         }
