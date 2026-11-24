@@ -111,6 +111,13 @@
       "loop" : "once",
       "next" : "idle"
     },
+    "turn" : {
+      "bank" : "tn",
+      "fps" : 12,
+      "frames" : 8,
+      "loop" : "once",
+      "next" : "walk"
+    },
     "walk" : {
       "bank" : "w",
       "events" : {
@@ -123,6 +130,18 @@
       "frames" : 12,
       "loop" : "loop",
       "strideLengthUV" : 0.037909999999999999
+    },
+    "walk_right" : {
+      "bank" : "wr",
+      "events" : {
+        "footContact" : [
+          1,
+          7
+        ]
+      },
+      "fps" : 12,
+      "frames" : 12,
+      "loop" : "loop"
     }
   },
   "pet" : "pet_02",
