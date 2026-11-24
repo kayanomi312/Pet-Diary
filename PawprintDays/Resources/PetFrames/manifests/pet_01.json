@@ -100,7 +100,7 @@
       "fps" : 12,
       "frames" : 16,
       "loop" : "loop",
-      "strideLengthUV" : 0.04609
+      "strideLengthUV" : 0.04737
     }
   },
   "pet" : "pet_01",
