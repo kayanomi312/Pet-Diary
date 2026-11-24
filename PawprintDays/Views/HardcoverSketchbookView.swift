@@ -1,22 +1,22 @@
 import SwiftUI
 import UIKit
-import PhotosUI
 import UniformTypeIdentifiers
 
-/// 精裝手繪日記本（繁體中文：單日書頁、月曆跨頁、年度約定「改天再來一次」、單日地點抹除）
+/// 精裝手繪日記本（繁體中文：每日自動活動摘要、月曆總覽、單日地點抹除）
+/// 完全不需要打字或上傳照片：每一頁都由當天的散步、相遇與拾遺自動寫成。
 struct HardcoverSketchbookView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     enum DiaryTab: String, CaseIterable {
-        case pages = "日記頁"
-        case month = "月曆跨頁"
-        case traditions = "年度約定"
+        case pages = "每日紀錄"
+        case month = "月曆總覽"
     }
 
     @Bindable var coordinator: GameCoordinator
     @State private var activeTab: DiaryTab = .pages
+    @State private var showSearch: Bool = false
     @State private var searchText: String = ""
     @State private var selectedPetFilter: String? = nil
-    @State private var noteDrafts: [String: String] = [:]
+    @State private var focusDateISO: String? = nil
     @State private var confirmEraseDateISO: String? = nil
     @State private var renameTargetSiteID: String? = nil
     @State private var renameText: String = ""
@@ -25,29 +25,37 @@ struct HardcoverSketchbookView: View {
     @State private var showBackupPopover: Bool = false
 
     private var filteredDays: [DiaryDayRecord] {
-        coordinator.diaryDays.filter { day in
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return coordinator.diaryDays.filter { day in
             let dayEncounters = coordinator.encounters.filter { $0.localDateISO == day.localDateISO }
             if let petFilter = selectedPetFilter {
                 let appeared = dayEncounters.contains(where: { $0.petID == petFilter || $0.secondaryPetID == petFilter }) || day.companionPetID == petFilter
                 if !appeared { return false }
             }
-            if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                let q = searchText.lowercased()
-                let matchesNote = day.personalNote.lowercased().contains(q)
-                let matchesDate = day.localDateISO.lowercased().contains(q)
+            if !query.isEmpty {
+                let matchesDate = day.localDateISO.lowercased().contains(query)
                 let matchesEnc = dayEncounters.contains { enc in
-                    PetCatalog.pet(id: enc.petID).name.lowercased().contains(q) ||
-                    enc.siteDisplayLabel.lowercased().contains(q) ||
-                    enc.narrativeLine.lowercased().contains(q)
+                    PetCatalog.pet(id: enc.petID).name.lowercased().contains(query) ||
+                    enc.siteDisplayLabel.lowercased().contains(query) ||
+                    enc.narrativeLine.lowercased().contains(query)
                 }
-                return matchesNote || matchesDate || matchesEnc
+                return matchesDate || matchesEnc
             }
             return true
         }
     }
 
-    private var starredDays: [DiaryDayRecord] {
-        coordinator.diaryDays.filter(\.isStarredTradition)
+    /// 只列出已經遇見／邀請回家的夥伴，未相遇的動物不劇透。
+    private var metResidents: [PetResidentState] {
+        coordinator.residents.filter { $0.inviteState != .unmet }
+    }
+
+    private var discoveryIndex: DiaryDiscoveryIndex {
+        DiaryDiscoveryIndex(residents: coordinator.residents, foraged: coordinator.ledger.foragedCurios)
+    }
+
+    private var isFilterActive: Bool {
+        selectedPetFilter != nil || !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -73,17 +81,36 @@ struct HardcoverSketchbookView: View {
             .allowsHitTesting(false)
 
             VStack(spacing: 0) {
-                HStack {
+                HStack(spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("足印手繪日記")
                             .font(AppTheme.serifTitle(22))
                             .foregroundStyle(AppTheme.deepPineInk)
-                        Text("已記錄 \(coordinator.diaryDays.count) 頁時光 · 100% 留存本機")
+                        Text("已自動寫下 \(coordinator.diaryDays.count) 頁時光")
                             .font(AppTheme.diegeticLabel(11))
                             .foregroundStyle(AppTheme.softInk)
                     }
 
                     Spacer()
+
+                    if activeTab == .pages {
+                        CozyIconCircleButton(
+                            systemImage: "magnifyingglass",
+                            tint: Color(hex: "#2F2A26"),
+                            isActive: showSearch || isFilterActive,
+                            size: 36,
+                            accessibilityLabelText: showSearch ? "收合搜尋" : "搜尋日記"
+                        ) {
+                            CozySoundEngine.shared.playPaperFlip()
+                            withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
+                                showSearch.toggle()
+                                if !showSearch {
+                                    searchText = ""
+                                    selectedPetFilter = nil
+                                }
+                            }
+                        }
+                    }
 
                     CozyIconCircleButton(
                         systemImage: "ellipsis",
@@ -107,7 +134,6 @@ struct HardcoverSketchbookView: View {
                     switch tab {
                     case .pages: return "book.pages.fill"
                     case .month: return "calendar"
-                    case .traditions: return "star.fill"
                     }
                 }
                 .padding(.horizontal, 16)
@@ -121,18 +147,15 @@ struct HardcoverSketchbookView: View {
                         days: coordinator.diaryDays,
                         encounters: coordinator.encounters,
                         curios: coordinator.ledger.foragedCurios,
+                        discoveries: discoveryIndex,
                         referenceDate: coordinator.currentSimulatedDate,
                         onSelectDate: { iso in
-                            searchText = iso
+                            searchText = ""
+                            selectedPetFilter = nil
+                            showSearch = false
+                            focusDateISO = iso
                             activeTab = .pages
                         }
-                    )
-                case .traditions:
-                    AnnualTraditionsRibbonView(
-                        starredDays: starredDays,
-                        allEncounters: coordinator.encounters,
-                        latestDay: coordinator.diaryDays.first,
-                        pillarPets: coordinator.residents.filter { $0.milestoneTier >= 6 }
                     )
                 }
             }
@@ -254,83 +277,162 @@ struct HardcoverSketchbookView: View {
         }
         .onAppear {
             backupExportURL = DiaryExportService.exportJSONBackup(coordinator: coordinator)
+            // 翻開日記本，就自然完成「寫日記」的每日心願，不需要任何輸入。
+            coordinator.markDailyWishCompleted(.writeDiary)
         }
     }
 
     private var pagesListSection: some View {
         VStack(spacing: 8) {
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(AppTheme.softInk)
-                TextField("搜尋動物名字、街角或手寫短記…", text: $searchText)
-                    .font(AppTheme.serifBody(14))
-                    .foregroundStyle(AppTheme.deepPineInk)
-                if !searchText.isEmpty {
-                    Button { searchText = "" } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(AppTheme.softInk)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
-            .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.timberWarm.opacity(0.35)))
-            .padding(.horizontal, 16)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    BookmarkFilterPill(title: "全部日子", active: selectedPetFilter == nil) {
-                        selectedPetFilter = nil
-                    }
-                    ForEach(PetCatalog.allPets) { pet in
-                        BookmarkFilterPill(title: pet.name, active: selectedPetFilter == pet.id) {
-                            selectedPetFilter = (selectedPetFilter == pet.id) ? nil : pet.id
+            if showSearch {
+                VStack(spacing: 8) {
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(AppTheme.softInk)
+                        TextField("搜尋動物名字、街角或日期…", text: $searchText)
+                            .font(AppTheme.serifBody(14))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                        if !searchText.isEmpty {
+                            Button { searchText = "" } label: {
+                                Image(systemName: "xmark.circle.fill").foregroundStyle(AppTheme.softInk)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("清除搜尋")
                         }
                     }
-                }
-                .padding(.horizontal, 16)
-            }
-            .padding(.bottom, 4)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.timberWarm.opacity(0.35)))
+                    .padding(.horizontal, 16)
 
-            ScrollView {
-                LazyVStack(spacing: 18) {
-                    ForEach(filteredDays, id: \.localDateISO) { day in
-                        SketchbookDayPageCard(
-                            day: day,
-                            encounters: coordinator.encounters.filter { $0.localDateISO == day.localDateISO },
-                            curios: coordinator.ledger.foragedCurios.filter { $0.localDateISO == day.localDateISO },
-                            noteText: Binding(
-                                get: { noteDrafts[day.localDateISO] ?? day.personalNote },
-                                set: { newValue in
-                                    noteDrafts[day.localDateISO] = newValue
-                                    coordinator.savePersonalNote(for: day.localDateISO, note: newValue)
-                                }
-                            ),
-                            onToggleTradition: { coordinator.toggleStarredTradition(for: day.localDateISO) },
-                            onRequestErasePlace: { confirmEraseDateISO = day.localDateISO },
-                            onRenameStop: { siteID, currentLabel in
-                                renameTargetSiteID = siteID
-                                renameText = currentLabel
-                            },
-                            onRemoveEncounter: { uuid in
-                                coordinator.removeEncounter(uuid: uuid)
-                            },
-                            onSavePhoto: { jpegData in
-                                coordinator.saveWalkPhoto(for: day.localDateISO, jpegData: jpegData)
-                            },
-                            pinnedPostcardEncounterID: coordinator.indoorState.pinnedPostcardEncounterID,
-                            onTogglePinPostcard: { encounterID in
-                                let isCurrentlyPinned = (coordinator.indoorState.pinnedPostcardEncounterID == encounterID)
-                                coordinator.pinPostcardToSunroomWall(encounterID: isCurrentlyPinned ? nil : encounterID)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            BookmarkFilterPill(title: "全部日子", active: selectedPetFilter == nil) {
+                                selectedPetFilter = nil
                             }
-                        )
+                            ForEach(metResidents, id: \.petID) { resident in
+                                let name = PetCatalog.pet(id: resident.petID).name
+                                BookmarkFilterPill(title: name, active: selectedPetFilter == resident.petID) {
+                                    selectedPetFilter = (selectedPetFilter == resident.petID) ? nil : resident.petID
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 100)
+                .padding(.bottom, 4)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            let index = discoveryIndex
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 18) {
+                        if filteredDays.isEmpty {
+                            Text(coordinator.diaryDays.isEmpty
+                                 ? "日記本還空著——出門散步後，每一天都會自動寫成一頁。"
+                                 : "沒有找到符合的日子，換個關鍵字再翻翻看。")
+                                .font(AppTheme.handwritten(14))
+                                .foregroundStyle(AppTheme.softInk)
+                                .multilineTextAlignment(.center)
+                                .padding(24)
+                                .frame(maxWidth: .infinity)
+                                .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 16))
+                        }
+                        ForEach(filteredDays, id: \.localDateISO) { day in
+                            SketchbookDayPageCard(
+                                day: day,
+                                encounters: coordinator.encounters.filter { $0.localDateISO == day.localDateISO },
+                                newPets: index.newPets(on: day.localDateISO),
+                                curios: index.curios(on: day.localDateISO),
+                                outfitIDForPet: { petID in
+                                    coordinator.residents.first(where: { $0.petID == petID })?.activeOutfitID
+                                },
+                                onRequestErasePlace: { confirmEraseDateISO = day.localDateISO },
+                                onRenameStop: { siteID, currentLabel in
+                                    renameTargetSiteID = siteID
+                                    renameText = currentLabel
+                                },
+                                onRemoveEncounter: { uuid in
+                                    coordinator.removeEncounter(uuid: uuid)
+                                },
+                                pinnedPostcardEncounterID: coordinator.indoorState.pinnedPostcardEncounterID,
+                                onTogglePinPostcard: { encounterID in
+                                    let isCurrentlyPinned = (coordinator.indoorState.pinnedPostcardEncounterID == encounterID)
+                                    coordinator.pinPostcardToSunroomWall(encounterID: isCurrentlyPinned ? nil : encounterID)
+                                }
+                            )
+                            .id(day.localDateISO)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 104)
+                }
+                .onAppear { scrollToFocusedDay(proxy) }
+                .onChange(of: focusDateISO) { _, _ in scrollToFocusedDay(proxy) }
             }
         }
+    }
+
+    private func scrollToFocusedDay(_ proxy: ScrollViewProxy) {
+        guard let iso = focusDateISO else { return }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(80))
+            withAnimation(AppTheme.Motion.resolved(.snappy, reduceMotion: reduceMotion)) {
+                proxy.scrollTo(iso, anchor: .top)
+            }
+            focusDateISO = nil
+        }
+    }
+}
+
+// MARK: - 自動新發現索引（初次遇見的夥伴、拾遺首次紀錄）
+
+private struct DiscoveredCurio: Identifiable {
+    let entry: ForagedCurioEntry
+    let isFirstEver: Bool
+    var id: UUID { entry.id }
+}
+
+private struct DiaryDiscoveryIndex {
+    let residents: [PetResidentState]
+    let foraged: [ForagedCurioEntry]
+    private let firstEntryIDByCurio: [String: UUID]
+
+    init(residents: [PetResidentState], foraged: [ForagedCurioEntry]) {
+        self.residents = residents
+        self.foraged = foraged
+        // 拾遺清單為新到舊（insert at 0）；同日以陣列中較後面者視為較早。
+        var best: [String: (date: String, index: Int, id: UUID)] = [:]
+        for (i, entry) in foraged.enumerated() {
+            if let current = best[entry.curioID] {
+                if entry.localDateISO < current.date || (entry.localDateISO == current.date && i > current.index) {
+                    best[entry.curioID] = (entry.localDateISO, i, entry.id)
+                }
+            } else {
+                best[entry.curioID] = (entry.localDateISO, i, entry.id)
+            }
+        }
+        self.firstEntryIDByCurio = best.mapValues(\.id)
+    }
+
+    func newPets(on iso: String) -> [PetResidentState] {
+        residents.filter { $0.firstMetDateISO == iso }
+    }
+
+    func curios(on iso: String) -> [DiscoveredCurio] {
+        foraged
+            .filter { $0.localDateISO == iso }
+            .map { DiscoveredCurio(entry: $0, isFirstEver: firstEntryIDByCurio[$0.curioID] == $0.id) }
+    }
+
+    /// 該日有任何新發現（初遇夥伴或拾得小物）
+    func discoveryDates() -> Set<String> {
+        var dates = Set<String>()
+        for r in residents { if let d = r.firstMetDateISO { dates.insert(d) } }
+        for c in foraged { dates.insert(c.localDateISO) }
+        return dates
     }
 }
 
@@ -338,6 +440,7 @@ private struct MonthSpreadGridView: View {
     let days: [DiaryDayRecord]
     let encounters: [EncounterLog]
     let curios: [ForagedCurioEntry]
+    let discoveries: DiaryDiscoveryIndex
     let referenceDate: Date
     let onSelectDate: (String) -> Void
 
@@ -352,12 +455,14 @@ private struct MonthSpreadGridView: View {
         days: [DiaryDayRecord],
         encounters: [EncounterLog],
         curios: [ForagedCurioEntry],
+        discoveries: DiaryDiscoveryIndex,
         referenceDate: Date,
         onSelectDate: @escaping (String) -> Void
     ) {
         self.days = days
         self.encounters = encounters
         self.curios = curios
+        self.discoveries = discoveries
         self.referenceDate = referenceDate
         self.onSelectDate = onSelectDate
         let comps = Calendar.current.dateComponents([.year, .month], from: referenceDate)
@@ -400,6 +505,14 @@ private struct MonthSpreadGridView: View {
 
     private var monthCuriosCount: Int {
         curios.filter { $0.localDateISO.hasPrefix(monthPrefix) }.count
+    }
+
+    private var monthEncounters: [EncounterLog] {
+        encounters.filter { $0.localDateISO.hasPrefix(monthPrefix) }
+    }
+
+    private var monthLocationCount: Int {
+        Set(monthEncounters.filter { !$0.placeRedacted }.map(\.siteID)).count
     }
 
     var body: some View {
@@ -448,6 +561,7 @@ private struct MonthSpreadGridView: View {
 
                 // True 7-Column Calendar Grid
                 let map = monthDayMap
+                let discoverySet = discoveries.discoveryDates()
                 LazyVGrid(columns: columns, spacing: 6) {
                     ForEach(Array(calendarCells.enumerated()), id: \.offset) { _, dayNum in
                         if let dayNum {
@@ -461,10 +575,12 @@ private struct MonthSpreadGridView: View {
                                             Text("\(dayNum)")
                                                 .font(.system(size: 12, weight: .bold, design: .serif))
                                                 .foregroundStyle(AppTheme.deepPineInk)
-                                            if record.isStarredTradition {
-                                                Image(systemName: "star.fill")
-                                                    .font(.system(size: 8))
-                                                    .foregroundStyle(AppTheme.pawStrollChain)
+                                            if discoverySet.contains(record.localDateISO) {
+                                                Circle()
+                                                    .fill(AppTheme.pawStrollChain)
+                                                    .frame(width: 5, height: 5)
+                                                    .shadow(color: AppTheme.pawStrollChain.opacity(0.6), radius: 2)
+                                                    .accessibilityLabel("這天有新發現")
                                             }
                                         }
                                         Image(systemName: record.weatherMode.sfSymbol)
@@ -485,7 +601,7 @@ private struct MonthSpreadGridView: View {
                                     .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 10))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 10)
-                                            .stroke(record.isStarredTradition ? AppTheme.pawStrollChain : AppTheme.timberWarm.opacity(0.45), lineWidth: record.isStarredTradition ? 1.4 : 1.0)
+                                            .stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 1.0)
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -513,9 +629,22 @@ private struct MonthSpreadGridView: View {
                         Text("本月散步小結")
                             .font(AppTheme.serifTitle(16))
                             .foregroundStyle(AppTheme.deepPineInk)
-                        Text("本月共散步 \(map.count) 天 · \(monthStepsTotal.formatted()) 步 · 收藏 \(monthCuriosCount) 件拾遺")
-                            .font(AppTheme.handwritten(14))
-                            .foregroundStyle(AppTheme.forestTeal)
+                        if map.isEmpty {
+                            Text("這個月還沒有足跡，帶著夥伴出門走走吧。")
+                                .font(AppTheme.handwritten(14))
+                                .foregroundStyle(AppTheme.softInk)
+                        } else {
+                            Text("這個月一共散步了 \(map.count) 天，走了 \(monthStepsTotal.formatted()) 步。")
+                                .font(AppTheme.handwritten(14))
+                                .foregroundStyle(AppTheme.forestTeal)
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                                summaryStat(value: map.count.formatted(), label: "散步天數")
+                                summaryStat(value: monthStepsTotal.formatted(), label: "總步數")
+                                summaryStat(value: monthLocationCount.formatted(), label: "走訪街角")
+                                summaryStat(value: monthEncounters.count.formatted(), label: "街角相遇")
+                                summaryStat(value: monthCuriosCount.formatted(), label: "拾得小物")
+                            }
+                        }
 
                         if let pdfURL = monthlyPDFURL {
                             ShareLink(item: pdfURL) {
@@ -535,11 +664,27 @@ private struct MonthSpreadGridView: View {
                 }
             }
             .padding(16)
-            .padding(.bottom, 100)
+            .padding(.bottom, 104)
         }
         .onAppear { regenerateMonthlyPDF() }
         .onChange(of: displayedYear) { _, _ in regenerateMonthlyPDF() }
         .onChange(of: displayedMonth) { _, _ in regenerateMonthlyPDF() }
+    }
+
+    private func summaryStat(value: String, label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 17, weight: .bold, design: .serif))
+                .foregroundStyle(AppTheme.deepPineInk)
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+            Text(label)
+                .font(AppTheme.diegeticLabel(10.5))
+                .foregroundStyle(AppTheme.softInk)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(AppTheme.parchmentTray.opacity(0.75), in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func shiftMonth(by delta: Int) {
@@ -562,291 +707,70 @@ private struct MonthSpreadGridView: View {
     }
 }
 
-private struct AnnualTraditionsRibbonView: View {
-    let starredDays: [DiaryDayRecord]
-    let allEncounters: [EncounterLog]
-    let latestDay: DiaryDayRecord?
-    let pillarPets: [PetResidentState]
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                // 里程碑 6（第 25 天 · 街角柱石）週年紀念跨頁（回連至第一天相遇日期）
-                if !pillarPets.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("街角柱石 · 相伴紀念跨頁")
-                            .font(AppTheme.serifTitle(19))
-                            .foregroundStyle(AppTheme.forestTeal)
-                        ForEach(pillarPets, id: \.petID) { pet in
-                            let spec = PetCatalog.pet(id: pet.petID)
-                            HStack(spacing: 12) {
-                                ProceduralPetRigView(
-                                    pet: spec,
-                                    outfitID: pet.activeOutfitID,
-                                    pose: .respond,
-                                    applyMetalPaperShader: false,
-                                    isStaticSnapshot: true
-                                )
-                                .frame(width: 72, height: 72)
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text("\(spec.name) · 相伴 \(pet.sharedDaysCount) 天")
-                                        .font(AppTheme.serifTitle(16))
-                                        .foregroundStyle(AppTheme.deepPineInk)
-                                    if let firstISO = pet.firstMetDateISO {
-                                        Text("初遇於 \(CivilCalendarHelper.displayDate(from: firstISO))")
-                                            .font(AppTheme.diegeticLabel(11))
-                                            .foregroundStyle(AppTheme.forestTeal)
-                                    }
-                                    Text(spec.matureKindness)
-                                        .font(AppTheme.handwritten(13))
-                                        .foregroundStyle(AppTheme.softInk)
-                                }
-                            }
-                            .padding(12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.pawStrollChain.opacity(0.55), lineWidth: 1.5))
-                        }
-                    }
-                }
-
-                Text("「改天再來一次」年度約定")
-                    .font(AppTheme.serifTitle(20))
-                    .foregroundStyle(AppTheme.deepPineInk)
-                Text("在任一頁點亮星號，就能把那天的舊插畫與日後壯大的家園並排回味。")
-                    .font(AppTheme.handwritten(14))
-                    .foregroundStyle(AppTheme.softInk)
-
-                if starredDays.isEmpty {
-                    Text("目前還沒有標記年度約定。輕點任一頁右上角的星星，珍藏屬於你們的小日子。")
-                        .font(AppTheme.serifBody(14))
-                        .foregroundStyle(AppTheme.softInk)
-                        .padding(20)
-                        .frame(maxWidth: .infinity)
-                        .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 16))
-                } else {
-                    ForEach(starredDays, id: \.localDateISO) { day in
-                        let originalEnc = allEncounters.first(where: { $0.localDateISO == day.localDateISO })
-                        let latestEnc = latestDay.flatMap { latest in
-                            allEncounters.first(where: { $0.localDateISO == latest.localDateISO && $0.localDateISO != day.localDateISO })
-                        }
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                Image(systemName: "star.fill").foregroundStyle(AppTheme.pawStrollChain)
-                                Text(CivilCalendarHelper.displayDate(from: day.localDateISO))
-                                    .font(AppTheme.serifTitle(16))
-                                    .foregroundStyle(AppTheme.deepPineInk)
-                            }
-                            HStack(spacing: 10) {
-                                traditionPhotoCard(title: "當時的那一天", enc: originalEnc)
-                                traditionPhotoCard(title: "後來的新篇章", enc: latestEnc)
-                            }
-                            if !day.personalNote.isEmpty {
-                                Text("「\(day.personalNote)」")
-                                    .font(AppTheme.handwritten(14))
-                                    .foregroundStyle(AppTheme.deepPineInk)
-                            }
-                        }
-                        .padding(14)
-                        .background(AppTheme.warmPaper, in: RoundedRectangle(cornerRadius: 16))
-                    }
-                }
-            }
-            .padding(16)
-        }
-    }
-
-    @ViewBuilder
-    private func traditionPhotoCard(title: String, enc: EncounterLog?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(AppTheme.diegeticLabel(11))
-                .foregroundStyle(AppTheme.forestTeal)
-            if let data = enc?.bakedSnapshotPNGData, let img = UIImage(data: data) {
-                Image(uiImage: img)
-                    .resizable()
-                    .scaledToFit()
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(AppTheme.parchmentTray)
-                    .frame(height: 92)
-                    .overlay(
-                        Text("靜待下個季節\n再並肩續寫")
-                            .font(AppTheme.handwritten(11))
-                            .foregroundStyle(AppTheme.softInk)
-                            .multilineTextAlignment(.center)
-                    )
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
-
 private struct SketchbookDayPageCard: View {
     let day: DiaryDayRecord
     let encounters: [EncounterLog]
-    let curios: [ForagedCurioEntry]
-    @Binding var noteText: String
-    let onToggleTradition: () -> Void
+    let newPets: [PetResidentState]
+    let curios: [DiscoveredCurio]
+    let outfitIDForPet: (String) -> String?
     let onRequestErasePlace: () -> Void
     let onRenameStop: (String, String) -> Void
     let onRemoveEncounter: (UUID) -> Void
-    let onSavePhoto: (Data?) -> Void
     let pinnedPostcardEncounterID: UUID?
     let onTogglePinPostcard: (UUID) -> Void
 
-    @State private var selectedPhotoItem: PhotosPickerItem? = nil
+    private var companionPetID: String? {
+        day.companionPetID ?? encounters.first?.petID
+    }
+
+    private var visitedLabels: [String] {
+        var seen = Set<String>()
+        var labels: [String] = []
+        for enc in encounters where !enc.placeRedacted {
+            if seen.insert(enc.siteDisplayLabel).inserted { labels.append(enc.siteDisplayLabel) }
+        }
+        return labels
+    }
+
+    private var visitedCornerCount: Int {
+        Set(encounters.filter { !$0.placeRedacted }.map(\.siteID)).count
+    }
+
+    private var isQuietDay: Bool {
+        day.acceptedSteps == 0 && encounters.isEmpty
+    }
+
+    private var headline: String {
+        if isQuietDay { return "在陽光室度過安靜療癒的一天" }
+        if let id = companionPetID {
+            let name = PetCatalog.pet(id: id).name
+            return day.acceptedSteps > 0
+                ? "與 \(name) 散步了 \(day.acceptedSteps.formatted()) 步"
+                : "與 \(name) 在街角相遇"
+        }
+        return "出門散步了 \(day.acceptedSteps.formatted()) 步"
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(CivilCalendarHelper.displayDate(from: day.localDateISO))
-                        .font(AppTheme.serifTitle(18))
-                        .foregroundStyle(AppTheme.deepPineInk)
-                    HStack(spacing: 6) {
-                        Text(day.weatherMode.displayName)
-                        if day.acceptedSteps > 0 {
-                            Text("· \(day.acceptedSteps.formatted()) 步")
-                        }
-                        if day.completedNeighborhoodLoop {
-                            Text("· 街區巡禮章")
-                                .foregroundStyle(AppTheme.forestTeal)
-                        }
-                        if day.deletionState == .placeErased {
-                            Text("· 已抹除地點")
-                                .foregroundStyle(AppTheme.clothBookmark)
-                        }
-                    }
-                    .font(AppTheme.diegeticLabel(12))
-                    .foregroundStyle(AppTheme.softInk)
-                }
+        VStack(alignment: .leading, spacing: 14) {
+            summaryBanner
 
-                Spacer()
-
-                Button(action: onToggleTradition) {
-                    Image(systemName: day.isStarredTradition ? "star.fill" : "star")
-                        .font(.system(size: 18))
-                        .foregroundStyle(day.isStarredTradition ? AppTheme.pawStrollChain : AppTheme.softInk)
-                        .padding(6)
-                }
-                .buttonStyle(.plain)
+            if !visitedLabels.isEmpty || !encounters.isEmpty {
+                locationsSection
             }
 
-            if encounters.isEmpty {
-                Text("安靜留白的一頁——還沒有街角相遇的明信片。")
-                    .font(AppTheme.handwritten(14))
-                    .foregroundStyle(AppTheme.softInk)
-                    .padding(.vertical, 6)
-            } else {
-                ForEach(encounters, id: \.encounterUUID) { enc in
-                    VStack(alignment: .leading, spacing: 8) {
-                        if let pngData = enc.bakedSnapshotPNGData,
-                           let uiImage = UIImage(data: pngData) {
-                            let shareImg = Image(uiImage: uiImage)
-                            ZStack(alignment: .top) {
-                                Image(uiImage: uiImage)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                                    .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 5, y: 3)
-                                    .overlay(alignment: .bottomTrailing) {
-                                        let isPinned = (pinnedPostcardEncounterID == enc.encounterUUID)
-                                        HStack(spacing: 6) {
-                                            Button {
-                                                onTogglePinPostcard(enc.encounterUUID)
-                                            } label: {
-                                                HStack(spacing: 3.5) {
-                                                    Image(systemName: isPinned ? "pin.fill" : "pin")
-                                                        .font(.system(size: 10.5, weight: .bold))
-                                                    Text(isPinned ? "已掛牆上" : "掛進陽光室")
-                                                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                                                }
-                                                .foregroundStyle(isPinned ? .white : AppTheme.forestTeal)
-                                                .padding(.horizontal, 9)
-                                                .padding(.vertical, 5)
-                                                .background(
-                                                    (isPinned ? AppTheme.forestTeal : Color(hex: "#FFFDF7").opacity(0.94)),
-                                                    in: Capsule()
-                                                )
-                                                .overlay(Capsule().stroke(isPinned ? Color.clear : AppTheme.timberWarm.opacity(0.55), lineWidth: 1))
-                                                .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 3, y: 1.5)
-                                            }
-                                            .buttonStyle(TactileGameButtonStyle(pressScale: 0.93, pressOffsetY: 1))
-
-                                            ShareLink(
-                                                item: shareImg,
-                                                preview: SharePreview("\(PetCatalog.pet(id: enc.petID).name)的街角明信片", image: shareImg)
-                                            ) {
-                                                HStack(spacing: 4) {
-                                                    Image(systemName: "square.and.arrow.up")
-                                                        .font(.system(size: 11, weight: .bold))
-                                                    Text("珍藏分享")
-                                                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                                                }
-                                                .foregroundStyle(AppTheme.deepPineInk)
-                                                .padding(.horizontal, 9)
-                                                .padding(.vertical, 5)
-                                                .background(Color(hex: "#FFFDF7").opacity(0.94), in: Capsule())
-                                                .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.55), lineWidth: 1))
-                                                .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 3, y: 1.5)
-                                            }
-                                        }
-                                        .padding(8)
-                                    }
-
-                                WashiTapeStrip(color: Color(hex: "#E6CFA3"), angle: -2.0, width: 72)
-                                    .offset(y: -7)
-                            }
-                            .padding(.top, 6)
-                        }
-
-                        HStack(alignment: .top) {
-                            Text(enc.narrativeLine)
-                                .font(AppTheme.serifBody(14))
-                                .foregroundStyle(AppTheme.deepPineInk)
-                            Spacer()
-                            Menu {
-                                if !enc.placeRedacted {
-                                    Button("重新命名街角") {
-                                        onRenameStop(enc.siteID, enc.siteDisplayLabel)
-                                    }
-                                }
-                                Button("移除這則相遇", role: .destructive) {
-                                    onRemoveEncounter(enc.encounterUUID)
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .foregroundStyle(AppTheme.softInk)
-                                    .padding(6)
-                            }
-                        }
-                    }
-                }
-            }
-
-            let trailPoints = LocationService.decodeTrailGeoJSON(day.routeTrackGeoJSON)
-            if trailPoints.count >= 2 {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("散步墨彩縮圖")
-                        .font(AppTheme.diegeticLabel(11))
-                        .foregroundStyle(AppTheme.softInk)
-                    MiniInkWashRouteCanvas(points: trailPoints)
-                        .frame(height: 54)
-                        .background(AppTheme.parchmentTray.opacity(0.65), in: RoundedRectangle(cornerRadius: 10))
-                }
+            if !newPets.isEmpty || !curios.isEmpty {
+                discoveriesSection
             }
 
             if !day.revisitNotes.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("順路探望小札")
-                        .font(AppTheme.diegeticLabel(11))
-                        .foregroundStyle(AppTheme.timberDeep)
+                VStack(alignment: .leading, spacing: 5) {
+                    sectionLabel("當日足跡", systemImage: "pawprint.fill", tint: AppTheme.timberDeep)
                     ForEach(day.revisitNotes, id: \.self) { note in
                         Text("• \(note)")
                             .font(AppTheme.serifBody(13))
                             .foregroundStyle(AppTheme.softInk)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .padding(10)
@@ -854,88 +778,14 @@ private struct SketchbookDayPageCard: View {
                 .background(AppTheme.parchmentTray.opacity(0.6), in: RoundedRectangle(cornerRadius: 10))
             }
 
-            if !curios.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(curios) { entry in
-                            let spec = CurioCatalog.curio(id: entry.curioID)
-                            HStack(spacing: 5) {
-                                PaintedCurioStampView(curioID: entry.curioID, size: 22)
-                                Text(spec.name)
-                                    .font(AppTheme.diegeticLabel(11))
-                                    .foregroundStyle(AppTheme.deepPineInk)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(AppTheme.parchmentTray, in: Capsule())
-                        }
-                    }
+            let trailPoints = LocationService.decodeTrailGeoJSON(day.routeTrackGeoJSON)
+            if trailPoints.count >= 2, MiniInkWashRouteCanvas.hasVisibleSpread(trailPoints) {
+                VStack(alignment: .leading, spacing: 5) {
+                    sectionLabel("散步墨彩路線", systemImage: "scribble.variable", tint: AppTheme.softInk)
+                    MiniInkWashRouteCanvas(points: trailPoints)
+                        .frame(height: 84)
+                        .background(AppTheme.parchmentTray.opacity(0.65), in: RoundedRectangle(cornerRadius: 12))
                 }
-            }
-
-            // Optional Real-World Walk Polaroid Photo Mount (100% private on-device)
-            if let jpegData = day.photoJPEGData, let photo = UIImage(data: jpegData) {
-                VStack(alignment: .leading, spacing: 6) {
-                    ZStack(alignment: .top) {
-                        VStack(spacing: 6) {
-                            Image(uiImage: photo)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(height: 158)
-                                .frame(maxWidth: .infinity)
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                            HStack {
-                                Text("散步拍立得 · \(CivilCalendarHelper.displayDate(from: day.localDateISO))")
-                                    .font(AppTheme.handwritten(12))
-                                    .foregroundStyle(AppTheme.softInk)
-                                Spacer()
-                                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                                    Text("更換")
-                                        .font(AppTheme.diegeticLabel(11))
-                                        .foregroundStyle(AppTheme.forestTeal)
-                                }
-                                Button("取下") {
-                                    onSavePhoto(nil)
-                                }
-                                .font(AppTheme.diegeticLabel(11))
-                                .foregroundStyle(AppTheme.clothBookmark)
-                            }
-                        }
-                        .padding(8)
-                        .background(Color.white, in: RoundedRectangle(cornerRadius: 6))
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(AppTheme.timberWarm.opacity(0.35), lineWidth: 1))
-                        .shadow(color: AppTheme.deepPineInk.opacity(0.14), radius: 5, y: 3)
-
-                        WashiTapeStrip(color: Color(hex: "#C5D7C6"), angle: 1.8, width: 64)
-                            .offset(y: -7)
-                    }
-                    .padding(.top, 6)
-                }
-            } else {
-                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "photo.on.rectangle.angled")
-                            .font(.system(size: 12, weight: .semibold))
-                        Text("貼上一張今天的散步拍立得（僅留存本機）")
-                            .font(AppTheme.diegeticLabel(11.5))
-                    }
-                    .foregroundStyle(AppTheme.forestTeal)
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 7)
-                    .background(AppTheme.parchmentTray.opacity(0.72), in: Capsule())
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("鋼筆手記")
-                    .font(AppTheme.diegeticLabel(11))
-                    .foregroundStyle(AppTheme.forestTeal)
-                TextField("用鋼筆寫下一句今日心情…", text: $noteText, axis: .vertical)
-                    .font(AppTheme.handwritten(15))
-                    .foregroundStyle(AppTheme.deepPineInk)
-                    .lineLimit(1...4)
-                    .padding(10)
-                    .background(AppTheme.parchmentTray.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
             }
 
             HStack {
@@ -966,29 +816,316 @@ private struct SketchbookDayPageCard: View {
                 )
         )
         .shadow(color: Color(hex: "#2D241E").opacity(0.09), radius: 10, y: 4)
-        .onChange(of: selectedPhotoItem) { _, newItem in
-            guard let newItem else { return }
-            Task {
-                if let rawData = try? await newItem.loadTransferable(type: Data.self),
-                   let uiImage = UIImage(data: rawData) {
-                    let maxDim: CGFloat = 1080
-                    let scale = min(1.0, maxDim / max(uiImage.size.width, uiImage.size.height))
-                    let targetSize = CGSize(width: uiImage.size.width * scale, height: uiImage.size.height * scale)
-                    let renderer = UIGraphicsImageRenderer(size: targetSize)
-                    let resized = renderer.image { _ in uiImage.draw(in: CGRect(origin: .zero, size: targetSize)) }
-                    let compressed = resized.jpegData(compressionQuality: 0.72)
-                    await MainActor.run {
-                        onSavePhoto(compressed)
-                        selectedPhotoItem = nil
+    }
+
+    // MARK: Banner
+
+    private var summaryBanner: some View {
+        HStack(alignment: .center, spacing: 12) {
+            companionPortrait
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(CivilCalendarHelper.displayDate(from: day.localDateISO))
+                    .font(AppTheme.diegeticLabel(11.5))
+                    .foregroundStyle(AppTheme.softInk)
+                Text(headline)
+                    .font(AppTheme.serifTitle(17))
+                    .foregroundStyle(AppTheme.deepPineInk)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                FlowChipRow {
+                    infoPill(systemImage: day.weatherMode.sfSymbol, text: day.weatherMode.displayName, tint: AppTheme.forestTeal)
+                    if day.acceptedSteps > 0 {
+                        infoPill(systemImage: "figure.walk", text: "\(day.acceptedSteps.formatted()) 步", tint: AppTheme.timberDeep)
+                    }
+                    if visitedCornerCount > 0 {
+                        infoPill(systemImage: "mappin.and.ellipse", text: "走訪 \(visitedCornerCount) 個街角", tint: AppTheme.timberDeep)
+                    }
+                    if day.completedNeighborhoodLoop {
+                        infoPill(systemImage: "rosette", text: "街區巡禮章", tint: AppTheme.pawStrollChain)
+                    }
+                    if day.deletionState == .placeErased {
+                        infoPill(systemImage: "eraser", text: "已抹除地點", tint: AppTheme.clothBookmark)
                     }
                 }
             }
+            Spacer(minLength: 0)
+        }
+    }
+
+    @ViewBuilder
+    private var companionPortrait: some View {
+        ZStack {
+            Circle()
+                .fill(Color(hex: "#F3ECE0"))
+                .overlay(Circle().stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 1))
+            if let id = companionPetID {
+                ProceduralPetRigView(
+                    pet: PetCatalog.pet(id: id),
+                    outfitID: outfitIDForPet(id),
+                    pose: .respond,
+                    applyMetalPaperShader: false,
+                    isStaticSnapshot: true
+                )
+                .padding(4)
+                .clipShape(Circle())
+            } else {
+                Image(systemName: isQuietDay ? "sun.max.fill" : "pawprint.fill")
+                    .font(.system(size: 24))
+                    .foregroundStyle(AppTheme.pawStrollChain)
+            }
+        }
+        .frame(width: 66, height: 66)
+        .accessibilityHidden(true)
+    }
+
+    private func infoPill(systemImage: String, text: String, tint: Color) -> some View {
+        HStack(spacing: 3.5) {
+            Image(systemName: systemImage)
+                .font(.system(size: 10, weight: .semibold))
+            Text(text)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(tint.opacity(0.12), in: Capsule())
+    }
+
+    private func sectionLabel(_ title: String, systemImage: String, tint: Color) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: systemImage)
+                .font(.system(size: 10.5, weight: .semibold))
+            Text(title)
+                .font(AppTheme.diegeticLabel(12))
+        }
+        .foregroundStyle(tint)
+    }
+
+    // MARK: Locations & postcards
+
+    private var locationsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionLabel("走訪街角", systemImage: "map.fill", tint: AppTheme.forestTeal)
+
+            if !visitedLabels.isEmpty {
+                FlowChipRow {
+                    ForEach(visitedLabels, id: \.self) { label in
+                        Text(label)
+                            .font(AppTheme.diegeticLabel(11.5))
+                            .foregroundStyle(AppTheme.deepPineInk)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(AppTheme.parchmentTray, in: Capsule())
+                            .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.3), lineWidth: 0.8))
+                    }
+                }
+            }
+
+            ForEach(encounters, id: \.encounterUUID) { enc in
+                encounterBlock(enc)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func encounterBlock(_ enc: EncounterLog) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let pngData = enc.bakedSnapshotPNGData,
+               let uiImage = UIImage(data: pngData) {
+                let shareImg = Image(uiImage: uiImage)
+                let isPinned = (pinnedPostcardEncounterID == enc.encounterUUID)
+
+                ZStack(alignment: .top) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 5, y: 3)
+
+                    WashiTapeStrip(color: Color(hex: "#E6CFA3"), angle: -2.0, width: 72)
+                        .offset(y: -7)
+                }
+                .padding(.top, 6)
+
+                HStack(spacing: 8) {
+                    Button {
+                        onTogglePinPostcard(enc.encounterUUID)
+                    } label: {
+                        HStack(spacing: 3.5) {
+                            Image(systemName: isPinned ? "pin.fill" : "pin")
+                                .font(.system(size: 10.5, weight: .bold))
+                            Text(isPinned ? "已掛牆上" : "掛進陽光室")
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                        }
+                        .foregroundStyle(isPinned ? .white : AppTheme.forestTeal)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5.5)
+                        .background(
+                            (isPinned ? AppTheme.forestTeal : Color(hex: "#FFFDF7").opacity(0.94)),
+                            in: Capsule()
+                        )
+                        .overlay(Capsule().stroke(isPinned ? Color.clear : AppTheme.timberWarm.opacity(0.55), lineWidth: 1))
+                    }
+                    .buttonStyle(TactileGameButtonStyle(pressScale: 0.93, pressOffsetY: 1))
+
+                    ShareLink(
+                        item: shareImg,
+                        preview: SharePreview("\(PetCatalog.pet(id: enc.petID).name)的街角明信片", image: shareImg)
+                    ) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 11, weight: .bold))
+                            Text("珍藏分享")
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                        }
+                        .foregroundStyle(AppTheme.deepPineInk)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5.5)
+                        .background(Color(hex: "#FFFDF7").opacity(0.94), in: Capsule())
+                        .overlay(Capsule().stroke(AppTheme.timberWarm.opacity(0.55), lineWidth: 1))
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+
+            HStack(alignment: .top) {
+                Text(enc.narrativeLine)
+                    .font(AppTheme.serifBody(14))
+                    .foregroundStyle(AppTheme.deepPineInk)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+                Menu {
+                    if !enc.placeRedacted {
+                        Button("重新命名街角") {
+                            onRenameStop(enc.siteID, enc.siteDisplayLabel)
+                        }
+                    }
+                    Button("移除這則相遇", role: .destructive) {
+                        onRemoveEncounter(enc.encounterUUID)
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(AppTheme.softInk)
+                        .padding(6)
+                }
+                .accessibilityLabel("相遇選項")
+            }
+        }
+    }
+
+    // MARK: Discoveries
+
+    private var discoveriesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            sectionLabel("今日新發現", systemImage: "sparkles", tint: AppTheme.pawStrollChain)
+
+            ForEach(newPets, id: \.petID) { resident in
+                let spec = PetCatalog.pet(id: resident.petID)
+                HStack(spacing: 10) {
+                    ProceduralPetRigView(
+                        pet: spec,
+                        outfitID: resident.activeOutfitID,
+                        pose: .respond,
+                        applyMetalPaperShader: false,
+                        isStaticSnapshot: true
+                    )
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(Color(hex: "#F3ECE0")))
+                    .clipShape(Circle())
+                    Text("初次遇見 \(spec.name)（\(spec.kind.rawValue)）")
+                        .font(AppTheme.serifBody(13.5))
+                        .foregroundStyle(AppTheme.deepPineInk)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+            }
+
+            if !curios.isEmpty {
+                FlowChipRow {
+                    ForEach(curios) { item in
+                        let spec = CurioCatalog.curio(id: item.entry.curioID)
+                        HStack(spacing: 5) {
+                            PaintedCurioStampView(curioID: item.entry.curioID, size: 22)
+                            Text(spec.name)
+                                .font(AppTheme.diegeticLabel(11))
+                                .foregroundStyle(AppTheme.deepPineInk)
+                            if item.isFirstEver {
+                                Text("✦ 首次拾獲")
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundStyle(AppTheme.pawStrollChain)
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(AppTheme.parchmentTray, in: Capsule())
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.pawStrollChain.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+/// 自動換行的小標籤列
+private struct FlowChipRow<Content: View>: View {
+    var spacing: CGFloat = 6
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        FlowWrapLayout(spacing: spacing) { content() }
+    }
+}
+
+private struct FlowWrapLayout: Layout {
+    var spacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0, usedWidth: CGFloat = 0
+        for sub in subviews {
+            let size = sub.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > maxWidth {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            x += size.width + spacing
+            usedWidth = max(usedWidth, x - spacing)
+            rowHeight = max(rowHeight, size.height)
+        }
+        return CGSize(width: proposal.width ?? usedWidth, height: y + rowHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX, y = bounds.minY, rowHeight: CGFloat = 0
+        for sub in subviews {
+            let size = sub.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            sub.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
         }
     }
 }
 
 private struct MiniInkWashRouteCanvas: View {
     let points: [CoordinatePoint]
+
+    /// 軌跡幾乎沒有位移時不畫（避免空盒子裡只剩一條死板的橫線）
+    static func hasVisibleSpread(_ points: [CoordinatePoint]) -> Bool {
+        let lats = points.map(\.latitude)
+        let lons = points.map(\.longitude)
+        guard let minLat = lats.min(), let maxLat = lats.max(),
+              let minLon = lons.min(), let maxLon = lons.max() else { return false }
+        return (maxLat - minLat) > 0.00003 || (maxLon - minLon) > 0.00003
+    }
 
     var body: some View {
         Canvas { ctx, size in
@@ -997,22 +1134,64 @@ private struct MiniInkWashRouteCanvas: View {
             guard let minLat = lats.min(), let maxLat = lats.max(),
                   let minLon = lons.min(), let maxLon = lons.max() else { return }
 
-            let latSpan = max(0.0002, maxLat - minLat)
-            let lonSpan = max(0.0002, maxLon - minLon)
-            let pad: CGFloat = 12
+            // 以等比例縮放並置中，路線形狀不被拉扁
+            let midLat = (minLat + maxLat) / 2
+            let lonScale = max(0.2, cos(midLat * .pi / 180))
+            let latSpan = max(0.00005, maxLat - minLat)
+            let lonSpan = max(0.00005, (maxLon - minLon) * lonScale)
+            let pad: CGFloat = 16
+            let availW = max(1, size.width - pad * 2)
+            let availH = max(1, size.height - pad * 2)
+            let scale = min(availW / CGFloat(lonSpan), availH / CGFloat(latSpan))
+            let drawnW = CGFloat(lonSpan) * scale
+            let drawnH = CGFloat(latSpan) * scale
+            let originX = (size.width - drawnW) / 2
+            let originY = (size.height - drawnH) / 2
 
-            var path = Path()
-            for (idx, pt) in points.enumerated() {
-                let x = pad + CGFloat((pt.longitude - minLon) / lonSpan) * (size.width - pad * 2)
-                let y = size.height - pad - CGFloat((pt.latitude - minLat) / latSpan) * (size.height - pad * 2)
-                if idx == 0 { path.move(to: CGPoint(x: x, y: y)) }
-                else { path.addLine(to: CGPoint(x: x, y: y)) }
+            let mapped: [CGPoint] = points.map { pt in
+                let x = originX + CGFloat((pt.longitude - minLon) * lonScale / lonSpan) * drawnW
+                let y = originY + drawnH - CGFloat((pt.latitude - minLat) / latSpan) * drawnH
+                return CGPoint(x: x, y: y)
             }
-            ctx.stroke(
-                path,
-                with: .color(AppTheme.pawMetToday.opacity(0.8)),
-                style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round, dash: [2, 6])
-            )
+
+            // 以中點二次曲線平滑路線
+            var path = Path()
+            path.move(to: mapped[0])
+            if mapped.count == 2 {
+                path.addLine(to: mapped[1])
+            } else {
+                for i in 1..<mapped.count - 1 {
+                    let mid = CGPoint(x: (mapped[i].x + mapped[i + 1].x) / 2, y: (mapped[i].y + mapped[i + 1].y) / 2)
+                    if i == 1 {
+                        path.addLine(to: CGPoint(x: (mapped[0].x + mapped[1].x) / 2, y: (mapped[0].y + mapped[1].y) / 2))
+                    }
+                    path.addQuadCurve(to: mid, control: mapped[i])
+                }
+                path.addLine(to: mapped[mapped.count - 1])
+            }
+
+            // 暈開的水彩底墨 + 乾筆墨線
+            ctx.stroke(path, with: .color(AppTheme.forestTeal.opacity(0.14)),
+                       style: StrokeStyle(lineWidth: 11, lineCap: .round, lineJoin: .round))
+            ctx.stroke(path, with: .color(AppTheme.pawMetToday.opacity(0.22)),
+                       style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round))
+            ctx.stroke(path, with: .color(AppTheme.pawMetToday.opacity(0.85)),
+                       style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+
+            drawPaw(ctx, at: mapped[0], color: AppTheme.forestTeal)
+            drawPaw(ctx, at: mapped[mapped.count - 1], color: AppTheme.pawStrollChain)
+        }
+        .accessibilityLabel("今日散步路線")
+    }
+
+    private func drawPaw(_ ctx: GraphicsContext, at p: CGPoint, color: Color) {
+        let halo = Path(ellipseIn: CGRect(x: p.x - 9, y: p.y - 9, width: 18, height: 18))
+        ctx.fill(halo, with: .color(color.opacity(0.18)))
+        let pad = Path(ellipseIn: CGRect(x: p.x - 3.6, y: p.y - 1.2, width: 7.2, height: 5.6))
+        ctx.fill(pad, with: .color(color))
+        for (dx, dy) in [(-4.6, -3.4), (-1.6, -5.6), (1.6, -5.6), (4.6, -3.4)] as [(CGFloat, CGFloat)] {
+            let toe = Path(ellipseIn: CGRect(x: p.x + dx - 1.5, y: p.y + dy - 1.5, width: 3, height: 3))
+            ctx.fill(toe, with: .color(color))
         }
     }
 }
@@ -1085,3 +1264,4 @@ private struct KawaiiCornerRenameSheet: View {
         }
     }
 }
+

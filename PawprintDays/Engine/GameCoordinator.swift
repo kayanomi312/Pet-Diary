@@ -35,6 +35,7 @@ final class GameCoordinator {
     var showAccessibleNearbyList: Bool = false
     var showFixtureDrawer: Bool = false
     var isSunroomPhotoMode: Bool = false
+    var isMilestoneSheetHostActive: Bool = false
     var pendingOpenStartStrollSheet: Bool = false
     var transientWhisper: String? = nil
     var latestFixtureReport: Stage1VerificationSummary? = nil
@@ -45,6 +46,10 @@ final class GameCoordinator {
     var completedStrollSummary: CompletedStrollSummary? = nil
     /// Favourite-greeting reward or hint from the latest street greeting, shown on the encounter screen.
     var lastGreetingFeedback: String? = nil
+    /// The storybook celebration currently shown (bond tier-up, new companion, stamp card, set, theme).
+    var pendingMilestoneCelebration: MilestoneCelebration? = nil
+    /// Celebrations waiting their turn while another one is on screen.
+    var queuedMilestoneCelebrations: [MilestoneCelebration] = []
 
     var anchors: [AnchorSiteRecord] = []
     var residents: [PetResidentState] = []
@@ -115,7 +120,9 @@ final class GameCoordinator {
         modelContext.insert(freshLedger)
         self.ledger = freshLedger
 
-        UserDefaults.standard.removeObject(forKey: "pawprintdays.sunroom.customSpots.v1")
+        UserDefaults.standard.removeObject(forKey: "pawprintdays.sunroom.customSpotCoords.v1")
+        pendingMilestoneCelebration = nil
+        queuedMilestoneCelebrations = []
         UserDefaults.standard.removeObject(forKey: Self.tutorialCompletedDefaultsKey)
         locationService.clearTrailForDay()
         seedInitialWorldIfNeeded()
@@ -969,6 +976,8 @@ final class GameCoordinator {
         )
         modelContext.insert(log)
 
+        let previousBondTier = PetResidentState.milestoneForSharedDays(pet.sharedDaysCount)
+        let wasAlreadyRoommate = pet.inviteState == .invitedHome
         if pet.firstMetDateISO == nil {
             pet.firstMetDateISO = dateISO
             pet.firstGesture = gesture
@@ -1038,6 +1047,11 @@ final class GameCoordinator {
         if offeredChainTargetID == nil && companionStreetPetID == nil && pet.inviteState == .invitedHome {
             offerWalkQuestIfAppropriate(petID: petID)
         }
+        if !wasAlreadyRoommate && pet.inviteState == .invitedHome {
+            celebrateNewCompanionIfNeeded(petID: petID)
+        }
+        celebrateBondTierUpIfNeeded(petID: petID, previousTier: previousBondTier, newTier: pet.milestoneTier)
+        awardDailyCozyStampIfEligible(reason: "街角相遇")
         return log
     }
 
@@ -1094,6 +1108,8 @@ final class GameCoordinator {
 
     /// A thermos stroll of at least this many steps earns the full +9 refund (net +3 on its 6-coin price).
     static let gingerThermosFullRefundSteps = 1_500
+    /// A stroll needs at least this many steps (or one corner greeting) to earn the daily cozy stamp.
+    static let strollStampMinimumSteps = 100
 
     @discardableResult
     func endStrollSession(autoArchived: Bool = false) -> CompletedStrollSummary? {
@@ -1146,6 +1162,13 @@ final class GameCoordinator {
 
         try? modelContext.save()
         reloadAll()
+
+        // A real outing (100+ steps or a corner greeting) earns today's cozy stamp — only for today's stroll.
+        if stroll.localDateISO == currentLocalDateISO,
+           stroll.sessionSteps >= Self.strollStampMinimumSteps || stroll.sessionEncountersCount >= 1 {
+            awardDailyCozyStampIfEligible(reason: "完成散步")
+        }
+        recordStrollStampSnapshot(for: summary.id)
 
         if !autoArchived {
             completedStrollSummary = summary
@@ -1279,6 +1302,10 @@ final class GameCoordinator {
         let resolvedTx = txID ?? "tx.\(item.id).\(UUID().uuidString.prefix(8))"
         let ok = StepCoinLedgerEngine.spendCoins(ledger: ledger, txID: resolvedTx, item: item)
         if ok {
+            if let theme = SeasonalRoomTheme(rawValue: item.id) {
+                // Instant gratification: a freshly bought room theme is hung up right away.
+                ledger.activeRoomTheme = theme
+            }
             if item.id == "room.rain_veranda" {
                 ensureHomeSpotsExist()
                 solveHomeRoomNow()
@@ -1292,9 +1319,12 @@ final class GameCoordinator {
             reloadAll()
             if item.id == "treat.ginger_tea" {
                 showWhisper("陽光室已擺上熱呼呼的「雨天暖薑茶盤」（暖意持續 24 小時）！")
+            } else if SeasonalRoomTheme(rawValue: item.id) != nil {
+                showWhisper("陽光室換上了「\(item.name)」的光影！")
             } else {
                 showWhisper("已收進「\(item.name)」。")
             }
+            celebrateRoomPurchaseIfNeeded(item)
         } else {
             showWhisper("需要 \(item.priceCoins) 步數幣（袋中目前有 \(ledger.coinBalance) 幣）。")
         }
@@ -1512,6 +1542,7 @@ final class GameCoordinator {
     func completeTactileCare(petID: String, texture: FoodTexture? = nil) {
         guard let pet = residents.first(where: { $0.petID == petID }) else { return }
         let dateISO = currentLocalDateISO
+        let previousBondTier = PetResidentState.milestoneForSharedDays(pet.sharedDaysCount)
         if pet.lastSharedDateISO != dateISO {
             pet.sharedDaysCount += 1
             pet.lastSharedDateISO = dateISO
@@ -1523,6 +1554,7 @@ final class GameCoordinator {
         try? modelContext.save()
         reloadAll()
         nurtureAllGrowingOffspring(axis: .gentle, bonusSteps: 0)
+        celebrateBondTierUpIfNeeded(petID: petID, previousTier: previousBondTier, newTier: pet.milestoneTier)
     }
 
     func togglePinFavorite(petID: String) {

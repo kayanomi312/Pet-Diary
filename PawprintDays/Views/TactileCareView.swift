@@ -36,6 +36,14 @@ struct TactileCareView: View {
     }
 
     var body: some View {
+        GeometryReader { geometry in
+            let fullHeight = geometry.size.height + geometry.safeAreaInsets.top + geometry.safeAreaInsets.bottom
+            let rugY = fullHeight * 0.57 - geometry.safeAreaInsets.top
+            careScene(rugY: rugY)
+        }
+    }
+
+    private func careScene(rugY: CGFloat) -> some View {
         ZStack {
             TactileCareFloorBackdrop(weather: coordinator.activeWeather)
                 .ignoresSafeArea()
@@ -119,9 +127,21 @@ struct TactileCareView: View {
                             .background(Color(hex: petSpec.gender.badgeHex), in: Capsule())
                             .accessibilityHidden(true)
                         SpeciesFolkloreBadgeView(kind: petSpec.kind)
-                        Text(resident?.relationshipStatusLabel ?? "陽光室室友 · 第 1 天")
-                            .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                            .foregroundStyle(AppTheme.softInk)
+                        if let resident {
+                            let statusText = (resident.milestoneTier == 0 && resident.inviteState == .invitedHome)
+                                ? "陽光室室友"
+                                : resident.milestoneTitle
+                            Text(statusText)
+                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                .foregroundStyle(AppTheme.deepPineInk)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Color(hex: "#FFF7EC").opacity(0.92), in: Capsule())
+                        }
+                    }
+
+                    if let resident {
+                        CompanionBondProgressPill(sharedDays: resident.sharedDaysCount)
                     }
                 }
                 .padding(.top, 8)
@@ -140,161 +160,13 @@ struct TactileCareView: View {
                     .padding(.top, 6)
                 }
 
-                Spacer()
-
-                ZStack {
-                    ProceduralPetRigView(
-                        pet: petSpec,
-                        outfitID: resident?.activeOutfitID,
-                        pose: (brushStrokeCount >= 3 || activePlayAction == .cozyNap) ? .resting : .respond,
-                        weatherMode: coordinator.activeWeather,
-                        fingerFocusNormalized: fingerFocus,
-                        isHappySquint: brushStrokeCount >= 2 || brushRuffle > 0.1 || activePlayAction == .bellyBoop || activePlayAction == .eatMunch || activePlayAction == .happyTwirl,
-                        brushRuffleAmount: brushRuffle,
-                        tapBounceScale: petBounce,
-                        playfulAction: activePlayAction,
-                        actionTriggerDate: actionTriggerDate
-                    )
-                    .frame(width: 280, height: 280)
-
-                    // 可愛即時互動對話泡泡（戳肚皮、逗玩、吃小魚餅、蓋被被、轉圈圈）
-                    if let bubble = liveReactionBubble {
-                        SunroomPetSpeechBubble(text: bubble)
-                            .offset(y: -124)
-                    }
-
-                    // 拋出金色小魚餅飛向毛孩的弧線動畫！
-                    if let p = flyingSnackProgress {
-                        let x = reduceMotion ? 0 : -110 + p * 110
-                        let y = reduceMotion ? 42 : 70 - sin(p * .pi) * 145
-                        CuteCareToyIcon(kind: .fishSnack, size: 34)
-                            .rotationEffect(.degrees(reduceMotion ? 0 : Double(p) * 320))
-                            .offset(x: x, y: y)
-                            .allowsHitTesting(false)
-                    }
-
-                    // 揮動粉色羽毛逗貓棒動畫！
-                    if wavingTeaserActive {
-                        CuteCareToyIcon(kind: .teaserWand, size: 42)
-                            .rotationEffect(.degrees(reduceMotion ? 0 : (wavingTeaserActive ? 18 : -18)))
-                            .offset(x: 68, y: -58)
-                            .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
-                            .allowsHitTesting(false)
-                    }
-
-                    // 指尖梳毛／輕撫即時飄出的愛心與金色星芒粒子
-                    LiveTouchSparkleLayer(seeds: touchSparkles)
-                        .frame(width: 280, height: 280)
-
-                    // 從木製掛衣架拖曳衣飾靠近頸部時，於 socket_neck 浮現金色引導光圈與文字提示
-                    if draggingOutfitID != nil {
-                        VStack(spacing: 4) {
-                            Text("放開即可配戴")
-                                .font(AppTheme.diegeticLabel(10))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(AppTheme.pawStrollChain, in: Capsule())
-                            Circle()
-                                .stroke(AppTheme.pawStrollChain, style: StrokeStyle(lineWidth: 2.8, dash: [5, 4]))
-                                .background(Circle().fill(AppTheme.pawStrollChain.opacity(0.20)))
-                                .frame(width: 76, height: 76)
-                        }
-                        .offset(x: -18, y: -48)
-                        .allowsHitTesting(false)
-                    }
-
-                    // 隨指尖移動的木質梳毛刷（雨天自動切換成溫熱毛巾擦毛！）
-                    if let loc = brushLocation {
-                        HStack(spacing: 4) {
-                            Image(systemName: coordinator.activeWeather.isRainy ? "wind" : "comb.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                            Text(coordinator.activeWeather.isRainy ? "暖巾擦毛" : "木梳順毛")
-                                .font(AppTheme.diegeticLabel(11))
-                        }
-                        .foregroundStyle(AppTheme.deepPineInk)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.warmPaper.opacity(0.95), in: Capsule())
-                        .overlay(Capsule().stroke(AppTheme.timberWarm, lineWidth: 1.3))
-                        .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 5, y: 2)
-                        .position(x: max(44, min(236, loc.x)), y: max(30, min(250, loc.y - 26)))
-                        .allowsHitTesting(false)
-                    }
-
-                    if showCareStamp {
-                        HankoCelebrationStampView(
-                            title: "暖心照護 ✦",
-                            subtitle: "\(petSpec.name)很開心",
-                            stampColor: AppTheme.pawInRange
-                        )
-                        .offset(x: 62, y: -96)
-                    }
+                GeometryReader { stage in
+                    let stageTop = stage.frame(in: .named("careScene")).minY
+                    let rugContact = max(0, min(stage.size.height - 16, rugY - stageTop))
+                    let size = min(280, max(1, stage.size.width - 20), max(1, rugContact / 0.91))
+                    carePet(size: size)
+                        .position(x: stage.size.width / 2, y: rugContact - size * 0.41)
                 }
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            let nx = (value.location.x / 280.0) * 2.0 - 1.0
-                            let ny = (value.location.y / 280.0) * 2.0 - 1.0
-                            fingerFocus = CGPoint(x: max(-1, min(1, nx)), y: max(-1, min(1, ny)))
-                            if abs(value.translation.width) > 20 {
-                                brushRuffle = 1.0
-                                brushLocation = value.location
-                                emitTouchSparkle(at: value.location)
-                            }
-                        }
-                        .onEnded { value in
-                            if abs(value.translation.width) > 36 {
-                                brushStrokeCount += 1
-                                HapticsEngine.shared.playBrushStrokeTick()
-                                CozySoundEngine.shared.playBrushSwish()
-                                triggerPlayfulAction(.bellyBoop, bubble: cuteReactionLine(for: .bellyBoop))
-                                if brushStrokeCount == 3 {
-                                    coordinator.completeTactileCare(petID: petID)
-                                    HapticsEngine.shared.playCurioUnpack()
-                                    CozySoundEngine.shared.playCompassChime()
-                                    withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) {
-                                        showCareStamp = true
-                                    }
-                                    Task { @MainActor in
-                                        try? await Task.sleep(for: .seconds(2.8))
-                                        withAnimation(.easeOut(duration: 0.35)) { showCareStamp = false }
-                                    }
-                                }
-                            } else if abs(value.translation.width) < 12 && abs(value.translation.height) < 12 {
-                                // 分區撫摸回饋：摸頭／抓下巴／輕戳肚皮各有不同可愛反應與呼嚕聲！
-                                let tapNormY = (value.location.y / 280.0) * 2.0 - 1.0
-                                HapticsEngine.shared.playPawRangeCue()
-                                if petSpec.kind.isCatFamily {
-                                    CozySoundEngine.shared.playPetPurr()
-                                } else {
-                                    CozySoundEngine.shared.playPetChirp()
-                                }
-                                for _ in 0..<4 {
-                                    emitTouchSparkle(
-                                        at: CGPoint(
-                                            x: value.location.x + CGFloat.random(in: -28...28),
-                                            y: value.location.y + CGFloat.random(in: -22...18)
-                                        ),
-                                        force: true
-                                    )
-                                }
-                                if tapNormY < -0.18 {
-                                    triggerPlayfulAction(.bellyBoop, bubble: "摸摸頭好舒服～耳朵動了一下♡")
-                                } else if tapNormY > 0.20 {
-                                    triggerPlayfulAction(.pounceHop, bubble: cuteReactionLine(for: .bellyBoop))
-                                } else {
-                                    triggerPlayfulAction(.bellyBoop, bubble: "抓抓下巴…呼嚕呼嚕♪")
-                                }
-                            }
-                            withAnimation(.easeOut(duration: 0.35)) {
-                                fingerFocus = nil
-                                brushLocation = nil
-                                brushRuffle = 0
-                            }
-                        }
-                )
 
                 Text(activePlayAction == .cozyNap
                      ? "\(petSpec.name)蓋著小被子發出甜甜的呼嚕聲…"
@@ -325,75 +197,66 @@ struct TactileCareView: View {
                                     .foregroundStyle(AppTheme.forestTeal)
                             }
                             .buttonStyle(.plain)
+                        } else if let resident, resident.sharedDaysCount >= 10, !resident.kindredPracticeCompleted {
+                            Button("習慣練習") { showKindredLessonSheet = true }
+                                .font(AppTheme.diegeticLabel(11))
+                                .foregroundStyle(AppTheme.forestTeal)
+                                .buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal, 16)
 
                     if activeTrayTab == 0 {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                careToyChip(title: petSpec.kind.isCatFamily ? "逗貓棒" : "滾布球", kind: .teaserWand, active: activePlayAction == .pounceHop) {
-                                    HapticsEngine.shared.playDogBallRoll()
-                                    CozySoundEngine.shared.playBrushSwish()
-                                    withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) { wavingTeaserActive = true }
-                                    triggerPlayfulAction(.pounceHop, bubble: cuteReactionLine(for: .pounceHop))
-                                    coordinator.completeTactileCare(petID: petID)
-                                    Task { @MainActor in
-                                        try? await Task.sleep(for: .milliseconds(1200))
-                                        withAnimation(.easeOut(duration: 0.25)) { wavingTeaserActive = false }
-                                    }
-                                }
-
-                                careToyChip(title: "餵點心", kind: .fishSnack, active: activePlayAction == .eatMunch) {
-                                    CozySoundEngine.shared.playPaperFlip()
-                                    showSnackPicker = true
-                                }
-
-                                careToyChip(title: activePlayAction == .cozyNap ? "起床囉" : "蓋被被", kind: .cozyBlanket, active: activePlayAction == .cozyNap) {
-                                    HapticsEngine.shared.playBrushStrokeTick()
-                                    CozySoundEngine.shared.playPaperFlip()
-                                    if activePlayAction == .cozyNap {
-                                        triggerPlayfulAction(.bellyBoop, bubble: "伸個大懶腰～早安！")
-                                    } else {
-                                        withAnimation(AppTheme.Motion.resolved(.gentle, reduceMotion: reduceMotion)) {
-                                            activePlayAction = .cozyNap
-                                            actionTriggerDate = Date()
-                                            liveReactionBubble = "蓋好被被…呼呼…"
-                                        }
-                                    }
-                                }
-
-                                careToyChip(title: "踏踏舞", kind: .happyTwirl, active: activePlayAction == .happyTwirl) {
-                                    HapticsEngine.shared.playCurioUnpack()
-                                    CozySoundEngine.shared.playWardrobeSnap(withBell: true)
-                                    emitBurstSparkles()
-                                    triggerPlayfulAction(.happyTwirl, bubble: cuteReactionLine(for: .happyTwirl))
-                                }
-
-                                careToyChip(
-                                    title: coordinator.activeWalkCompanionID == petID ? "同行中" : "帶去散步",
-                                    kind: .walkBuddy,
-                                    active: coordinator.activeWalkCompanionID == petID
-                                ) {
-                                    CozySoundEngine.shared.playCompassChime()
-                                    coordinator.setWalkCompanion(petID: petID)
-                                    triggerPlayfulAction(.happyTwirl, bubble: "好耶！帶我出門玩♡")
-                                }
-
-                                if let res = resident, res.sharedDaysCount >= 10, !res.kindredPracticeCompleted {
-                                    CutePlushButton(
-                                        title: "習慣練習",
-                                        tone: .butterHoney,
-                                        fontSize: 11.5,
-                                        horizontalPadding: 11,
-                                        verticalPadding: 10,
-                                        icon: { Image(systemName: "sparkles").font(.system(size: 12, weight: .bold)) },
-                                        action: { showKindredLessonSheet = true }
-                                    )
+                        HStack(spacing: 5) {
+                            careToyChip(title: petSpec.kind.isCatFamily ? "逗貓棒" : "滾布球", kind: .teaserWand, active: activePlayAction == .pounceHop) {
+                                HapticsEngine.shared.playDogBallRoll()
+                                CozySoundEngine.shared.playBrushSwish()
+                                withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) { wavingTeaserActive = true }
+                                triggerPlayfulAction(.pounceHop, bubble: cuteReactionLine(for: .pounceHop))
+                                coordinator.completeTactileCare(petID: petID)
+                                Task { @MainActor in
+                                    try? await Task.sleep(for: .milliseconds(1200))
+                                    withAnimation(.easeOut(duration: 0.25)) { wavingTeaserActive = false }
                                 }
                             }
-                            .padding(.horizontal, 14)
+
+                            careToyChip(title: "餵點心", kind: .fishSnack, active: activePlayAction == .eatMunch) {
+                                CozySoundEngine.shared.playPaperFlip()
+                                showSnackPicker = true
+                            }
+
+                            careToyChip(title: activePlayAction == .cozyNap ? "起床囉" : "蓋被被", kind: .cozyBlanket, active: activePlayAction == .cozyNap) {
+                                HapticsEngine.shared.playBrushStrokeTick()
+                                CozySoundEngine.shared.playPaperFlip()
+                                if activePlayAction == .cozyNap {
+                                    triggerPlayfulAction(.bellyBoop, bubble: "伸個大懶腰～早安！")
+                                } else {
+                                    withAnimation(AppTheme.Motion.resolved(.gentle, reduceMotion: reduceMotion)) {
+                                        activePlayAction = .cozyNap
+                                        actionTriggerDate = Date()
+                                        liveReactionBubble = "蓋好被被…呼呼…"
+                                    }
+                                }
+                            }
+
+                            careToyChip(title: "踏踏舞", kind: .happyTwirl, active: activePlayAction == .happyTwirl) {
+                                HapticsEngine.shared.playCurioUnpack()
+                                CozySoundEngine.shared.playWardrobeSnap(withBell: true)
+                                emitBurstSparkles()
+                                triggerPlayfulAction(.happyTwirl, bubble: cuteReactionLine(for: .happyTwirl))
+                            }
+
+                            careToyChip(
+                                title: coordinator.activeWalkCompanionID == petID ? "同行中" : "帶去散步",
+                                kind: .walkBuddy,
+                                active: coordinator.activeWalkCompanionID == petID
+                            ) {
+                                CozySoundEngine.shared.playCompassChime()
+                                coordinator.setWalkCompanion(petID: petID)
+                                triggerPlayfulAction(.happyTwirl, bubble: "好耶！帶我出門玩♡")
+                            }
                         }
+                        .padding(.horizontal, 11)
                     } else {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 10) {
@@ -521,6 +384,7 @@ struct TactileCareView: View {
                 .transition(reduceMotion ? .opacity : .scale(scale: 0.92, anchor: .topTrailing).combined(with: .opacity))
             }
         }
+        .coordinateSpace(name: "careScene")
         .sheet(isPresented: $showMentorshipSheet) {
             MentorshipPlannerSheet(coordinator: coordinator, petID: petID)
                 .presentationDetents([.medium])
@@ -555,6 +419,168 @@ struct TactileCareView: View {
             )
             .presentationDetents([.medium])
         }
+    }
+
+    private func carePet(size: CGFloat) -> some View {
+        ZStack {
+            PetGroundContactShadow(width: 172)
+                .offset(y: 280 * 0.41)
+
+            ProceduralPetRigView(
+                pet: petSpec,
+                outfitID: resident?.activeOutfitID,
+                pose: (brushStrokeCount >= 3 || activePlayAction == .cozyNap) ? .resting : .respond,
+                weatherMode: coordinator.activeWeather,
+                fingerFocusNormalized: fingerFocus,
+                isHappySquint: brushStrokeCount >= 2 || brushRuffle > 0.1 || activePlayAction == .bellyBoop || activePlayAction == .eatMunch || activePlayAction == .happyTwirl,
+                brushRuffleAmount: brushRuffle,
+                tapBounceScale: petBounce,
+                playfulAction: activePlayAction,
+                actionTriggerDate: actionTriggerDate,
+                presentationScale: size / 280
+            )
+            .frame(width: 280, height: 280)
+
+            // 可愛即時互動對話泡泡（戳肚皮、逗玩、吃小魚餅、蓋被被、轉圈圈）
+            if let bubble = liveReactionBubble {
+                SunroomPetSpeechBubble(text: bubble)
+                    .offset(y: -124)
+            }
+
+            // 拋出金色小魚餅飛向毛孩的弧線動畫！
+            if let p = flyingSnackProgress {
+                let x = reduceMotion ? 0 : -110 + p * 110
+                let y = reduceMotion ? 42 : 70 - sin(p * .pi) * 145
+                CuteCareToyIcon(kind: .fishSnack, size: 34)
+                    .rotationEffect(.degrees(reduceMotion ? 0 : Double(p) * 320))
+                    .offset(x: x, y: y)
+                    .allowsHitTesting(false)
+            }
+
+            // 揮動粉色羽毛逗貓棒動畫！
+            if wavingTeaserActive {
+                CuteCareToyIcon(kind: .teaserWand, size: 42)
+                    .rotationEffect(.degrees(reduceMotion ? 0 : (wavingTeaserActive ? 18 : -18)))
+                    .offset(x: 68, y: -58)
+                    .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
+                    .allowsHitTesting(false)
+            }
+
+            // 指尖梳毛／輕撫即時飄出的愛心與金色星芒粒子
+            LiveTouchSparkleLayer(seeds: touchSparkles)
+                .frame(width: 280, height: 280)
+
+            // 從木製掛衣架拖曳衣飾靠近頸部時，於 socket_neck 浮現金色引導光圈與文字提示
+            if draggingOutfitID != nil {
+                VStack(spacing: 4) {
+                    Text("放開即可配戴")
+                        .font(AppTheme.diegeticLabel(10))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(AppTheme.pawStrollChain, in: Capsule())
+                    Circle()
+                        .stroke(AppTheme.pawStrollChain, style: StrokeStyle(lineWidth: 2.8, dash: [5, 4]))
+                        .background(Circle().fill(AppTheme.pawStrollChain.opacity(0.20)))
+                        .frame(width: 76, height: 76)
+                }
+                .offset(x: -18, y: -48)
+                .allowsHitTesting(false)
+            }
+
+            // 隨指尖移動的木質梳毛刷（雨天自動切換成溫熱毛巾擦毛！）
+            if let loc = brushLocation {
+                HStack(spacing: 4) {
+                    Image(systemName: coordinator.activeWeather.isRainy ? "wind" : "comb.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text(coordinator.activeWeather.isRainy ? "暖巾擦毛" : "木梳順毛")
+                        .font(AppTheme.diegeticLabel(11))
+                }
+                .foregroundStyle(AppTheme.deepPineInk)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(AppTheme.warmPaper.opacity(0.95), in: Capsule())
+                .overlay(Capsule().stroke(AppTheme.timberWarm, lineWidth: 1.3))
+                .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 5, y: 2)
+                .position(x: max(44, min(236, loc.x)), y: max(30, min(250, loc.y - 26)))
+                .allowsHitTesting(false)
+            }
+
+            if showCareStamp {
+                HankoCelebrationStampView(
+                    title: "暖心照護 ✦",
+                    subtitle: "\(petSpec.name)很開心",
+                    stampColor: AppTheme.pawInRange
+                )
+                .offset(x: 62, y: -96)
+            }
+        }
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    let nx = (value.location.x / 280.0) * 2.0 - 1.0
+                    let ny = (value.location.y / 280.0) * 2.0 - 1.0
+                    fingerFocus = CGPoint(x: max(-1, min(1, nx)), y: max(-1, min(1, ny)))
+                    if abs(value.translation.width) > 20 {
+                        brushRuffle = 1.0
+                        brushLocation = value.location
+                        emitTouchSparkle(at: value.location)
+                    }
+                }
+                .onEnded { value in
+                    if abs(value.translation.width) > 36 {
+                        brushStrokeCount += 1
+                        HapticsEngine.shared.playBrushStrokeTick()
+                        CozySoundEngine.shared.playBrushSwish()
+                        triggerPlayfulAction(.bellyBoop, bubble: cuteReactionLine(for: .bellyBoop))
+                        if brushStrokeCount == 3 {
+                            coordinator.completeTactileCare(petID: petID)
+                            HapticsEngine.shared.playCurioUnpack()
+                            CozySoundEngine.shared.playCompassChime()
+                            withAnimation(AppTheme.Motion.resolved(.bouncy, reduceMotion: reduceMotion)) {
+                                showCareStamp = true
+                            }
+                            Task { @MainActor in
+                                try? await Task.sleep(for: .seconds(2.8))
+                                withAnimation(.easeOut(duration: 0.35)) { showCareStamp = false }
+                            }
+                        }
+                    } else if abs(value.translation.width) < 12 && abs(value.translation.height) < 12 {
+                        // 分區撫摸回饋：摸頭／抓下巴／輕戳肚皮各有不同可愛反應與呼嚕聲！
+                        let tapNormY = (value.location.y / 280.0) * 2.0 - 1.0
+                        HapticsEngine.shared.playPawRangeCue()
+                        if petSpec.kind.isCatFamily {
+                            CozySoundEngine.shared.playPetPurr()
+                        } else {
+                            CozySoundEngine.shared.playPetChirp()
+                        }
+                        for _ in 0..<4 {
+                            emitTouchSparkle(
+                                at: CGPoint(
+                                    x: value.location.x + CGFloat.random(in: -28...28),
+                                    y: value.location.y + CGFloat.random(in: -22...18)
+                                ),
+                                force: true
+                            )
+                        }
+                        if tapNormY < -0.18 {
+                            triggerPlayfulAction(.bellyBoop, bubble: "摸摸頭好舒服～耳朵動了一下♡")
+                        } else if tapNormY > 0.20 {
+                            triggerPlayfulAction(.pounceHop, bubble: cuteReactionLine(for: .bellyBoop))
+                        } else {
+                            triggerPlayfulAction(.bellyBoop, bubble: "抓抓下巴…呼嚕呼嚕♪")
+                        }
+                    }
+                    withAnimation(.easeOut(duration: 0.35)) {
+                        fingerFocus = nil
+                        brushLocation = nil
+                        brushRuffle = 0
+                    }
+                }
+        )
+        .scaleEffect(size / 280)
+        .frame(width: size, height: size)
     }
 
     private func launchTossedSnack(texture: FoodTexture?) {
@@ -689,8 +715,12 @@ struct TactileCareView: View {
                 Text(title)
                     .font(.system(size: 10.5, weight: .bold, design: .rounded))
                     .foregroundStyle(active ? Color.white : Color(hex: "#3A312B"))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
-            .frame(width: 68, height: 60)
+            .frame(maxWidth: .infinity)
+            .frame(height: 60)
+            .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(active ? AppTheme.forestTeal : Color(hex: "#F7F1E5"))

@@ -299,27 +299,41 @@ struct DiegeticCornerPropButton: View {
 /// 棉紙手撕暗角覆層（#FAF6EE 暖棉紙疊色 + 柔和紙邊光暈）
 struct DeckledPaperVignetteOverlay: View {
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                AppTheme.warmPaper
-                    .opacity(0.22)
-                    .blendMode(.multiply)
-
-                RadialGradient(
-                    colors: [
-                        .clear,
-                        .clear,
-                        AppTheme.warmPaper.opacity(0.35),
-                        AppTheme.warmPaper.opacity(0.75)
-                    ],
-                    center: .center,
-                    startRadius: min(geo.size.width, geo.size.height) * 0.36,
-                    endRadius: max(geo.size.width, geo.size.height) * 0.62
-                )
-            }
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
+        ZStack {
+            LinearGradient(
+                stops: [
+                    .init(color: Color(hex: "#ECD4AF").opacity(0.25), location: 0),
+                    .init(color: .clear, location: 0.13),
+                    .init(color: .clear, location: 0.87),
+                    .init(color: Color(hex: "#ECD4AF").opacity(0.25), location: 1)
+                ],
+                startPoint: .leading, endPoint: .trailing
+            )
+            LinearGradient(
+                stops: [
+                    .init(color: AppTheme.warmPaper.opacity(0.52), location: 0),
+                    .init(color: .clear, location: 0.17),
+                    .init(color: .clear, location: 0.82),
+                    .init(color: AppTheme.warmPaper.opacity(0.62), location: 1)
+                ],
+                startPoint: .top, endPoint: .bottom
+            )
         }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+}
+
+struct PetGroundContactShadow: View {
+    let width: CGFloat
+
+    var body: some View {
+        Ellipse()
+            .fill(Color(hex: "#4A3428").opacity(0.19))
+            .frame(width: width, height: width * 0.19)
+            .blur(radius: width * 0.055)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
@@ -328,6 +342,7 @@ struct TornPaperSlipView: View {
     @Environment(\.colorSchemeContrast) private var contrast
     let text: String
     var subtitle: String? = nil
+    var species: PetSpeciesKind? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -338,11 +353,21 @@ struct TornPaperSlipView: View {
                     .padding(.top, 4)
 
                 VStack(alignment: .leading, spacing: 3) {
+                    if let species {
+                        HStack(spacing: 6) {
+                            SpeciesFolkloreBadgeView(kind: species)
+                            if let subtitle {
+                                Text(subtitle)
+                                    .font(AppTheme.diegeticLabel(11.5))
+                                    .foregroundStyle(AppTheme.forestTeal)
+                            }
+                        }
+                    }
                     Text(text)
                         .font(AppTheme.serifBody(15.5))
                         .foregroundStyle(AppTheme.deepPineInk)
                         .fixedSize(horizontal: false, vertical: true)
-                    if let subtitle {
+                    if species == nil, let subtitle {
                         Text(subtitle)
                             .font(AppTheme.diegeticLabel(11.5))
                             .foregroundStyle(AppTheme.forestTeal)
@@ -351,7 +376,7 @@ struct TornPaperSlipView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, species == nil ? 12 : 9)
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: 15, style: .continuous)

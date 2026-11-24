@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreLocation
+import CoreMotion
 
 /// 溫潤日式手繪繪本「新手互動教學引導」（4 頁完整圖解，自動於首次開啟出現，也可於設定隨時重看）
 struct CozyOnboardingTutorialView: View {
@@ -117,7 +118,7 @@ struct CozyOnboardingTutorialView: View {
         .accessibilityAddTraits(.isModal)
     }
 
-    // MARK: - Page 1: Welcome & 6 Mystical Creatures
+    // MARK: - Page 1: Welcome
     private var welcomePage: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 18) {
@@ -139,28 +140,21 @@ struct CozyOnboardingTutorialView: View {
                     )
                     .frame(width: 138, height: 138)
                 }
+                .accessibilityHidden(true)
                 .padding(.top, 10)
 
-                VStack(spacing: 8) {
-                    Text("歡迎來到《足印日記》")
-                        .font(AppTheme.serifTitle(25))
-                        .foregroundStyle(AppTheme.deepPineInk)
-                    Text("一部陪你慢慢走過真實街角的奇幻水彩散步繪本")
-                        .font(AppTheme.handwritten(15.5))
-                        .foregroundStyle(AppTheme.forestTeal)
-                        .multilineTextAlignment(.center)
-                }
+                pageHeading(
+                    title: "歡迎來到《足印日記》",
+                    tagline: "走過真實的街角，遇見藏在巷口的小靈獸"
+                )
 
                 StorybookPaperCard(cornerRadius: 20, showWashiTape: true, paddingAmount: 16) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("藏在鄰里巷口的 6 位奇幻小靈獸")
-                            .font(.system(size: 14.5, weight: .bold, design: .rounded))
-                            .foregroundStyle(AppTheme.deepPineInk)
-                        Text("赤瓦火龍貓「餘燼」、黑曜惡魔貓「杜松」、暮光夜魔貓「摺翼」、藍火小魔犬「鈕扣」、銀月星靈犬「梅子」與鹿角森靈犬「蘆葦」，正安靜躲在你熟悉的公園、咖啡館與轉角屋簷下，等你走近相遇。")
-                            .font(AppTheme.serifBody(13.5))
-                            .foregroundStyle(AppTheme.softInk)
-                            .lineSpacing(3)
-                    }
+                    Text("六位奇幻小夥伴躲在公園、咖啡館與屋簷下。慢慢走，牠們就會出來打招呼。")
+                        .font(AppTheme.handwritten(15.5))
+                        .foregroundStyle(AppTheme.softInk)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                        .frame(maxWidth: .infinity)
                 }
             }
             .padding(.horizontal, 22)
@@ -171,7 +165,7 @@ struct CozyOnboardingTutorialView: View {
     // MARK: - Page 2: Real Walking & Street Encounters
     private var walkingGuidePage: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
+            VStack(spacing: 18) {
                 ZStack {
                     Circle()
                         .fill(AppTheme.pawInRange.opacity(0.14))
@@ -186,35 +180,16 @@ struct CozyOnboardingTutorialView: View {
                 .accessibilityHidden(true)
                 .padding(.top, 16)
 
-                VStack(spacing: 6) {
-                    Text("第一步：真實散步與街角相遇")
-                        .font(AppTheme.serifTitle(22))
-                        .foregroundStyle(AppTheme.deepPineInk)
-                    Text("把手機放進口袋，用雙腳遇見奇幻夥伴")
-                        .font(AppTheme.handwritten(14.5))
-                        .foregroundStyle(AppTheme.forestTeal)
-                }
+                pageHeading(
+                    title: "走近街角，打聲招呼",
+                    tagline: "手機放進口袋，用雙腳去相遇"
+                )
 
                 StorybookPaperCard(cornerRadius: 20, paddingAmount: 16) {
                     VStack(alignment: .leading, spacing: 12) {
-                        tutorialBullet(
-                            icon: "mappin.circle.fill",
-                            tint: AppTheme.pawInRange,
-                            title: "走近 75 公尺內輕點足印",
-                            detail: "當你實際步行進入街角 75 公尺範圍，地圖足印會亮起暖橘色光暈，點擊即可進入街角水彩劇場。"
-                        )
-                        tutorialBullet(
-                            icon: "hand.raised.fill",
-                            tint: AppTheme.forestTeal,
-                            title: "溫柔的互動問候",
-                            detail: "長按伸手感受小靈獸一步步靠近的呼嚕，也能滑動滾出縫布球，或在雨天按住撐傘一起躲雨。"
-                        )
-                        tutorialBullet(
-                            icon: "figure.walk",
-                            tint: Color(hex: "#C98D26"),
-                            title: "步數自動換幣與街區拾遺",
-                            detail: "每走 200 步自動累積 1 枚步數幣；帶著夥伴走滿 1,400 步，牠還會替你撿回街區拾遺小物！"
-                        )
+                        storyLine(icon: "mappin.circle.fill", tint: AppTheme.pawInRange, text: "走到 75 公尺內，足印亮起就輕點它")
+                        storyLine(icon: "hand.raised.fill", tint: AppTheme.forestTeal, text: "伸手、陪坐或滾顆布球，找出牠最愛的招呼")
+                        storyLine(icon: "figure.walk", tint: AppTheme.pawStrollChain, text: "每 200 步換 1 枚步數幣，偶爾還會撿到小物")
                     }
                 }
             }
@@ -223,10 +198,10 @@ struct CozyOnboardingTutorialView: View {
         }
     }
 
-    // MARK: - Page 3: 2.5D Mystical Sunroom
+    // MARK: - Page 3: Sunroom
     private var sunroomGuidePage: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
+            VStack(spacing: 18) {
                 HStack(spacing: -16) {
                     ProceduralPetRigView(
                         pet: PetCatalog.pet(id: "pet.07"),
@@ -245,37 +220,19 @@ struct CozyOnboardingTutorialView: View {
                     )
                     .frame(width: 138, height: 138)
                 }
+                .accessibilityHidden(true)
                 .padding(.top, 10)
 
-                VStack(spacing: 6) {
-                    Text("第二步：溫馨 2.5D 奇幻陽光室")
-                        .font(AppTheme.serifTitle(22))
-                        .foregroundStyle(AppTheme.deepPineInk)
-                    Text("邀請街角遇見的小靈獸住進你的木造陽光室")
-                        .font(AppTheme.handwritten(14.5))
-                        .foregroundStyle(AppTheme.forestTeal)
-                }
+                pageHeading(
+                    title: "邀牠們回陽光室",
+                    tagline: "泡茶、梳毛、午睡，一起慢慢變熟"
+                )
 
                 StorybookPaperCard(cornerRadius: 20, paddingAmount: 16) {
                     VStack(alignment: .leading, spacing: 12) {
-                        tutorialBullet(
-                            icon: "house.fill",
-                            tint: AppTheme.forestTeal,
-                            title: "自由漫步、呼喚與丟布球",
-                            detail: "點擊木地板可喚最近的小靈獸走過來，也能按下「丟布球」看牠們在室內追球打鬧。"
-                        )
-                        tutorialBullet(
-                            icon: "heart.fill",
-                            tint: Color(hex: "#D66D50"),
-                            title: "近距離互動陪玩與換裝",
-                            detail: "輕點小靈獸進入照護畫面，摸頭、抓下巴、戳肚皮、梳毛，或替牠戴上手工緞帶與領巾（日常照護永久免費）。"
-                        )
-                        tutorialBullet(
-                            icon: "slider.horizontal.3",
-                            tint: Color(hex: "#C98D26"),
-                            title: "自由佈置家飾與跨物種傳承",
-                            detail: "用步數幣在「小舖」添購小暖爐、竹編吊床、苔蘚盆景與暖薑茶盤，拖曳擺放在陽光室各處！"
-                        )
+                        storyLine(icon: "heart.fill", tint: Color(hex: "#D66D50"), text: "相伴的日子越多，就會解鎖新的回憶與習慣")
+                        storyLine(icon: "seal.fill", tint: AppTheme.clothBookmark, text: "想出門的日子蓋一枚章，集滿 7 枚有小禮物")
+                        storyLine(icon: "bag.fill", tint: AppTheme.pawStrollChain, text: "用步數幣在小舖替陽光室換上新屋景")
                     }
                 }
             }
@@ -284,10 +241,17 @@ struct CozyOnboardingTutorialView: View {
         }
     }
 
-    // MARK: - Page 4: Private Sketchbook & Permissions
+    // MARK: - Page 4: Diary & Permissions
     private var diaryAndPermissionsPage: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
+        let locStatus = coordinator.locationService.authorizationStatus
+        let locGranted = locStatus == .authorizedWhenInUse || locStatus == .authorizedAlways
+        let locDenied = locStatus == .denied || locStatus == .restricted
+        let motionStatus = coordinator.pedometerService.authorizationStatus
+        let motionDenied = motionStatus == .denied || motionStatus == .restricted
+        let motionLinked = coordinator.ledger.pedometerOptIn && motionStatus == .authorized
+
+        return ScrollView(showsIndicators: false) {
+            VStack(spacing: 18) {
                 ZStack {
                     Circle()
                         .fill(AppTheme.forestTeal.opacity(0.12))
@@ -299,85 +263,39 @@ struct CozyOnboardingTutorialView: View {
                 .accessibilityHidden(true)
                 .padding(.top, 14)
 
-                VStack(spacing: 6) {
-                    Text("第三步：私密手繪日記與出發準備")
-                        .font(AppTheme.serifTitle(22))
-                        .foregroundStyle(AppTheme.deepPineInk)
-                    Text("100% 留存本機 · 絕無錯過懲罰或每日壓力")
-                        .font(AppTheme.handwritten(14.5))
-                        .foregroundStyle(AppTheme.forestTeal)
-                }
-
-                StorybookPaperCard(cornerRadius: 20, paddingAmount: 16) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        tutorialBullet(
-                            icon: "photo.on.rectangle.angled",
-                            tint: AppTheme.forestTeal,
-                            title: "水彩明信片、鋼筆手記與月曆繪本",
-                            detail: "每趟散步會自動印成水彩明信片，還可貼上當日拍立得、寫下心情，並匯出成可列印的月份 PDF 繪本。"
-                        )
-                    }
-                }
+                pageHeading(
+                    title: "每一步，都是一頁日記",
+                    tagline: "散步會自動畫成水彩明信片，收進你的足印日記"
+                )
 
                 StorybookPaperCard(cornerRadius: 20, showWashiTape: true, paddingAmount: 16) {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("出發前開啟兩項散步權限（可隨時調整）")
+                        Text("出發前，開啟兩個小幫手")
                             .font(.system(size: 13.5, weight: .bold, design: .rounded))
                             .foregroundStyle(AppTheme.deepPineInk)
 
-                        HStack(spacing: 10) {
-                            let locStatus = coordinator.locationService.authorizationStatus
-                            let locGranted = locStatus == .authorizedWhenInUse || locStatus == .authorizedAlways
-                            let locDenied = locStatus == .denied || locStatus == .restricted
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("精準定位權限")
-                                    .font(.system(size: 13.5, weight: .bold, design: .rounded))
-                                    .foregroundStyle(AppTheme.deepPineInk)
-                                Text("用來發現真實街角足印與 75m 距離")
-                                    .font(AppTheme.serifBody(11.5))
-                                    .foregroundStyle(AppTheme.softInk)
-                            }
-                            Spacer()
-                            Button(locGranted ? "已開啟 ✓" : (locDenied ? "前往設定" : "開啟定位")) {
-                                if locDenied, let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-                                    openURL(settingsURL)
-                                } else {
-                                    coordinator.locationService.requestForegroundLocation()
-                                }
-                            }
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(locGranted ? AppTheme.forestTeal : .white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(
-                                Capsule().fill(locGranted ? AppTheme.forestTeal.opacity(0.14) : (locDenied ? AppTheme.pawInRange : AppTheme.forestTeal))
-                            )
-                            .buttonStyle(.plain)
+                        permissionRow(
+                            title: "定位",
+                            detail: "找到附近的街角足印",
+                            granted: locGranted,
+                            denied: locDenied,
+                            grantedLabel: "已開啟 ✓",
+                            requestLabel: "開啟定位"
+                        ) {
+                            coordinator.locationService.requestForegroundLocation()
                         }
 
                         Divider().overlay(Color(hex: "#E2D6C3"))
 
-                        HStack(spacing: 10) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("動作與計步權限")
-                                    .font(.system(size: 13.5, weight: .bold, design: .rounded))
-                                    .foregroundStyle(AppTheme.deepPineInk)
-                                Text("將日常步數自動換成步數幣與拾遺")
-                                    .font(AppTheme.serifBody(11.5))
-                                    .foregroundStyle(AppTheme.softInk)
-                            }
-                            Spacer()
-                            Button(coordinator.ledger.pedometerOptIn ? "已連結 ✓" : "連結計步") {
-                                Task { await coordinator.optInAndSyncPedometer() }
-                            }
-                            .font(.system(size: 12, weight: .bold, design: .rounded))
-                            .foregroundStyle(coordinator.ledger.pedometerOptIn ? AppTheme.forestTeal : .white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(
-                                Capsule().fill(coordinator.ledger.pedometerOptIn ? AppTheme.forestTeal.opacity(0.14) : AppTheme.forestTeal)
-                            )
-                            .buttonStyle(.plain)
+                        permissionRow(
+                            title: "動作與計步",
+                            detail: "把日常步數換成步數幣",
+                            granted: motionLinked,
+                            denied: motionDenied,
+                            grantedLabel: "已連結 ✓",
+                            requestLabel: "連結計步"
+                        ) {
+                            Task { await coordinator.optInAndSyncPedometer() }
                         }
                     }
                 }
@@ -387,23 +305,74 @@ struct CozyOnboardingTutorialView: View {
         }
     }
 
-    private func tutorialBullet(icon: String, tint: Color, title: String, detail: String) -> some View {
-        HStack(alignment: .top, spacing: 11) {
+    private func pageHeading(title: String, tagline: String) -> some View {
+        VStack(spacing: 6) {
+            Text(title)
+                .font(AppTheme.serifTitle(23))
+                .foregroundStyle(AppTheme.deepPineInk)
+                .multilineTextAlignment(.center)
+                .accessibilityAddTraits(.isHeader)
+            Text(tagline)
+                .font(AppTheme.handwritten(15))
+                .foregroundStyle(AppTheme.forestTeal)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    /// One breezy storybook line: a soft icon and a single short sentence.
+    private func storyLine(icon: String, tint: Color, text: String) -> some View {
+        HStack(alignment: .center, spacing: 11) {
             Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(tint)
                 .frame(width: 30, height: 30)
                 .background(Circle().fill(tint.opacity(0.12)))
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 3) {
+            Text(text)
+                .font(AppTheme.serifBody(13.5))
+                .foregroundStyle(AppTheme.deepPineInk)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// A permission row whose button reflects the real system/ledger state, never an optimistic tap.
+    private func permissionRow(
+        title: String,
+        detail: String,
+        granted: Bool,
+        denied: Bool,
+        grantedLabel: String,
+        requestLabel: String,
+        request: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 13.5, weight: .bold, design: .rounded))
                     .foregroundStyle(AppTheme.deepPineInk)
                 Text(detail)
-                    .font(AppTheme.serifBody(12.5))
+                    .font(AppTheme.serifBody(11.5))
                     .foregroundStyle(AppTheme.softInk)
-                    .fixedSize(horizontal: false, vertical: true)
             }
+            Spacer()
+            Button(granted ? grantedLabel : (denied ? "前往設定" : requestLabel)) {
+                if granted { return }
+                if denied, let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                    openURL(settingsURL)
+                } else {
+                    request()
+                }
+            }
+            .font(.system(size: 12, weight: .bold, design: .rounded))
+            .foregroundStyle(granted ? AppTheme.forestTeal : .white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(
+                Capsule().fill(granted ? AppTheme.forestTeal.opacity(0.14) : (denied ? AppTheme.pawInRange : AppTheme.forestTeal))
+            )
+            .buttonStyle(.plain)
+            .disabled(granted)
+            .accessibilityHint(granted ? "已授權" : (denied ? "開啟系統設定" : "請求權限"))
         }
     }
 }

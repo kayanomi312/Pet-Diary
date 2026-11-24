@@ -10,6 +10,13 @@ struct StreetOverworldView: View {
     @State private var hasCenteredOnRealGPS: Bool = false
     @State private var showStartStrollSheet: Bool = false
     @State private var showStreetToolsPopover: Bool = false
+    @State private var dismissedGoalIcon: String? = nil
+    @State private var visibleMapRect: MKMapRect? = nil
+
+    private var isLocationDenied: Bool {
+        let status = coordinator.locationService.authorizationStatus
+        return status == .denied || status == .restricted
+    }
 
     init(coordinator: GameCoordinator) {
         self.coordinator = coordinator
@@ -26,6 +33,11 @@ struct StreetOverworldView: View {
     }
 
     var body: some View {
+        let anchors = coordinator.visibleAnchors
+        let visiblePinCount = anchors.count { anchor in
+            visibleMapRect?.contains(MKMapPoint(CLLocationCoordinate2D(latitude: anchor.lat, longitude: anchor.lon))) ?? true
+        }
+
         ZStack {
             Map(position: $cameraPosition) {
                 if coordinator.locationService.liveTrail.count >= 2 {
@@ -57,9 +69,10 @@ struct StreetOverworldView: View {
                     .accessibilityLabel("你目前的散步位置")
                 }
 
-                ForEach(coordinator.visibleAnchors, id: \.siteID) { anchor in
+                ForEach(anchors, id: \.siteID) { anchor in
                     let state = coordinator.pawState(for: anchor)
-                    let dist = Int(coordinator.distanceMeters(to: anchor))
+                    let distance = coordinator.distanceMeters(to: anchor)
+                    let compact = state == .distant && distance > 120 && visiblePinCount >= 4
                     let showRegularPortrait = (anchor.totalVisitsCount > 0 || anchor.isFamiliarCorner)
                     Annotation(
                         "",
@@ -68,10 +81,11 @@ struct StreetOverworldView: View {
                         PawAnchorStampView(
                             label: anchor.customLabel,
                             state: state,
-                            distanceM: dist,
+                            distanceM: Int(distance),
                             isFamiliarCorner: anchor.isFamiliarCorner,
                             familiarityStars: min(3, anchor.totalVisitsCount / 3),
-                            regularPetID: showRegularPortrait ? anchor.regularPetID : nil
+                            regularPetID: showRegularPortrait ? anchor.regularPetID : nil,
+                            isCompact: compact
                         ) {
                             let check = coordinator.attemptOpenAnchor(anchor)
                             if case .tooFar = check {
@@ -81,6 +95,9 @@ struct StreetOverworldView: View {
                         .zIndex((state == .inRange || state == .strollChain) ? 2 : 1)
                     }
                 }
+            }
+            .onMapCameraChange(frequency: .onEnd) { context in
+                visibleMapRect = context.rect
             }
             .mapStyle(
                 .standard(
@@ -121,50 +138,9 @@ struct StreetOverworldView: View {
 
                     Spacer(minLength: 4)
 
-                    // Compact live GPS indicator / quick fix pill
-                    let authStatus = coordinator.locationService.authorizationStatus
-                    let isLocationDenied = (authStatus == .denied || authStatus == .restricted)
-                    Button {
-                        HapticsEngine.shared.playBrushStrokeTick()
-                        if isLocationDenied, let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-                            openURL(settingsURL)
-                            return
-                        }
-                        coordinator.locationService.requestFreshAccurateFix()
-                        withAnimation(.easeInOut(duration: 0.5)) {
-                            cameraPosition = .region(
-                                MKCoordinateRegion(
-                                    center: coordinator.locationService.currentLocation.coordinate,
-                                    latitudinalMeters: 320,
-                                    longitudinalMeters: 320
-                                )
-                            )
-                        }
-                    } label: {
-                        let quality: GPSSignalQuality = isLocationDenied ? .denied : coordinator.locationService.gpsSignalQuality
-                        let gpsLabel: String = {
-                            if isLocationDenied { return "定位未開" }
-                            if coordinator.locationService.isReducedAccuracy { return "開精準" }
-                            if let acc = coordinator.locationService.gpsAccuracyMeters, !coordinator.locationService.useSimulatedPosition {
-                                return "±\(Int(acc))m"
-                            }
-                            return quality == .simulated ? "GPS" : quality.rawValue
-                        }()
-                        CozyGlassPill(horizontalPadding: 9, verticalPadding: 6) {
-                            HStack(spacing: 5) {
-                                Circle()
-                                    .fill(Color(hex: quality.badgeColorHex))
-                                    .frame(width: 7, height: 7)
-                                Text(gpsLabel)
-                                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
-                                    .foregroundStyle(isLocationDenied ? Color(hex: "#B5482B") : Color(hex: "#3A312B"))
-                                    .lineLimit(1)
-                                    .fixedSize(horizontal: true, vertical: false)
-                            }
-                        }
+                    if isLocationDenied || coordinator.locationService.isReducedAccuracy {
+                        locationWarning
                     }
-                    .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1))
-                    .accessibilityLabel(isLocationDenied ? "定位未開啟，點擊前往設定" : "定位訊號狀態")
 
                     // Compact coin balance pill
                     Button {
@@ -185,207 +161,8 @@ struct StreetOverworldView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
 
-                // 正在進行「出發散步」時的專屬同行橫幅（顯示即時步數、帆布袋小物與「回到家了」結算鈕）
-                if let stroll = coordinator.activeStroll {
-                    StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.forestTeal, paddingAmount: 10) {
-                        HStack(spacing: 10) {
-                            if let compID = stroll.companionPetID {
-                                ProceduralPetRigView(
-                                    pet: PetCatalog.pet(id: compID),
-                                    outfitID: coordinator.resident(for: compID)?.activeOutfitID,
-                                    pose: .notice,
-                                    weatherMode: coordinator.activeWeather,
-                                    applyMetalPaperShader: false,
-                                    isStaticSnapshot: true
-                                )
-                                .frame(width: 40, height: 40)
-                            }
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 5) {
-                                    Circle()
-                                        .fill(AppTheme.vineGreen)
-                                        .frame(width: 7, height: 7)
-                                    let elapsedMins = max(1, Int(Date().timeIntervalSince(stroll.startedAt) / 60.0))
-                                    let walkedM = Int(coordinator.locationService.totalVerifiedGPSMeters)
-                                    Text(walkedM >= 20
-                                         ? "散步同行 · \(stroll.sessionSteps.formatted()) 步 · \(walkedM)m"
-                                         : "散步同行 · \(stroll.sessionSteps.formatted()) 步 · \(elapsedMins)分")
-                                        .font(AppTheme.diegeticLabel(12))
-                                        .foregroundStyle(AppTheme.deepPineInk)
-                                        .lineLimit(1)
-                                }
-                                Text(stroll.packedCharm == .none ? "空手輕鬆漫步 · 隨停不扣物" : "帆布袋：\(stroll.packedCharm.title)")
-                                    .font(AppTheme.serifBody(11))
-                                    .foregroundStyle(AppTheme.forestTeal)
-                                    .lineLimit(1)
-                            }
-                            Spacer(minLength: 4)
-                            Text(stroll.companionPetID.map { "\(PetCatalog.pet(id: $0).name)同行" } ?? "自由漫步")
-                                .font(AppTheme.diegeticLabel(11))
-                                .foregroundStyle(AppTheme.forestTeal)
-                                .padding(.horizontal, 9)
-                                .padding(.vertical, 5)
-                                .background(AppTheme.forestTeal.opacity(0.10), in: Capsule())
-                        }
-                    }
+                topNotice
                     .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
-                }
-
-                if coordinator.showOnboardingPaperSlip {
-                    CozyWelcomeOnboardingCard(
-                        onAllowLocation: {
-                            coordinator.locationService.requestForegroundLocation()
-                            coordinator.showOnboardingPaperSlip = false
-                        },
-                        onDismissLater: {
-                            coordinator.showOnboardingPaperSlip = false
-                        }
-                    )
-                    .padding(.horizontal, 16)
-                    .padding(.top, 6)
-                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
-                }
-
-                if coordinator.locationService.isTravelingTooFastForPaws {
-                    TornPaperSlipView(text: "車速較快（超過 12 km/h）——小動物會在街角靜靜等你下車步行再見。")
-                        .padding(.horizontal, 20)
-                        .padding(.top, 4)
-                }
-
-                if let whisper = coordinator.transientWhisper {
-                    TornPaperSlipView(text: whisper)
-                        .padding(.horizontal, 20)
-                        .padding(.top, 4)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-
-                // 進行中的金色漫步連鎖溫柔提示條（無懲罰，可隨時略過）
-                if let chainTargetID = coordinator.activeStrollChainTargetID,
-                   let chainTarget = coordinator.anchors.first(where: { $0.siteID == chainTargetID }),
-                   let guideID = coordinator.ledger.activeStrollChainGuidePetID {
-                    HStack(spacing: 8) {
-                        Image(systemName: "sparkles")
-                            .foregroundStyle(AppTheme.pawStrollChain)
-                        Text("\(PetCatalog.pet(id: guideID).name)正望向「\(chainTarget.customLabel)」— 順路過去可遇見雙寵街頭場景")
-                            .font(AppTheme.handwritten(13))
-                            .foregroundStyle(AppTheme.deepPineInk)
-                            .lineLimit(2)
-                        Spacer(minLength: 4)
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.5)) {
-                                cameraPosition = .region(
-                                    MKCoordinateRegion(
-                                        center: CLLocationCoordinate2D(latitude: chainTarget.lat, longitude: chainTarget.lon),
-                                        latitudinalMeters: 340,
-                                        longitudinalMeters: 340
-                                    )
-                                )
-                            }
-                        } label: {
-                            Text("看位置")
-                                .font(AppTheme.diegeticLabel(11))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 9)
-                                .padding(.vertical, 5)
-                                .background(AppTheme.pawStrollChain, in: Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(AppTheme.warmPaper.opacity(0.95), in: RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.pawStrollChain.opacity(0.7), lineWidth: 1.3))
-                    .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                }
-
-                // 下一步小目標提示（新手第一位朋友、散步任務、育兒、羈絆與特別訪客；避免與暫時紙條重疊洗版）
-                if coordinator.activeQuietRevisit == nil,
-                   coordinator.newlyUnpackedCurio == nil,
-                   coordinator.transientWhisper == nil,
-                   !coordinator.showOnboardingPaperSlip,
-                   let hint = coordinator.nextGoalHint {
-                    HStack(spacing: 8) {
-                        Image(systemName: hint.icon)
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(AppTheme.forestTeal)
-                        Text(hint.text)
-                            .font(AppTheme.handwritten(13))
-                            .foregroundStyle(AppTheme.deepPineInk)
-                            .lineLimit(3)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 4)
-                        if coordinator.isStreetLocationUnavailable {
-                            VStack(spacing: 5) {
-                                if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
-                                    Link(destination: settingsURL) {
-                                        Text("開啟設定")
-                                            .font(AppTheme.diegeticLabel(11))
-                                            .foregroundStyle(.white)
-                                            .padding(.horizontal, 9)
-                                            .padding(.vertical, 5)
-                                            .background(AppTheme.forestTeal, in: Capsule())
-                                    }
-                                }
-                                Button {
-                                    CozySoundEngine.shared.playPaperFlip()
-                                    coordinator.solveHomeRoomNow()
-                                    coordinator.currentScreen = .home
-                                } label: {
-                                    Text("前往陽光室")
-                                        .font(AppTheme.diegeticLabel(11))
-                                        .foregroundStyle(AppTheme.forestTeal)
-                                        .padding(.horizontal, 9)
-                                        .padding(.vertical, 5)
-                                        .background(AppTheme.forestTeal.opacity(0.12), in: Capsule())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(AppTheme.warmPaper.opacity(0.95), in: RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AppTheme.timberWarm.opacity(0.45), lineWidth: 1.1))
-                    .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .accessibilityElement(children: coordinator.isStreetLocationUnavailable ? .contain : .combine)
-                }
-
-                // 口袋拾遺開箱卡片（每 1,400 步觸發）
-                if let unpacked = coordinator.newlyUnpackedCurio {
-                    let spec = CurioCatalog.curio(id: unpacked.curioID)
-                    HStack(spacing: 12) {
-                        PaintedCurioStampView(curioID: unpacked.curioID, size: 46)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("口袋拾遺 · \(spec.name)")
-                                .font(AppTheme.serifTitle(15))
-                                .foregroundStyle(AppTheme.deepPineInk)
-                            Text(spec.journalNote)
-                                .font(AppTheme.handwritten(12))
-                                .foregroundStyle(AppTheme.softInk)
-                                .lineLimit(2)
-                        }
-                        Spacer()
-                        Button("收進木格") {
-                            withAnimation { coordinator.newlyUnpackedCurio = nil }
-                        }
-                        .font(AppTheme.diegeticLabel(11))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.forestTeal, in: Capsule())
-                    }
-                    .padding(12)
-                    .background(AppTheme.warmPaper.opacity(0.97), in: RoundedRectangle(cornerRadius: 16))
-                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.pawStrollChain.opacity(0.65), lineWidth: 1.5))
-                    .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 8, y: 4)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
-                }
 
                 Spacer()
 
@@ -609,7 +386,7 @@ struct StreetOverworldView: View {
                             items: [
                                 CozyPopoverMenuItem(
                                     id: "pin_corner",
-                                    title: "前方 60m 釘選熟悉街角",
+                                    title: "標記這個巷口",
                                     systemImage: "mappin.and.ellipse",
                                     tint: AppTheme.forestTeal
                                 ) {
@@ -628,19 +405,11 @@ struct StreetOverworldView: View {
                                 },
                                 CozyPopoverMenuItem(
                                     id: "nearby_list",
-                                    title: "查看鄰近街角列表",
+                                    title: "附近街角一覽",
                                     systemImage: "list.bullet",
                                     tint: Color(hex: "#C98D26")
                                 ) {
                                     coordinator.showAccessibleNearbyList = true
-                                },
-                                CozyPopoverMenuItem(
-                                    id: "tutorial",
-                                    title: "重新查看新手引導",
-                                    systemImage: "book.pages.fill",
-                                    tint: Color(hex: "#5B8A68")
-                                ) {
-                                    coordinator.reopenInteractiveTutorial()
                                 }
                             ],
                             onDismiss: {
@@ -696,6 +465,135 @@ struct StreetOverworldView: View {
                 }
             }
         }
+    }
+
+    private var locationWarning: some View {
+        Button {
+            HapticsEngine.shared.playBrushStrokeTick()
+            if isLocationDenied, let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                openURL(settingsURL)
+            } else {
+                coordinator.locationService.requestFreshAccurateFix()
+            }
+        } label: {
+            CozyGlassPill(horizontalPadding: 9, verticalPadding: 6) {
+                Label(isLocationDenied ? "定位未開" : "定位範圍較廣", systemImage: "location.slash")
+                    .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color(hex: "#965032"))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+        .buttonStyle(TactileGameButtonStyle(pressScale: 0.94, pressOffsetY: 1))
+        .accessibilityHint(isLocationDenied ? "前往設定開啟定位" : "要求精準定位")
+    }
+
+    @ViewBuilder
+    private var topNotice: some View {
+        if coordinator.showOnboardingPaperSlip {
+            CozyWelcomeOnboardingCard(
+                onAllowLocation: {
+                    coordinator.locationService.requestForegroundLocation()
+                    coordinator.showOnboardingPaperSlip = false
+                },
+                onDismissLater: { coordinator.showOnboardingPaperSlip = false }
+            )
+        } else if let unpacked = coordinator.newlyUnpackedCurio {
+            let spec = CurioCatalog.curio(id: unpacked.curioID)
+            noticeRow {
+                PaintedCurioStampView(curioID: unpacked.curioID, size: 29)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("口袋拾遺 · \(spec.name)")
+                        .font(AppTheme.diegeticLabel(12))
+                    Text(spec.journalNote)
+                        .font(AppTheme.handwritten(11))
+                        .foregroundStyle(AppTheme.softInk)
+                }
+                .lineLimit(1)
+                Spacer(minLength: 0)
+                noticeButton("收進木格") { coordinator.newlyUnpackedCurio = nil }
+            }
+        } else if let whisper = coordinator.transientWhisper {
+            notice(icon: "sparkle", text: whisper)
+        } else if let chainTargetID = coordinator.activeStrollChainTargetID,
+                  let target = coordinator.anchors.first(where: { $0.siteID == chainTargetID }),
+                  let guideID = coordinator.ledger.activeStrollChainGuidePetID {
+            noticeRow {
+                noticeLabel(icon: "sparkles", text: "\(PetCatalog.pet(id: guideID).name)望向「\(target.customLabel)」")
+                Spacer(minLength: 0)
+                noticeButton("看位置") {
+                    withAnimation(.easeInOut(duration: 0.5)) {
+                        cameraPosition = .region(MKCoordinateRegion(
+                            center: CLLocationCoordinate2D(latitude: target.lat, longitude: target.lon),
+                            latitudinalMeters: 340, longitudinalMeters: 340
+                        ))
+                    }
+                }
+            }
+        } else if let stroll = coordinator.activeStroll {
+            let companion = stroll.companionPetID.map(coordinator.displayName(for:)) ?? "自由漫步"
+            let pack = stroll.packedCharm == .none ? "" : " · \(stroll.packedCharm.title)"
+            notice(icon: "figure.walk", text: "\(companion) · \(stroll.sessionSteps.formatted()) 步\(pack)")
+        } else if coordinator.activeQuietRevisit == nil,
+                  let hint = coordinator.nextGoalHint, dismissedGoalIcon != hint.icon {
+            noticeRow {
+                noticeLabel(
+                    icon: hint.icon,
+                    text: coordinator.isStreetLocationUnavailable ? "到陽光室窗邊也能結識新朋友。" : hint.text
+                )
+                Spacer(minLength: 0)
+                if coordinator.isStreetLocationUnavailable {
+                    noticeButton("去陽光室") {
+                        CozySoundEngine.shared.playPaperFlip()
+                        coordinator.solveHomeRoomNow()
+                        coordinator.currentScreen = .home
+                    }
+                }
+                Button {
+                    dismissedGoalIcon = hint.icon
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .semibold))
+                        .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("隱藏這個提示")
+            }
+        }
+    }
+
+    private func notice(icon: String, text: String) -> some View {
+        noticeRow { noticeLabel(icon: icon, text: text) }
+    }
+
+    private func noticeLabel(icon: String, text: String) -> some View {
+        Label(text, systemImage: icon)
+            .font(AppTheme.handwritten(13))
+            .lineLimit(2)
+    }
+
+    private func noticeButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(AppTheme.diegeticLabel(11))
+                .foregroundStyle(AppTheme.forestTeal)
+                .fixedSize()
+                .padding(.horizontal, 9)
+                .frame(minHeight: 36)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func noticeRow<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 6, content: content)
+            .foregroundStyle(AppTheme.deepPineInk)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 4)
+            .frame(minHeight: 34)
+            .background(AppTheme.warmPaper.opacity(0.95), in: RoundedRectangle(cornerRadius: 13))
+            .overlay(RoundedRectangle(cornerRadius: 13).stroke(AppTheme.timberWarm.opacity(0.4), lineWidth: 0.9))
     }
 }
 
@@ -781,6 +679,7 @@ private struct PawAnchorStampView: View {
     let isFamiliarCorner: Bool
     var familiarityStars: Int = 0
     var regularPetID: String? = nil
+    var isCompact = false
     let onTap: () -> Void
 
     @State private var ripple = false
@@ -800,99 +699,120 @@ private struct PawAnchorStampView: View {
             HapticsEngine.shared.playBrushStrokeTick()
             onTap()
         } label: {
-            VStack(spacing: 3) {
-                ZStack {
-                    // 可愛小貓耳從地圖足印徽章頂端探出來！
-                    CatEarAccentShape(
-                        fillColor: Color(hex: "#FFFDF8"),
-                        innerEarColor: fillColor.opacity(0.72),
-                        strokeColor: fillColor.opacity(0.60)
-                    )
-                    .scaleEffect(0.64)
-                    .offset(y: -19)
-
-                    // Refined, balanced watercolor paw badge (fixed 46x46 frame so ripple never shifts label!)
-                    Circle()
-                        .fill(Color(hex: "#FFFDF8"))
-                        .frame(width: 44, height: 44)
-                        .overlay(Circle().stroke(fillColor.opacity(0.55), lineWidth: 1.2))
-                        .shadow(color: Color(hex: "#2D241E").opacity(0.18), radius: 6, y: 3)
-
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [fillColor.opacity(0.92), fillColor],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .frame(width: 35, height: 35)
-
-                    Image(systemName: state == .metToday ? "leaf.fill" : (state == .strollChain ? "sparkles" : "pawprint.fill"))
-                        .font(.system(size: 16, weight: .bold))
+            if isCompact {
+                VStack(spacing: 2) {
+                    Image(systemName: "pawprint.fill")
+                        .font(.system(size: 10, weight: .semibold))
                         .foregroundStyle(.white)
+                        .frame(width: 22, height: 22)
+                        .background(fillColor, in: Circle())
+                        .overlay(Circle().strokeBorder(AppTheme.warmPaper, lineWidth: 1.2))
 
-                    // 熟悉街角顯示正在守候的常客小頭像；或在 75m 內冒出愛心提示「可以打招呼囉！」
-                    if let regID = regularPetID, let regImg = UIImage(named: regID.replacingOccurrences(of: ".", with: "_")) {
-                        Image(uiImage: regImg)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 22, height: 22)
-                            .background(Color(hex: "#FFFDF8"))
-                            .clipShape(Circle())
-                            .overlay(Circle().stroke(AppTheme.pawStrollChain, lineWidth: 1.2))
-                            .shadow(color: AppTheme.deepPineInk.opacity(0.22), radius: 2, y: 1)
-                            .offset(x: 18, y: -16)
-                    } else if state == .inRange {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 9.5, weight: .bold))
-                            .foregroundStyle(Color(hex: "#FF7B89"))
-                            .padding(3.5)
-                            .background(Color(hex: "#FFFDF8"), in: Circle())
-                            .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 2, y: 1)
-                            .offset(x: 18, y: -16)
-                    }
-                }
-                .frame(width: 48, height: 48)
-                .background {
-                    if state == .inRange || state == .strollChain {
-                        Circle()
-                            .stroke(fillColor.opacity(ripple ? 0.0 : 0.72), lineWidth: state == .strollChain ? 3.0 : 2.2)
-                            .frame(width: 48, height: 48)
-                            .scaleEffect(ripple ? 1.65 : 0.95)
-                    }
-                }
-                .offset(y: (state == .inRange || state == .strollChain) && bob ? -3.5 : 0)
-
-                // Perfectly centered, crisp warm-ivory label pill!
-                HStack(spacing: 4) {
-                    if isFamiliarCorner {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(Color(hex: "#E67960"))
-                    }
-                    Text("\(label) · \(distanceM)m")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color(hex: "#2F2A26"))
+                    Text(label)
+                        .font(AppTheme.diegeticLabel(9))
+                        .foregroundStyle(AppTheme.deepPineInk)
                         .lineLimit(1)
-                        .truncationMode(.tail)
-                    if familiarityStars > 0 {
-                        Text(String(repeating: "★", count: familiarityStars))
-                            .font(.system(size: 9))
-                            .foregroundStyle(AppTheme.pawStrollChain)
-                    }
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(AppTheme.warmPaper.opacity(0.9), in: Capsule())
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .frame(maxWidth: 152)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(Color(hex: "#FFFDF8").opacity(0.95))
-                        .overlay(Capsule(style: .continuous).stroke(fillColor.opacity(0.45), lineWidth: 0.9))
-                        .shadow(color: Color(hex: "#2D241E").opacity(0.14), radius: 4, y: 2)
-                )
+                .frame(minWidth: 44, maxWidth: 68, minHeight: 44)
+                .contentShape(Rectangle())
+            } else {
+                VStack(spacing: 3) {
+                    ZStack {
+                        // 可愛小貓耳從地圖足印徽章頂端探出來！
+                        CatEarAccentShape(
+                            fillColor: Color(hex: "#FFFDF8"),
+                            innerEarColor: fillColor.opacity(0.72),
+                            strokeColor: fillColor.opacity(0.60)
+                        )
+                        .scaleEffect(0.64)
+                        .offset(y: -19)
+
+                        // Refined, balanced watercolor paw badge (fixed 46x46 frame so ripple never shifts label!)
+                        Circle()
+                            .fill(Color(hex: "#FFFDF8"))
+                            .frame(width: 44, height: 44)
+                            .overlay(Circle().stroke(fillColor.opacity(0.55), lineWidth: 1.2))
+                            .shadow(color: Color(hex: "#2D241E").opacity(0.18), radius: 6, y: 3)
+
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [fillColor.opacity(0.92), fillColor],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .frame(width: 35, height: 35)
+
+                        Image(systemName: state == .metToday ? "leaf.fill" : (state == .strollChain ? "sparkles" : "pawprint.fill"))
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+
+                        // 熟悉街角顯示正在守候的常客小頭像；或在 75m 內冒出愛心提示「可以打招呼囉！」
+                        if let regID = regularPetID, let regImg = UIImage(named: regID.replacingOccurrences(of: ".", with: "_")) {
+                            Image(uiImage: regImg)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 22, height: 22)
+                                .background(Color(hex: "#FFFDF8"))
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(AppTheme.pawStrollChain, lineWidth: 1.2))
+                                .shadow(color: AppTheme.deepPineInk.opacity(0.22), radius: 2, y: 1)
+                                .offset(x: 18, y: -16)
+                        } else if state == .inRange {
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 9.5, weight: .bold))
+                                .foregroundStyle(Color(hex: "#FF7B89"))
+                                .padding(3.5)
+                                .background(Color(hex: "#FFFDF8"), in: Circle())
+                                .shadow(color: AppTheme.deepPineInk.opacity(0.18), radius: 2, y: 1)
+                                .offset(x: 18, y: -16)
+                        }
+                    }
+                    .frame(width: 48, height: 48)
+                    .background {
+                        if state == .inRange || state == .strollChain {
+                            Circle()
+                                .stroke(fillColor.opacity(ripple ? 0.0 : 0.72), lineWidth: state == .strollChain ? 3.0 : 2.2)
+                                .frame(width: 48, height: 48)
+                                .scaleEffect(ripple ? 1.65 : 0.95)
+                        }
+                    }
+                    .offset(y: (state == .inRange || state == .strollChain) && bob ? -3.5 : 0)
+
+                    // Perfectly centered, crisp warm-ivory label pill!
+                    HStack(spacing: 4) {
+                        if isFamiliarCorner {
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(Color(hex: "#E67960"))
+                        }
+                        Text("\(label) · \(distanceM)m")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color(hex: "#2F2A26"))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        if familiarityStars > 0 {
+                            Text(String(repeating: "★", count: familiarityStars))
+                                .font(.system(size: 9))
+                                .foregroundStyle(AppTheme.pawStrollChain)
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: 152)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(Color(hex: "#FFFDF8").opacity(0.95))
+                            .overlay(Capsule(style: .continuous).stroke(fillColor.opacity(0.45), lineWidth: 0.9))
+                            .shadow(color: Color(hex: "#2D241E").opacity(0.14), radius: 4, y: 2)
+                    )
+                }
+                .frame(minWidth: 64, minHeight: 70)
             }
-            .frame(minWidth: 64, minHeight: 70)
         }
         .buttonStyle(TactileGameButtonStyle(pressScale: 0.90, pressOffsetY: 2))
         .onAppear {
@@ -1027,25 +947,25 @@ private struct CozyWelcomeOnboardingCard: View {
     private let steps: [(title: String, body: String, icon: String)] = [
         (
             "歡迎來到《足印日記》",
-            "在熟悉的老街騎樓與公園角落，藏著赤炎龍貓、黑曜惡魔貓與星靈犬等 8 位溫柔的奇幻鄰居，正靜靜等著與你相遇。",
+            "老街騎樓和公園角落，住著八位奇幻鄰居。",
             "pawprint.fill"
         ),
         (
             "手機放口袋就能輕鬆累積",
-            "不用特別按開始，日常走路就會把步數存成步數幣；想有儀式感時也能點「出發散步」，帶上不倒數、不浪費的帆布袋小物！",
+            "平時走路就能存步數幣。也可以帶上帆布袋，出發散步。",
             "figure.walk"
         ),
         (
             "100% 本機私密 · 開啟散步定位",
-            "所有足跡與日記都只留在這支 iPhone 上，無須註冊帳號。允許精準散步定位，就能在真實街角遇見小動物。",
+            "足跡和日記留在這支 iPhone。開啟定位即可拜訪街角。",
             "location.fill"
         )
     ]
 
     var body: some View {
         let current = steps[step]
-        StorybookPaperCard(cornerRadius: 20, accentColor: AppTheme.forestTeal, showWashiTape: true, paddingAmount: 14) {
-            VStack(alignment: .leading, spacing: 10) {
+        StorybookPaperCard(cornerRadius: 20, accentColor: AppTheme.forestTeal, paddingAmount: 10) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Image(systemName: current.icon)
                         .font(.system(size: 14, weight: .bold))

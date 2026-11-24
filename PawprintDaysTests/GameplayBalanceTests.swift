@@ -204,4 +204,298 @@ final class GameplayBalanceTests: XCTestCase {
         let hint = try XCTUnwrap(c.nextGoalHint)
         XCTAssertEqual(hint.icon, "pawprint.fill")
     }
+
+    // MARK: - Zero-FOMO cozy stamp card
+
+    func testCozyStampAccruesOncePerDayAndNeverResetsOnMissedDays() throws {
+        let c = try makeInMemoryCoordinator()
+        XCTAssertFalse(c.hasEarnedCozyStampToday)
+        XCTAssertTrue(c.awardDailyCozyStampIfEligible(reason: "測試"))
+        XCTAssertFalse(c.awardDailyCozyStampIfEligible(reason: "測試"), "At most one stamp per civil day")
+        XCTAssertEqual(c.indoorState.stampCountInCard, 1)
+        XCTAssertEqual(c.indoorState.lastStampAwardedDateISO, c.currentLocalDateISO)
+
+        // Skipping several days never erases progress.
+        c.currentSimulatedDate = c.currentSimulatedDate.addingTimeInterval(4 * 86_400)
+        XCTAssertFalse(c.hasEarnedCozyStampToday)
+        XCTAssertTrue(c.awardDailyCozyStampIfEligible(reason: "測試"))
+        XCTAssertEqual(c.indoorState.stampCountInCard, 2)
+        XCTAssertEqual(c.indoorState.completedStampCardsCount, 0)
+    }
+
+    func testSeventhStampPaysFifteenCoinsAndStartsAFreshCard() throws {
+        let c = try makeInMemoryCoordinator()
+        c.ledger.coinBalance = 0
+        var paidDays = 0
+        for day in 0..<7 {
+            c.currentSimulatedDate = Date().addingTimeInterval(Double(day * 2) * 86_400) // every other day
+            XCTAssertTrue(c.awardDailyCozyStampIfEligible(reason: "散步"))
+            paidDays += 1
+            if day < 6 {
+                XCTAssertEqual(c.ledger.coinBalance, 0, "Only the 7th stamp pays")
+                XCTAssertEqual(c.indoorState.stampCountInCard, day + 1)
+            }
+        }
+        XCTAssertEqual(paidDays, 7)
+        XCTAssertEqual(c.ledger.coinBalance, CozyStampCard.completionRewardCoins)
+        XCTAssertEqual(CozyStampCard.completionRewardCoins, 15)
+        XCTAssertEqual(c.indoorState.stampCountInCard, 0)
+        XCTAssertEqual(c.indoorState.completedStampCardsCount, 1)
+        XCTAssertTrue(c.todayDiaryRecord().revisitNotes.contains { $0.contains("足印集章卡第 1 張") })
+
+        let celebration = try XCTUnwrap(c.pendingMilestoneCelebration)
+        XCTAssertEqual(celebration.kind, .stampCard)
+        XCTAssertEqual(celebration.rewardBadge, "+15 步數幣")
+        c.dismissMilestoneCelebration()
+        XCTAssertNil(c.pendingMilestoneCelebration)
+    }
+
+    func testStampTriggersEncounterStrollAndAllWishes() throws {
+        // Street encounter
+        let a = try makeInMemoryCoordinator()
+        _ = try XCTUnwrap(a.commitStreetEncounter(siteID: "sys.luodong.bakery_corner", petID: "pet.03", gesture: .offerHand))
+        XCTAssertTrue(a.hasEarnedCozyStampToday)
+        XCTAssertEqual(a.indoorState.stampCountInCard, 1)
+
+        // A short stroll (< 100 steps, no encounters) doesn't stamp; a real one does.
+        let b = try makeInMemoryCoordinator()
+        XCTAssertTrue(b.startStrollSession(companionPetID: "pet.03", charm: .none))
+        _ = b.ingestSteps(steps: 40, intervalStartUTC: Date(), placeLabel: "巷口")
+        _ = b.endStrollSession()
+        XCTAssertFalse(b.hasEarnedCozyStampToday)
+        XCTAssertTrue(b.startStrollSession(companionPetID: "pet.03", charm: .none))
+        _ = b.ingestSteps(steps: 400, intervalStartUTC: Date().addingTimeInterval(1_800), placeLabel: "巷口")
+        let summary = try XCTUnwrap(b.endStrollSession())
+        XCTAssertGreaterThanOrEqual(summary.totalSteps, GameCoordinator.strollStampMinimumSteps)
+        XCTAssertTrue(b.hasEarnedCozyStampToday)
+        let snapshot = try XCTUnwrap(StrollStampSnapshot.store[summary.id])
+        XCTAssertTrue(snapshot.stampedToday)
+        XCTAssertEqual(snapshot.filledSlots, 1)
+
+        // Claiming all three daily wishes
+        let w = try makeInMemoryCoordinator()
+        let kinds = w.todayWishesBoard.wishes.map(\.kind)
+        XCTAssertEqual(kinds.count, 3)
+        for kind in kinds { w.markDailyWishCompleted(kind) }
+        XCTAssertTrue(w.claimDailyWishReward(kinds[0]))
+        XCTAssertTrue(w.claimDailyWishReward(kinds[1]))
+        XCTAssertFalse(w.hasEarnedCozyStampToday, "Two of three wishes isn't enough")
+        XCTAssertTrue(w.claimDailyWishReward(kinds[2]))
+        XCTAssertTrue(w.hasEarnedCozyStampToday)
+    }
+
+    func testLegacyIndoorStateDecodesStampFieldsWithDefaults() throws {
+        var legacy = SunroomIndoorState()
+        legacy.totalTeaBrewedCount = 3
+        legacy.stampCountInCard = 4
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(legacy)) as? [String: Any])
+        for key in ["stampCountInCard", "completedStampCardsCount", "lastStampAwardedDateISO", "unlockedCelebratedFeatures"] {
+            json.removeValue(forKey: key)
+        }
+        let decoded = try JSONDecoder().decode(SunroomIndoorState.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertEqual(decoded.totalTeaBrewedCount, 3)
+        XCTAssertEqual(decoded.stampCountInCard, 0)
+        XCTAssertEqual(decoded.completedStampCardsCount, 0)
+        XCTAssertNil(decoded.lastStampAwardedDateISO)
+        XCTAssertTrue(decoded.unlockedCelebratedFeatures.isEmpty)
+
+        // An empty object and out-of-range / mistyped values never break the decode.
+        XCTAssertNoThrow(try JSONDecoder().decode(SunroomIndoorState.self, from: Data("{}".utf8)))
+        let odd = Data(#"{"stampCountInCard": 12, "completedStampCardsCount": "x", "totalTeaBrewedCount": 2}"#.utf8)
+        let clamped = try JSONDecoder().decode(SunroomIndoorState.self, from: odd)
+        XCTAssertEqual(clamped.stampCountInCard, CozyStampCard.slotCount - 1)
+        XCTAssertEqual(clamped.completedStampCardsCount, 0)
+        XCTAssertEqual(clamped.totalTeaBrewedCount, 2)
+
+        // Round trip keeps the new fields.
+        var fresh = SunroomIndoorState()
+        fresh.stampCountInCard = 5
+        fresh.completedStampCardsCount = 2
+        fresh.lastStampAwardedDateISO = "2026-11-24"
+        fresh.unlockedCelebratedFeatures = ["welcome.pet.07"]
+        let roundTrip = try JSONDecoder().decode(SunroomIndoorState.self, from: JSONEncoder().encode(fresh))
+        XCTAssertEqual(roundTrip.stampCountInCard, 5)
+        XCTAssertEqual(roundTrip.completedStampCardsCount, 2)
+        XCTAssertEqual(roundTrip.lastStampAwardedDateISO, "2026-11-24")
+        XCTAssertEqual(roundTrip.unlockedCelebratedFeatures, ["welcome.pet.07"])
+    }
+
+    // MARK: - Bond progress & milestone celebrations
+
+    func testBondProgressSnapshot() throws {
+        let c = try makeInMemoryCoordinator()
+        let pet = try XCTUnwrap(c.resident(for: "pet.03"))
+        pet.sharedDaysCount = 4
+        let mid = c.bondProgress(for: "pet.03")
+        XCTAssertEqual(mid.currentTier, 2)
+        XCTAssertEqual(mid.currentTierTitle, "熟悉面孔")
+        XCTAssertEqual(mid.nextTierTitle, "散步同伴")
+        XCTAssertEqual(mid.sharedDays, 4)
+        XCTAssertEqual(mid.nextMilestoneDays, 6)
+        XCTAssertEqual(mid.daysRemaining, 2)
+        XCTAssertEqual(mid.progressFraction, 1.0 / 3.0, accuracy: 0.0001)
+
+        pet.sharedDaysCount = 30
+        let maxed = c.bondProgress(for: "pet.03")
+        XCTAssertEqual(maxed.currentTier, 6)
+        XCTAssertTrue(maxed.isMaxTier)
+        XCTAssertNil(maxed.nextTierTitle)
+        XCTAssertEqual(maxed.daysRemaining, 0)
+        XCTAssertEqual(maxed.progressFraction, 1)
+
+        let unknown = c.bondProgress(for: "pet.99")
+        XCTAssertEqual(unknown.currentTier, 0)
+        XCTAssertEqual(unknown.nextMilestoneDays, 1)
+        XCTAssertEqual(unknown.progressFraction, 0)
+    }
+
+    func testBondTierUpCelebrationNamesTheUnlockedPerk() throws {
+        let c = try makeInMemoryCoordinator()
+        let pet = try XCTUnwrap(c.resident(for: "pet.03"))
+        pet.sharedDaysCount = 2
+        pet.milestoneTier = 1
+        c.completeTactileCare(petID: "pet.03")
+        let day3 = try XCTUnwrap(c.pendingMilestoneCelebration)
+        XCTAssertEqual(day3.kind, .bondTierUp)
+        XCTAssertEqual(day3.id, "bond.pet.03.tier2")
+        XCTAssertTrue(day3.detail.contains("烘暖石階的小秘密"), "Day 3 names the new memory chapter")
+        c.dismissMilestoneCelebration()
+
+        // Same day again: no new shared day, no repeat celebration.
+        c.completeTactileCare(petID: "pet.03")
+        XCTAssertNil(c.pendingMilestoneCelebration)
+
+        // Day 6 via a curio gift: street gifts unlock.
+        pet.sharedDaysCount = 5
+        c.currentSimulatedDate = c.currentSimulatedDate.addingTimeInterval(86_400)
+        c.ledger.foragedCurios = [ForagedCurioEntry(curioID: CurioCatalog.all[0].id, placeLabel: "巷口", weatherCode: "dusk", localDateISO: c.currentLocalDateISO)]
+        XCTAssertTrue(c.giftCurio(entryID: c.ledger.foragedCurios[0].id, to: "pet.03"))
+        let day6 = try XCTUnwrap(c.pendingMilestoneCelebration)
+        XCTAssertEqual(day6.id, "bond.pet.03.tier3")
+        XCTAssertTrue(day6.detail.contains("小禮物"))
+        c.dismissMilestoneCelebration()
+
+        // Day 10 via a street encounter: signature habit.
+        pet.sharedDaysCount = 9
+        c.currentSimulatedDate = c.currentSimulatedDate.addingTimeInterval(86_400)
+        _ = try XCTUnwrap(c.commitStreetEncounter(siteID: "sys.luodong.bakery_corner", petID: "pet.03", gesture: .offerHand))
+        let day10 = try XCTUnwrap(c.pendingMilestoneCelebration)
+        XCTAssertEqual(day10.id, "bond.pet.03.tier4")
+        XCTAssertTrue(day10.detail.contains(PetCatalog.pet(id: "pet.03").signatureHabitTitle))
+
+        XCTAssertTrue(GameCoordinator.bondTierPerk(tier: 5, petID: "pet.03").contains("導師"))
+        XCTAssertTrue(GameCoordinator.bondTierPerk(tier: 6, petID: "pet.03").contains("柱石"))
+    }
+
+    func testWelcomingNewCompanionCelebratesOnce() throws {
+        let c = try makeInMemoryCoordinator()
+        _ = try XCTUnwrap(c.commitStreetEncounter(siteID: "sys.luodong.bakery_corner", petID: "pet.07", gesture: .offerHand))
+        let all = [c.pendingMilestoneCelebration].compactMap { $0 } + c.queuedMilestoneCelebrations
+        XCTAssertTrue(all.contains { $0.id == "welcome.pet.07" && $0.kind == .newCompanion })
+        XCTAssertTrue(c.indoorState.unlockedCelebratedFeatures.contains("welcome.pet.07"))
+        while c.pendingMilestoneCelebration != nil { c.dismissMilestoneCelebration() }
+
+        c.celebrateNewCompanionIfNeeded(petID: "pet.07")
+        XCTAssertNil(c.pendingMilestoneCelebration, "A welcome is only ever celebrated once")
+    }
+
+    func testCelebrationsQueueInOrder() throws {
+        let c = try makeInMemoryCoordinator()
+        func make(_ id: String) -> MilestoneCelebration {
+            MilestoneCelebration(id: id, kind: .stampCard, title: id, subtitle: "", detail: "", symbol: "seal.fill", accentHex: "#B84A39", rewardBadge: nil)
+        }
+        c.emitMilestoneCelebration(make("a"))
+        c.emitMilestoneCelebration(make("b"))
+        c.emitMilestoneCelebration(make("b"))
+        XCTAssertEqual(c.pendingMilestoneCelebration?.id, "a")
+        XCTAssertEqual(c.queuedMilestoneCelebrations.map(\.id), ["b"], "Duplicates are not queued twice")
+        c.dismissMilestoneCelebration()
+        XCTAssertEqual(c.pendingMilestoneCelebration?.id, "b")
+        c.dismissMilestoneCelebration()
+        XCTAssertNil(c.pendingMilestoneCelebration)
+    }
+
+    func testCurioSetClaimEmitsCelebration() throws {
+        let c = try makeInMemoryCoordinator()
+        let curios = CurioCatalog.all.filter { $0.weatherTag == .lightRain }
+        c.ledger.foragedCurios = curios.map {
+            ForagedCurioEntry(curioID: $0.id, placeLabel: "巷口", weatherCode: "light_rain", localDateISO: c.currentLocalDateISO)
+        }
+        XCTAssertTrue(c.claimCurioSetReward(weather: .lightRain))
+        let celebration = try XCTUnwrap(c.pendingMilestoneCelebration)
+        XCTAssertEqual(celebration.kind, .curioSet)
+        XCTAssertEqual(celebration.id, "curioSet.light_rain")
+        XCTAssertNotNil(celebration.rewardBadge)
+    }
+
+    func testRoomThemePurchaseAutoEquipsAndCelebrates() throws {
+        let c = try makeInMemoryCoordinator()
+        let rainy = try XCTUnwrap(ShopCatalog.item(id: "room.rainy_season"))
+        c.ledger.coinBalance = rainy.priceCoins
+        XCTAssertTrue(c.purchaseItem(rainy))
+        XCTAssertEqual(c.ledger.coinBalance, 0)
+        XCTAssertEqual(c.ledger.activeRoomTheme, .rainySeason, "A bought theme is equipped immediately")
+        XCTAssertTrue(c.ledger.ownedRoomThemeIDs.contains(rainy.id))
+        let celebration = try XCTUnwrap(c.pendingMilestoneCelebration)
+        XCTAssertEqual(celebration.kind, .roomTheme)
+        c.dismissMilestoneCelebration()
+
+        c.selectRoomTheme(.springSunlit)
+        XCTAssertEqual(c.ledger.activeRoomTheme, .springSunlit, "The free starter theme can always be re-applied")
+        c.selectRoomTheme(.winterLamp)
+        XCTAssertEqual(c.ledger.activeRoomTheme, .springSunlit, "Unowned themes can't be applied")
+
+        let veranda = try XCTUnwrap(ShopCatalog.item(id: "room.rain_veranda"))
+        c.ledger.coinBalance = veranda.priceCoins
+        XCTAssertTrue(c.purchaseItem(veranda))
+        XCTAssertEqual(c.pendingMilestoneCelebration?.kind, .veranda)
+    }
+
+    func testJourneyProgressSummary() throws {
+        let c = try makeInMemoryCoordinator()
+        let start = c.journeyProgress
+        XCTAssertEqual(start.companionsInvited, 1)
+        XCTAssertEqual(start.companionsTotal, PetCatalog.allPets.count)
+        XCTAssertEqual(start.curiosDiscovered, 0)
+        XCTAssertEqual(start.curiosTotal, CurioCatalog.all.count)
+        XCTAssertEqual(start.weatherSetsTotal, WeatherMode.allCases.count)
+        XCTAssertEqual(start.themesOwned, 1)
+
+        let dusk = CurioCatalog.all.filter { $0.weatherTag == .dusk }
+        c.ledger.foragedCurios = (dusk + dusk).map {
+            ForagedCurioEntry(curioID: $0.id, placeLabel: "巷口", weatherCode: "dusk", localDateISO: c.currentLocalDateISO)
+        }
+        c.awardDailyCozyStampIfEligible(reason: "測試")
+        let later = c.journeyProgress
+        XCTAssertEqual(later.curiosDiscovered, dusk.count, "Duplicates count once")
+        XCTAssertEqual(later.weatherSetsCompleted, 1)
+        XCTAssertEqual(later.stampCountInCard, 1)
+    }
+
+    // MARK: - Economy tuning, clues & reset
+
+    func testTunedShopPrices() throws {
+        XCTAssertEqual(ShopCatalog.item(id: "room.rainy_season")?.priceCoins, 300)
+        XCTAssertEqual(ShopCatalog.item(id: "room.autumn_cedar")?.priceCoins, 320)
+        XCTAssertEqual(ShopCatalog.item(id: "room.winter_lamp")?.priceCoins, 350)
+        XCTAssertEqual(ShopCatalog.item(id: "outfit.forager_satchel")?.priceCoins, 100)
+    }
+
+    func testDiscoveryCluesNeverSpoilNames() {
+        for spec in PetCatalog.allPets {
+            XCTAssertFalse(spec.discoveryClue.isEmpty)
+            XCTAssertFalse(spec.discoveryClue.contains(spec.name), "\(spec.id) clue must not reveal its name")
+        }
+    }
+
+    func testResetClearsCustomSpotCoordsAndCelebrations() throws {
+        let c = try makeInMemoryCoordinator()
+        let key = "pawprintdays.sunroom.customSpotCoords.v1"
+        UserDefaults.standard.set(Data([1, 2, 3]), forKey: key)
+        c.emitMilestoneCelebration(MilestoneCelebration(id: "x", kind: .stampCard, title: "", subtitle: "", detail: "", symbol: "seal", accentHex: "#000000", rewardBadge: nil))
+        c.resetAllGameData()
+        XCTAssertNil(UserDefaults.standard.object(forKey: key))
+        XCTAssertNil(c.pendingMilestoneCelebration)
+        XCTAssertEqual(c.indoorState.stampCountInCard, 0)
+    }
 }

@@ -244,8 +244,15 @@ struct StartStrollSatchelSheet: View {
 struct StrollSummaryPostcardSheet: View {
     let summary: CompletedStrollSummary
     let weather: WeatherMode
+    /// Stamp card & pocket-find state after this stroll. Defaults to the snapshot the coordinator
+    /// recorded when the stroll ended, so existing call sites get the row for free.
+    var stampSnapshot: StrollStampSnapshot? = nil
     let onDismiss: () -> Void
     @State private var renderedPostcardImage: UIImage? = nil
+
+    private var resolvedStampSnapshot: StrollStampSnapshot? {
+        stampSnapshot ?? StrollStampSnapshot.store[summary.id]
+    }
 
     private var companionSpec: PetSpec? {
         summary.companionPetID.map(PetCatalog.pet(id:))
@@ -374,6 +381,10 @@ struct StrollSummaryPostcardSheet: View {
                         strollStatBadge(title: "收穫步數幣", value: "+\(summary.coinsEarned)", icon: "circle.fill", tint: AppTheme.pawStrollChain)
                     }
 
+                    if let stamp = resolvedStampSnapshot {
+                        stampAndPocketRow(stamp)
+                    }
+
                     // 水彩路線縮圖
                     if summary.routePoints.count >= 2 {
                         VStack(alignment: .leading, spacing: 5) {
@@ -422,6 +433,30 @@ struct StrollSummaryPostcardSheet: View {
                 stampColor: AppTheme.clothBookmark
             )
             .offset(x: -10, y: 12)
+        }
+    }
+
+    /// Compact cozy stamp card plus the countdown to the next pocket find.
+    private func stampAndPocketRow(_ stamp: StrollStampSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CozyStampCardView(
+                stampCount: stamp.filledSlots,
+                completedCards: stamp.completedStampCards,
+                stampedToday: stamp.stampedToday,
+                compact: true
+            )
+            HStack(spacing: 6) {
+                Image(systemName: stamp.pocketFindsLeftToday > 0 ? "leaf.fill" : "moon.zzz.fill")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(AppTheme.vineGreen)
+                    .accessibilityHidden(true)
+                Text(stamp.pocketFindsLeftToday > 0
+                     ? "再走 \(stamp.stepsUntilNextPocketFind.formatted()) 步，夥伴會撿回下一件口袋拾遺"
+                     : "今天的口袋已經裝滿了，明天再一起出門撿拾吧")
+                    .font(AppTheme.handwritten(13))
+                    .foregroundStyle(AppTheme.softInk)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

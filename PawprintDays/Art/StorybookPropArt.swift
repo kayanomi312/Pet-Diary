@@ -332,9 +332,54 @@ struct PaintedGoodiePropView: View {
 
     private func drawEmptyCedarMat(in ctx: inout GraphicsContext, size: CGSize, ink: Color) {
         let w = size.width, h = size.height
-        let mat = CGRect(x: w * 0.14, y: h * 0.42, width: w * 0.72, height: h * 0.34)
-        ctx.fill(Path(ellipseIn: mat), with: .color(AppTheme.warmPaper.opacity(0.65)))
-        ctx.stroke(Path(ellipseIn: mat), with: .color(ink.opacity(0.4)), style: StrokeStyle(lineWidth: 1.2, dash: [4, 4]))
+        let shadowRect = CGRect(x: w * 0.12, y: h * 0.46, width: w * 0.76, height: h * 0.34)
+        ctx.fill(Path(ellipseIn: shadowRect), with: .color(AppTheme.timberDeep.opacity(0.14)))
+
+        // Outer braided honey-straw rim
+        let outerMat = CGRect(x: w * 0.13, y: h * 0.41, width: w * 0.74, height: h * 0.35)
+        ctx.fill(
+            Path(ellipseIn: outerMat),
+            with: .linearGradient(
+                Gradient(colors: [Color(hex: "#EDE0C4"), Color(hex: "#D6BC8E")]),
+                startPoint: CGPoint(x: outerMat.midX, y: outerMat.minY),
+                endPoint: CGPoint(x: outerMat.midX, y: outerMat.maxY)
+            )
+        )
+        ctx.stroke(Path(ellipseIn: outerMat), with: .color(Color(hex: "#8F653C").opacity(0.55)), lineWidth: 1.3)
+
+        // Inner soft woven linen center
+        let innerMat = outerMat.insetBy(dx: w * 0.08, dy: h * 0.055)
+        ctx.fill(
+            Path(ellipseIn: innerMat),
+            with: .radialGradient(
+                Gradient(colors: [Color(hex: "#FAF3E4"), Color(hex: "#E8D5B3")]),
+                center: CGPoint(x: innerMat.midX - w * 0.06, y: innerMat.midY - h * 0.03),
+                startRadius: 2,
+                endRadius: innerMat.width * 0.6
+            )
+        )
+
+        // Subtle straw weave texture lines
+        for row in 0..<3 {
+            let insetX = w * (0.04 + CGFloat(row) * 0.065)
+            let insetY = h * (0.028 + CGFloat(row) * 0.045)
+            let weaveRect = outerMat.insetBy(dx: insetX, dy: insetY)
+            if weaveRect.width > 8 && weaveRect.height > 4 {
+                ctx.stroke(
+                    Path(ellipseIn: weaveRect),
+                    with: .color(Color(hex: "#A5794E").opacity(row == 0 ? 0.34 : 0.22)),
+                    style: StrokeStyle(lineWidth: 1.0, lineCap: .round, dash: [4, 3])
+                )
+            }
+        }
+
+        // Warm wood-tone blanket stitching along the linen border
+        let stitchRect = outerMat.insetBy(dx: w * 0.055, dy: h * 0.038)
+        ctx.stroke(
+            Path(ellipseIn: stitchRect),
+            with: .color(Color(hex: "#9B683B").opacity(0.62)),
+            style: StrokeStyle(lineWidth: 1.35, lineCap: .round, dash: [5, 4])
+        )
     }
 }
 
@@ -676,7 +721,26 @@ struct TaiwaneseBakeryStorybookBackdrop: View {
 
     var body: some View {
         Group {
-            if isStatic {
+            if let uiBg = UIImage(named: "bg_street_bakery_corner") {
+                GeometryReader { geo in
+                    ZStack {
+                        Image(uiImage: uiBg)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
+                            .overlay(bakeryWeatherWash)
+
+                        if isStatic {
+                            bakeryAtmosphereOverlay(time: 1.0)
+                        } else {
+                            TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 30.0, reduceMotion: reduceMotion))) { timeline in
+                                bakeryAtmosphereOverlay(time: reduceMotion ? 1.0 : timeline.date.timeIntervalSinceReferenceDate)
+                            }
+                        }
+                    }
+                }
+            } else if isStatic {
                 sceneCanvas(time: 1.0)
             } else {
                 TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 30.0, reduceMotion: reduceMotion))) { timeline in
@@ -684,6 +748,181 @@ struct TaiwaneseBakeryStorybookBackdrop: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var bakeryWeatherWash: some View {
+        switch weather {
+        case .clearMorning:
+            LinearGradient(
+                colors: [Color(hex: "#FFF9E8").opacity(0.10), .clear],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .blendMode(.screen)
+        case .overcast:
+            Color(hex: "#D5DFDF").opacity(0.22)
+                .blendMode(.multiply)
+        case .lightRain, .postRain:
+            LinearGradient(
+                colors: [Color(hex: "#9BB5C6").opacity(0.26), Color(hex: "#849EAE").opacity(0.18)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .blendMode(.multiply)
+        case .dusk:
+            LinearGradient(
+                colors: [Color(hex: "#C97D4E").opacity(0.28), Color(hex: "#E5AF72").opacity(0.20)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .blendMode(.multiply)
+        }
+    }
+
+    @ViewBuilder
+    private func bakeryAtmosphereOverlay(time: Double) -> some View {
+        Canvas { ctx, size in
+            let w = size.width
+            let h = size.height
+            let groundTop = h * 0.56
+
+            // 1. Warm bakery display window glow (stronger at dusk & rainy days)
+            let windowGlowAlpha: Double = {
+                switch weather {
+                case .dusk: return 0.36
+                case .lightRain: return 0.24
+                case .postRain, .overcast: return 0.16
+                case .clearMorning: return 0.11
+                }
+            }()
+            let windowCenter = CGPoint(x: w * 0.58, y: h * 0.34)
+            let windowRadius = max(w, h) * 0.36
+            ctx.fill(
+                Path(ellipseIn: CGRect(
+                    x: windowCenter.x - windowRadius,
+                    y: windowCenter.y - windowRadius * 0.72,
+                    width: windowRadius * 2,
+                    height: windowRadius * 1.44
+                )),
+                with: .radialGradient(
+                    Gradient(colors: [
+                        Color(hex: "#FFE7A8").opacity(windowGlowAlpha),
+                        Color(hex: "#F2A846").opacity(windowGlowAlpha * 0.42),
+                        .clear
+                    ]),
+                    center: windowCenter,
+                    startRadius: 8,
+                    endRadius: windowRadius
+                )
+            )
+
+            // 2. Swaying glowing amber paper lantern halo (left eave)
+            let sway = CGFloat(sin(time * 1.15)) * 4.5
+            let pulse = 0.88 + 0.12 * sin(time * 2.1)
+            let lx = w * 0.17 + sway
+            let ly = h * 0.19
+            let glowR: CGFloat = (weather == .dusk ? 132 : (weather.isRainy ? 104 : 88)) * CGFloat(pulse)
+            let lanternAlpha: Double = weather == .dusk ? 0.54 : (weather.isRainy ? 0.42 : 0.30)
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: lx - glowR, y: ly - glowR, width: glowR * 2, height: glowR * 2)),
+                with: .radialGradient(
+                    Gradient(colors: [
+                        Color(hex: "#FFF0B8").opacity(lanternAlpha),
+                        Color(hex: "#F4AE4B").opacity(lanternAlpha * 0.45),
+                        .clear
+                    ]),
+                    center: CGPoint(x: lx, y: ly),
+                    startRadius: 6,
+                    endRadius: glowR
+                )
+            )
+
+            // Soft lantern warmth spilling onto mossy cobblestones below
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: lx - 62, y: groundTop + 18, width: 148, height: 34)),
+                with: .radialGradient(
+                    Gradient(colors: [
+                        Color(hex: "#F5C062").opacity(weather.isRainy || weather == .dusk ? 0.30 : 0.14),
+                        Color(hex: "#F2B85B").opacity(0.08),
+                        .clear
+                    ]),
+                    center: CGPoint(x: lx + 12, y: groundTop + 35),
+                    startRadius: 4,
+                    endRadius: 72
+                )
+            )
+
+            // 3. Weather-responsive particles: rain streaks + puddle ripples OR drifting osmanthus petals
+            if weather.isRainy {
+                let streakCount = weather == .lightRain ? 48 : 24
+                for i in 0..<streakCount {
+                    let xBase = CGFloat((i * 47 + 13) % Int(max(1, w)))
+                    let speed = weather == .lightRain ? 210.0 : 155.0
+                    let yOff = CGFloat((time * speed + Double(i * 41)).truncatingRemainder(dividingBy: Double(max(1, h))))
+                    var drop = Path()
+                    drop.move(to: CGPoint(x: xBase, y: yOff))
+                    drop.addLine(to: CGPoint(x: xBase + 7, y: yOff + 28))
+                    ctx.stroke(
+                        drop,
+                        with: .color(Color(hex: "#EDF5FA").opacity(weather == .lightRain ? 0.44 : 0.28)),
+                        style: StrokeStyle(lineWidth: 1.15, lineCap: .round)
+                    )
+                }
+
+                // Expanding watercolor puddle ripples on the cobblestone sidewalk (y >= 0.56)
+                for rIdx in 0..<5 {
+                    let phase = (time * 0.62 + Double(rIdx) * 0.21).truncatingRemainder(dividingBy: 1.0)
+                    let rx = w * (0.14 + CGFloat(rIdx) * 0.18)
+                    let ry = groundTop + 28 + CGFloat((rIdx * 19) % 44)
+                    let radW = CGFloat(phase) * 36 + 6
+                    let radH = radW * 0.28
+                    ctx.stroke(
+                        Path(ellipseIn: CGRect(x: rx - radW, y: ry - radH, width: radW * 2, height: radH * 2)),
+                        with: .color(Color(hex: "#EEF6FA").opacity((1.0 - phase) * 0.46)),
+                        lineWidth: 1.15
+                    )
+                }
+            } else {
+                // Soft warm upper-left sunbeam glow on clear morning & dusk
+                if weather == .clearMorning || weather == .dusk {
+                    var beam = Path()
+                    beam.move(to: CGPoint(x: 0, y: 0))
+                    beam.addLine(to: CGPoint(x: w * 0.48, y: 0))
+                    beam.addLine(to: CGPoint(x: w * 0.92, y: h * 0.68))
+                    beam.addLine(to: CGPoint(x: w * 0.20, y: h * 0.68))
+                    beam.closeSubpath()
+                    ctx.fill(
+                        beam,
+                        with: .linearGradient(
+                            Gradient(colors: [
+                                Color(hex: weather == .dusk ? "#FFD796" : "#FFFDF0").opacity(0.16),
+                                .clear
+                            ]),
+                            startPoint: CGPoint(x: w * 0.12, y: 0),
+                            endPoint: CGPoint(x: w * 0.66, y: h * 0.68)
+                        )
+                    )
+                }
+
+                // Drifting golden osmanthus petals
+                let petalCount = weather == .overcast ? 5 : 11
+                for i in 0..<petalCount {
+                    let phase = (time * 0.13 + Double(i) * 0.16).truncatingRemainder(dividingBy: 1.0)
+                    let px = w * (0.06 + CGFloat((i * 29) % 88) / 100.0)
+                        + CGFloat(phase) * 28
+                        + CGFloat(sin(time * 1.15 + Double(i))) * 14
+                    let py = h * 0.10 + CGFloat(phase) * h * 0.74
+                    let alpha = sin(phase * .pi) * (weather == .overcast ? 0.42 : 0.72)
+                    let petalColor = weather == .dusk ? Color(hex: "#F7C568") : Color(hex: "#FFF1B8")
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: px, y: py, width: 6.5, height: 4.2)),
+                        with: .color(petalColor.opacity(alpha))
+                    )
+                }
+            }
+        }
+        .allowsHitTesting(false)
     }
 
     @ViewBuilder
@@ -942,7 +1181,7 @@ struct TaiwaneseBakeryStorybookBackdrop: View {
             ctx.fill(Path(roundedRect: CGRect(x: lx - 11, y: ly + 29, width: 22, height: 6), cornerRadius: 2), with: .color(AppTheme.timberDeep))
 
             // 7. Hand-Tinted Cobblestone Flagstones & Rustic Wooden Stool
-            let groundTop = h * 0.62
+            let groundTop = h * 0.56
             ctx.fill(
                 Path(CGRect(x: 0, y: groundTop, width: w, height: h - groundTop)),
                 with: .linearGradient(
@@ -1242,6 +1481,113 @@ struct TactileCareFloorBackdrop: View {
     let weather: WeatherMode
 
     var body: some View {
+        Group {
+            if let uiBg = UIImage(named: "bg_tactile_care_nook") {
+                GeometryReader { geo in
+                    ZStack {
+                        Image(uiImage: uiBg)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
+                            .overlay(careWeatherTint)
+
+                        TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 20.0, reduceMotion: reduceMotion))) { timeline in
+                            careSunlightOverlay(time: reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate)
+                        }
+                    }
+                }
+            } else {
+                fallbackCanvas
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func careSunlightOverlay(time t: Double) -> some View {
+        Canvas { ctx, size in
+            let w = size.width
+            let h = size.height
+
+            if !weather.isRainy {
+                // Subtle swaying dappled sunlight from upper-left -> lower-right (\)
+                let sway = CGFloat(sin(t * 0.72)) * 9.0
+                let breath = 0.86 + 0.14 * sin(t * 1.15)
+                let beamTopColor = weather == .dusk
+                    ? Color(hex: "#FFD99B").opacity(0.24 * breath)
+                    : Color(hex: "#FFFDF2").opacity((weather == .overcast ? 0.10 : 0.22) * breath)
+                var beam = Path()
+                beam.move(to: CGPoint(x: -w * 0.04 + sway * 0.4, y: 0))
+                beam.addLine(to: CGPoint(x: w * 0.54 + sway * 0.4, y: 0))
+                beam.addLine(to: CGPoint(x: w * 0.94 + sway, y: h * 0.76))
+                beam.addLine(to: CGPoint(x: w * 0.24 + sway, y: h * 0.76))
+                beam.closeSubpath()
+                ctx.fill(
+                    beam,
+                    with: .linearGradient(
+                        Gradient(colors: [beamTopColor, Color(hex: "#FFF7DC").opacity(0.04), .clear]),
+                        startPoint: CGPoint(x: w * 0.16, y: 0),
+                        endPoint: CGPoint(x: w * 0.68, y: h * 0.76)
+                    )
+                )
+
+                // Gentle warm sunlit dust bokeh motes drifting softly
+                let moteCount = weather == .overcast ? 4 : 8
+                for i in 0..<moteCount {
+                    let phase = (t * 0.12 + Double(i) * 0.19).truncatingRemainder(dividingBy: 1.0)
+                    let mx = w * (0.15 + CGFloat((i * 23) % 68) / 100.0) + sway * 0.5
+                    let my = h * (0.14 + CGFloat((i * 17) % 52) / 100.0) - CGFloat(phase) * 18
+                    let r: CGFloat = 2.4 + CGFloat(i % 3) * 1.1
+                    let alpha = sin(phase * .pi) * (weather == .dusk ? 0.48 : 0.36)
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: mx - r, y: my - r, width: r * 2, height: r * 2)),
+                        with: .color(Color(hex: weather == .dusk ? "#FFE299" : "#FFFDF4").opacity(alpha))
+                    )
+                }
+            } else {
+                // Soft cool rainy window-light wash from upper-left
+                var rainGlow = Path()
+                rainGlow.move(to: CGPoint(x: 0, y: 0))
+                rainGlow.addLine(to: CGPoint(x: w * 0.58, y: 0))
+                rainGlow.addLine(to: CGPoint(x: w * 0.86, y: h * 0.58))
+                rainGlow.addLine(to: CGPoint(x: w * 0.14, y: h * 0.58))
+                rainGlow.closeSubpath()
+                ctx.fill(
+                    rainGlow,
+                    with: .linearGradient(
+                        Gradient(colors: [Color(hex: "#E5F1F6").opacity(0.16), .clear]),
+                        startPoint: CGPoint(x: 0, y: 0),
+                        endPoint: CGPoint(x: w * 0.68, y: h * 0.58)
+                    )
+                )
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private var careWeatherTint: some View {
+        switch weather {
+        case .clearMorning:
+            Color(hex: "#FFF9EA").opacity(0.06)
+                .blendMode(.screen)
+        case .overcast:
+            Color(hex: "#DCE4E2").opacity(0.18)
+                .blendMode(.multiply)
+        case .lightRain, .postRain:
+            Color(hex: "#B8CBD6").opacity(0.24)
+                .blendMode(.multiply)
+        case .dusk:
+            LinearGradient(
+                colors: [Color(hex: "#E8B072").opacity(0.24), Color(hex: "#C98552").opacity(0.18)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .blendMode(.multiply)
+        }
+    }
+
+    private var fallbackCanvas: some View {
         TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 20.0, reduceMotion: reduceMotion))) { timeline in
             let t = reduceMotion ? 0.0 : timeline.date.timeIntervalSinceReferenceDate
             Canvas { ctx, size in
@@ -1261,53 +1607,36 @@ struct TactileCareFloorBackdrop: View {
                     )
                 )
 
-                // Cedar wood plank seams + subtle wood knots
+                // Cedar wood plank seams
                 for idx in 0..<10 {
                     let y = h * 0.10 + CGFloat(idx) * (h * 0.095)
                     var plank = Path()
                     plank.move(to: CGPoint(x: 0, y: y))
                     plank.addLine(to: CGPoint(x: w, y: y))
                     ctx.stroke(plank, with: .color(AppTheme.timberDeep.opacity(0.11)), lineWidth: 1.1)
-
-                    let knotX = w * CGFloat(((idx * 37 + 19) % 82) + 8) / 100.0
-                    ctx.stroke(
-                        Path(ellipseIn: CGRect(x: knotX, y: y + 14, width: 16, height: 6)),
-                        with: .color(AppTheme.timberDeep.opacity(0.08)),
-                        lineWidth: 1.0
-                    )
                 }
 
-                // Soft diagonal windowpane sunlight patch with swaying garden leaf shadows
+                // Soft diagonal windowpane sunlight patch (upper-left -> lower-right)
                 if !weather.isRainy {
                     let sway = CGFloat(sin(t * 0.8)) * 7
                     var beam = Path()
-                    beam.move(to: CGPoint(x: w * 0.06, y: 0))
-                    beam.addLine(to: CGPoint(x: w * 0.74, y: 0))
-                    beam.addLine(to: CGPoint(x: w * 0.98, y: h * 0.78))
-                    beam.addLine(to: CGPoint(x: w * 0.22, y: h * 0.78))
+                    beam.move(to: CGPoint(x: w * 0.04 + sway * 0.4, y: 0))
+                    beam.addLine(to: CGPoint(x: w * 0.64 + sway * 0.4, y: 0))
+                    beam.addLine(to: CGPoint(x: w * 0.96 + sway, y: h * 0.78))
+                    beam.addLine(to: CGPoint(x: w * 0.22 + sway, y: h * 0.78))
                     beam.closeSubpath()
                     ctx.fill(
                         beam,
                         with: .linearGradient(
-                            Gradient(colors: [Color(hex: "#FFFDF2").opacity(0.38), Color(hex: "#FFF8DC").opacity(0.10)]),
-                            startPoint: CGPoint(x: w * 0.3, y: 0),
-                            endPoint: CGPoint(x: w * 0.6, y: h * 0.78)
+                            Gradient(colors: [Color(hex: "#FFFDF2").opacity(0.32), Color(hex: "#FFF8DC").opacity(0.08)]),
+                            startPoint: CGPoint(x: w * 0.2, y: 0),
+                            endPoint: CGPoint(x: w * 0.65, y: h * 0.78)
                         )
                     )
-                    // Subtle dappled foliage shadow resting softly across top corner
-                    for idx in 0..<3 {
-                        let lx = w * (0.14 + CGFloat(idx) * 0.11) + sway
-                        let ly = h * (0.15 + CGFloat(idx % 2) * 0.06)
-                        ctx.fill(
-                            Path(ellipseIn: CGRect(x: lx, y: ly, width: 34, height: 16)),
-                            with: .color(AppTheme.forestTeal.opacity(0.06))
-                        )
-                    }
                 }
 
                 // Hand-loomed concentric braided oval rug centered under the pet
                 let rugCenter = CGPoint(x: w * 0.50, y: h * 0.57)
-                // Soft rug drop shadow
                 ctx.fill(
                     Path(ellipseIn: CGRect(x: rugCenter.x - w * 0.44, y: rugCenter.y - 78, width: w * 0.88, height: 168)),
                     with: .color(AppTheme.timberDeep.opacity(0.11))
@@ -1322,19 +1651,6 @@ struct TactileCareFloorBackdrop: View {
                     let rect = CGRect(x: rugCenter.x - rw * 0.5, y: rugCenter.y - rh * 0.5, width: rw, height: rh)
                     ctx.fill(Path(ellipseIn: rect), with: .color(col))
                     ctx.stroke(Path(ellipseIn: rect), with: .color(AppTheme.timberDeep.opacity(0.24)), style: StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
-                }
-
-                // Soft foreground potted fern fronds peeking from upper-left & upper-right edges
-                for side in [-1.0, 1.0] {
-                    let baseX = side < 0 ? -10.0 : Double(w) + 10.0
-                    for frond in 0..<3 {
-                        let fx = baseX - side * Double(22 + frond * 14)
-                        let fy = Double(h) * (0.26 + Double(frond) * 0.05)
-                        ctx.fill(
-                            Path(ellipseIn: CGRect(x: fx - 24, y: fy - 10, width: 48, height: 20)),
-                            with: .color(AppTheme.vineGreen.opacity(0.14))
-                        )
-                    }
                 }
             }
         }

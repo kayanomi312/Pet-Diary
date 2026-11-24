@@ -126,11 +126,15 @@ float paperHash(float2 p) {
                                      float time, float rain, float sunlight, float dusk) {
     float2 uv = (position - bounds.xy) / max(bounds.zw, float2(1.0));
     float wall = 1.0 - smoothstep(0.42, 0.56, uv.y);
-    float windowMask = smoothstep(0.13, 0.18, uv.x) * (1.0 - smoothstep(0.94, 0.98, uv.x))
-        * smoothstep(0.02, 0.08, uv.y) * wall;
+    float windowMask = smoothstep(0.14, 0.16, uv.x) * (1.0 - smoothstep(0.84, 0.86, uv.x))
+        * smoothstep(0.06, 0.08, uv.y) * (1.0 - smoothstep(0.42, 0.44, uv.y));
 
-    float beam = 1.0 - smoothstep(0.03, 0.18, abs(uv.x + uv.y * 0.64 - 0.82));
-    float glow = sunlight * beam * (1.0 - smoothstep(0.06, 0.72, uv.y)) * 0.095;
+    // Match SunroomLight.runPerRise in SwiftUI: light moves right as screen Y increases.
+    float beamX = uv.x - 0.64 * (uv.y - 0.06);
+    float paneDistance = min(abs(beamX - 0.25), abs(beamX - 0.43));
+    float beam = 1.0 - smoothstep(0.035, 0.085, paneDistance);
+    float glow = sunlight * beam * smoothstep(0.04, 0.10, uv.y)
+        * (1.0 - smoothstep(0.38, 0.64, uv.y)) * 0.12;
 
     // Grid coordinates drift continuously with the particles. Each cell owns one soft mote.
     float2 dustGrid = uv * float2(21.0, 17.0) + float2(time * 0.29, -time * 0.20);
@@ -151,12 +155,19 @@ float paperHash(float2 p) {
     float wet = rain * windowMask * streak * 0.53;
 
     // Light cloth at the window edge. The bottom moves farther than the pinned top.
-    float curtainY = smoothstep(0.0, 0.42, uv.y);
+    float curtainY = smoothstep(0.06, 0.44, uv.y);
     float sway = sin(time * 1.3 + uv.y * 4.9) * curtainY * (0.008 + rain * 0.004);
     float curtainX = uv.x - sway;
     float folds = 0.55 + 0.45 * sin(curtainX * 220.0 + uv.y * 5.0);
-    float curtain = smoothstep(0.875, 0.910, curtainX) * windowMask * (0.08 + folds * 0.09);
+    float drape = max(1.0 - smoothstep(0.18, 0.24, curtainX), smoothstep(0.76, 0.82, curtainX));
+    float curtain = drape * windowMask * (1.0 - smoothstep(0.16, 0.44, uv.y)) * (0.09 + folds * 0.11);
     curtain *= 0.8 + 0.2 * paperHash(floor(position));
+
+    float lampStrength = smoothstep(0.20, 0.80, max(rain, dusk));
+    float2 leftLamp = (uv - float2(0.22, 0.71)) / float2(0.19, 0.24);
+    float2 rightLamp = (uv - float2(0.78, 0.75)) / float2(0.17, 0.23);
+    float lamp = lampStrength * smoothstep(0.40, 0.62, uv.y)
+        * (0.14 * exp(-2.0 * dot(leftLamp, leftLamp)) + 0.10 * exp(-2.0 * dot(rightLamp, rightLamp)));
 
     float3 lightColor = mix(float3(1.0, 0.96, 0.8), float3(1.0, 0.77, 0.47), dusk);
     float3 color = lightColor * glow;
@@ -165,5 +176,7 @@ float paperHash(float2 p) {
     alpha = wet + alpha * (1.0 - wet);
     color = float3(0.93, 0.85, 0.71) * curtain + color * (1.0 - curtain);
     alpha = curtain + alpha * (1.0 - curtain);
+    color = float3(1.0, 0.73, 0.37) * lamp + color * (1.0 - lamp);
+    alpha = lamp + alpha * (1.0 - lamp);
     return half4(half3(color), half(alpha)) * source.a;
 }
