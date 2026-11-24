@@ -125,7 +125,8 @@
       },
       "fps" : 12,
       "frames" : 12,
-      "loop" : "loop"
+      "loop" : "loop",
+      "strideLengthUV" : 0.13068
     }
   },
   "pet" : "pet_05",
