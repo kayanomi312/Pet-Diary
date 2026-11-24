@@ -113,7 +113,7 @@
       "fps" : 12,
       "frames" : 12,
       "loop" : "loop",
-      "strideLengthUV" : 0.021510000000000001
+      "strideLengthUV" : 0.13390
     },
     "walk_right" : {
       "bank" : "wr",
