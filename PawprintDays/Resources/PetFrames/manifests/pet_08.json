@@ -47,8 +47,8 @@
       "fps" : 8,
       "frames" : 16,
       "holds" : {
-        "14" : 3,
-        "6" : 3
+        "6" : 3,
+        "14" : 3
       },
       "loop" : "loop"
     },
@@ -107,7 +107,7 @@
       "fps" : 12,
       "frames" : 16,
       "loop" : "loop",
-      "strideLengthUV" : 0.05285
+      "strideLengthUV" : 0.052850000000000001
     },
     "walk_right" : {
       "bank" : "wr",
@@ -120,7 +120,7 @@
       "fps" : 12,
       "frames" : 12,
       "loop" : "loop",
-      "strideLengthUV" : 0.08658
+      "strideLengthUV" : 0.086580000000000004
     }
   },
   "pet" : "pet_08",
