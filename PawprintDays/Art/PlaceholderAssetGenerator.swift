@@ -150,7 +150,16 @@ struct ProceduralPetRigView: View {
             return CelFrameState(assetName: celName(staticIdx), isSleeping: staticIdx == 6, isExcited: isHappySquint)
         }
 
-        if reduceMotion { return CelFrameState(assetName: celName(1)) }
+        if reduceMotion {
+            // Hold one still drawing that still reads as the pet's current pose.
+            if playfulAction == .walking {
+                return CelFrameState(assetName: bankFrame(locomotion?.bank ?? "w", time: 0))
+            }
+            if playfulAction == .cozyNap || pose == .resting {
+                return CelFrameState(assetName: celName(6), isSleeping: true)
+            }
+            return CelFrameState(assetName: celName(isHappySquint ? 3 : 1), isExcited: isHappySquint)
+        }
         if let playback = poseTransition?.playback(at: Date(timeIntervalSinceReferenceDate: time)) {
             return frameState(for: playback)
         }
@@ -317,9 +326,14 @@ struct ProceduralPetRigView: View {
         return CelFrameState(assetName: bankFrame("i", time: tPet))
     }
 
+    /// Footsteps are sound-only. Haptics are kept for one-off beats (landing, chewing).
+    /// One shared throttle across every on-screen pet keeps a busy room from buzzing nonstop.
     private func respond(to event: String) {
+        guard CelEventFeedbackThrottle.allows(event, now: Date()) else { return }
         switch event {
-        case "footContact", "land":
+        case "footContact":
+            CozySoundEngine.shared.playPawTap()
+        case "land":
             CozySoundEngine.shared.playPawTap()
             HapticsEngine.shared.playBrushStrokeTick()
         case "chew":

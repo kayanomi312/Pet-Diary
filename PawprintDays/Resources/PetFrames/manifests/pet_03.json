@@ -41,14 +41,14 @@
       "bank" : "i",
       "events" : {
         "blink" : [
-          14
+          13
         ]
       },
       "fps" : 8,
       "frames" : 16,
       "holds" : {
-        "6" : 3,
-        "13" : 3
+        "13" : 3,
+        "6" : 3
       },
       "loop" : "loop"
     },
@@ -115,7 +115,7 @@
         "6" : 2
       },
       "loop" : "loop",
-      "strideLengthUV" : 0.021510000000000001
+      "strideLengthUV" : 0.02151
     },
     "walk_right" : {
       "bank" : "wr",
@@ -128,7 +128,7 @@
       "fps" : 12,
       "frames" : 12,
       "loop" : "loop",
-      "strideLengthUV" : 0.062810000000000005
+      "strideLengthUV" : 0.06281
     }
   },
   "pet" : "pet_03",

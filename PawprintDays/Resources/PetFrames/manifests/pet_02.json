@@ -47,8 +47,8 @@
       "fps" : 8,
       "frames" : 16,
       "holds" : {
-        "6" : 3,
-        "13" : 3
+        "14" : 3,
+        "6" : 3
       },
       "loop" : "loop"
     },
@@ -81,8 +81,8 @@
       "fps" : 10,
       "frames" : 10,
       "holds" : {
-        "6" : 3,
-        "10" : 2
+        "10" : 2,
+        "6" : 3
       },
       "loop" : "once",
       "next" : "idle"
@@ -122,7 +122,7 @@
       "fps" : 12,
       "frames" : 12,
       "loop" : "loop",
-      "strideLengthUV" : 0.037909999999999999
+      "strideLengthUV" : 0.03791
     }
   },
   "pet" : "pet_02",
