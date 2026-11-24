@@ -247,7 +247,7 @@ struct CozyPopoverMenuCard: View {
                         Text(item.title)
                             .font(.system(size: 13.5, weight: .semibold, design: .rounded))
                             .foregroundStyle(item.isDestructive ? Color(hex: "#B5482B") : Color(hex: "#2F2A26"))
-                            .lineLimit(1)
+                            .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
                     }
                     .padding(.horizontal, 12)
@@ -263,7 +263,7 @@ struct CozyPopoverMenuCard: View {
                 }
             }
         }
-        .frame(width: 244)
+        .frame(minWidth: 224, maxWidth: 268)
         .padding(.vertical, 4)
         .background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -278,6 +278,32 @@ struct CozyPopoverMenuCard: View {
                 )
                 .shadow(color: Color(hex: "#2B211A").opacity(0.16), radius: 16, x: 0, y: 8)
         }
+    }
+}
+
+struct CompanionBondProgressPill: View {
+    let sharedDays: Int
+
+    var body: some View {
+        let next = GameCoordinator.nextMilestoneDays(after: sharedDays)
+        HStack(spacing: 6) {
+            Image(systemName: "heart.fill")
+                .foregroundStyle(AppTheme.forestTeal)
+                .accessibilityHidden(true)
+            Text(next.map { "相伴 \(sharedDays)/\($0) 天" } ?? "相伴 \(sharedDays) 天")
+            if let next {
+                ProgressView(value: Double(sharedDays), total: Double(next))
+                    .tint(AppTheme.forestTeal)
+                    .frame(width: 34)
+                    .accessibilityHidden(true)
+            }
+        }
+        .font(AppTheme.diegeticLabel(10))
+        .foregroundStyle(AppTheme.deepPineInk)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(AppTheme.warmPaper.opacity(0.85), in: Capsule())
+        .accessibilityLabel(next.map { "已相伴 \(sharedDays) 天，下個羈絆階段為 \($0) 天" } ?? "已相伴 \(sharedDays) 天")
     }
 }
 

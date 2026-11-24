@@ -141,8 +141,8 @@ struct HomeSunroomView: View {
                 },
                 onBrewTeaInWorld: { brewed in
                     let paid = coordinator.brewTeaRecipe(brewed)
-                    roamingEngine.gatherAllPets(near: CGPoint(x: 0.72, y: 0.72), bubble: "好香的\(brewed.name)♡")
-                    roamingEngine.emitFloatingBurst(at: CGPoint(x: 0.80, y: 0.72), text: paid ? "+1 幣 🍵 茶香四溢" : "🍵 茶香四溢", colorHex: brewed.tintHex)
+                    roamingEngine.gatherAllPets(near: SunroomRoamingEngine.teaStationUV, bubble: "好香的\(brewed.name)♡")
+                    roamingEngine.emitFloatingBurst(at: SunroomRoamingEngine.teaStationUV, text: paid ? "+1 幣 🍵 茶香四溢" : "🍵 茶香四溢", colorHex: brewed.tintHex)
                 },
                 onTapOrigamiTable: {
                     HapticsEngine.shared.playBrushStrokeTick()
@@ -505,7 +505,6 @@ struct HomeSunroomView: View {
                                 withAnimation(AppTheme.Motion.resolved(.settle, reduceMotion: reduceMotion)) {
                                     isDecoratingMode = true
                                 }
-                                coordinator.showWhisper("直接拖曳家具移動位置，或在下方點選即時換裝！")
                             } label: {
                                 CozyGlassPill(horizontalPadding: 13, verticalPadding: 9) {
                                     HStack(spacing: 5) {
@@ -526,7 +525,7 @@ struct HomeSunroomView: View {
             }
 
             // Emergent Multi-Pet Sunroom Skit Floating Storybook Card (non-blocking top-bottom warm slip!)
-            if let skit = activeSkitOverlay {
+            if !coordinator.isSunroomPhotoMode, let skit = activeSkitOverlay {
                 VStack {
                     Spacer()
                     SunroomSkitOverlayCard(skit: skit, coordinator: coordinator) {
@@ -550,7 +549,7 @@ struct HomeSunroomView: View {
             // Gently seed a playful Hide-and-Seek spot if one isn't active yet
             if hidingSpotIndex == nil,
                let pet = invitedPets.randomElement(),
-               let spot = coordinator.homeSpots.randomElement() {
+               let spot = coordinator.homeSpots.filter({ $0.equippedGoodieID != nil }).randomElement() {
                 hidingSpotIndex = spot.spotIndex
                 hidingPetID = pet.petID
             }
@@ -580,6 +579,7 @@ struct HomeSunroomView: View {
 private struct PetPortraitThumbnail: View {
     let petID: String
     let size: CGFloat
+    var isSilhouette = false
 
     private var assetName: String {
         petID.replacingOccurrences(of: ".", with: "_")
@@ -594,6 +594,11 @@ private struct PetPortraitThumbnail: View {
                     .scaledToFill()
                     .frame(width: size * 1.45, height: size * 1.45)
                     .offset(y: size * 0.22)
+                    .saturation(isSilhouette ? 0 : 1)
+                    .colorMultiply(isSilhouette ? Color(hex: "#B99170") : .white)
+                    .brightness(isSilhouette ? -0.75 : 0)
+                    .contrast(isSilhouette ? 0.6 : 1)
+                    .opacity(isSilhouette ? 0.65 : 1)
             }
         }
         .frame(width: size, height: size)
@@ -612,28 +617,41 @@ private struct PetBookmarkJumpDrawer: View {
                 VStack(spacing: 10) {
                     ForEach(coordinator.residents, id: \.petID) { res in
                         let spec = PetCatalog.pet(id: res.petID)
+                        let isUnmet = res.inviteState == .unmet
                         StorybookPaperCard(cornerRadius: 16, accentColor: AppTheme.timberWarm, paddingAmount: 12) {
                             HStack(spacing: 12) {
-                                PetPortraitThumbnail(petID: res.petID, size: 46)
+                                PetPortraitThumbnail(petID: res.petID, size: 46, isSilhouette: isUnmet)
+                                    .accessibilityHidden(true)
                                 VStack(alignment: .leading, spacing: 3) {
                                     HStack(spacing: 6) {
-                                        Text(spec.name)
+                                        Text(isUnmet ? "???" : spec.name)
                                             .font(AppTheme.serifTitle(16))
                                             .foregroundStyle(AppTheme.deepPineInk)
-                                        Text(spec.gender.symbol)
-                                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                                            .foregroundStyle(.white)
-                                            .padding(.horizontal, 5.5)
-                                            .padding(.vertical, 1.5)
-                                            .background(Color(hex: spec.gender.badgeHex), in: Capsule())
-                                        SpeciesFolkloreBadgeView(kind: spec.kind)
+                                        if !isUnmet {
+                                            Text(spec.gender.symbol)
+                                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                                .foregroundStyle(.white)
+                                                .padding(.horizontal, 5.5)
+                                                .padding(.vertical, 1.5)
+                                                .background(Color(hex: spec.gender.badgeHex), in: Capsule())
+                                            SpeciesFolkloreBadgeView(kind: spec.kind)
+                                        }
                                     }
-                                    Text(res.relationshipStatusLabel)
-                                        .font(AppTheme.serifBody(12.5))
-                                        .foregroundStyle(AppTheme.softInk)
+                                    if isUnmet {
+                                        let weathers = spec.resonantWeathers.map(\.displayName).joined(separator: "、")
+                                        Text(weathers.isEmpty ? "也許會在某個街角遇見" : "偏愛\(weathers)的時刻")
+                                            .font(AppTheme.serifBody(12.5))
+                                            .foregroundStyle(AppTheme.softInk)
+                                    } else if res.inviteState == .invitedHome {
+                                        CompanionBondProgressPill(sharedDays: res.sharedDaysCount)
+                                    } else {
+                                        Text(res.relationshipStatusLabel)
+                                            .font(AppTheme.serifBody(12.5))
+                                            .foregroundStyle(AppTheme.softInk)
+                                    }
                                 }
                                 Spacer(minLength: 4)
-                                if res.inviteState != .unmet {
+                                if !isUnmet {
                                     CutePlushButton(
                                         title: "探望",
                                         tone: .matchaMint,

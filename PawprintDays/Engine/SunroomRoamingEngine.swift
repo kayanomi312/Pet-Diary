@@ -22,7 +22,7 @@ final class SunroomRoamingEngine {
     struct RoamingPetActor: Identifiable {
         var id: String { petID }
         let petID: String
-        var position: CGPoint // anchor/settled room UV (x: 0.08..0.92, y: 0.14..0.86)
+        var position: CGPoint // anchor/settled room UV
         var facingRight: Bool = false
         var behavior: RoamBehavior
         var speechBubble: String? = nil
@@ -260,26 +260,34 @@ final class SunroomRoamingEngine {
         }
     }
 
+    static let teaStationUV = CGPoint(x: 0.66, y: 0.82)
+    static let porchStationUV = CGPoint(x: 0.67, y: 0.46)
+
+    private static let roamingXBounds: ClosedRange<CGFloat> = 0.34...0.66
+
+    private static func insetRoamingX(_ x: CGFloat) -> CGFloat {
+        min(max(x, roamingXBounds.lowerBound), roamingXBounds.upperBound)
+    }
+
     static func spot25DPosition(for spotIndex: Int, verandaUnlocked: Bool) -> CGPoint {
         if verandaUnlocked {
             switch spotIndex {
-            case 1: return CGPoint(x: 0.14, y: 0.18) // 窗邊軟墊（後左）
-            case 2: return CGPoint(x: 0.36, y: 0.34) // 日光毛毯（中後）
-            case 3: return CGPoint(x: 0.58, y: 0.22) // 麵包紙箱（後中右）
-            case 4: return CGPoint(x: 0.22, y: 0.74) // 編織圓毯（前左）
-            case 5: return CGPoint(x: 0.50, y: 0.78) // 午茶木墊（前中）
-            case 6: return CGPoint(x: 0.78, y: 0.26) // 雨廊窗台（右廊後）
-            case 7: return CGPoint(x: 0.84, y: 0.56) // 雨廊木凳（右廊中）
-            default: return CGPoint(x: 0.76, y: 0.80) // 雨廊晴墊（右廊前）
+            case 1: return CGPoint(x: 0.34, y: 0.18)
+            case 2: return CGPoint(x: 0.46, y: 0.34)
+            case 3: return CGPoint(x: 0.57, y: 0.22)
+            case 4: return CGPoint(x: 0.36, y: 0.74)
+            case 5: return CGPoint(x: 0.50, y: 0.78)
+            case 6: return CGPoint(x: 0.67, y: 0.16)
+            case 7: return CGPoint(x: 0.63, y: 0.60)
+            default: return CGPoint(x: 0.55, y: 0.87)
             }
-        } else {
-            switch spotIndex {
-            case 1: return CGPoint(x: 0.20, y: 0.18) // 窗邊軟墊（後左）
-            case 2: return CGPoint(x: 0.50, y: 0.32) // 日光毛毯（中後）
-            case 3: return CGPoint(x: 0.80, y: 0.22) // 麵包紙箱（後右）
-            case 4: return CGPoint(x: 0.28, y: 0.74) // 編織圓毯（前左）
-            default: return CGPoint(x: 0.72, y: 0.78) // 午茶木墊（前右）
-            }
+        }
+        switch spotIndex {
+        case 1: return CGPoint(x: 0.35, y: 0.18)
+        case 2: return CGPoint(x: 0.49, y: 0.38)
+        case 3: return CGPoint(x: 0.63, y: 0.21)
+        case 4: return CGPoint(x: 0.36, y: 0.74)
+        default: return CGPoint(x: 0.54, y: 0.78)
         }
     }
 
@@ -295,10 +303,11 @@ final class SunroomRoamingEngine {
             if let spot = assignedSpot {
                 let sp = resolvedSpotPosition(for: spot.spotIndex, verandaUnlocked: verandaUnlocked)
                 let jitter = CGFloat((idx % 3) - 1) * 0.035
-                startPos = CGPoint(x: max(0.10, min(0.90, sp.x + jitter)), y: sp.y)
+                let x = customSpotPositions[spot.spotIndex] == nil ? Self.insetRoamingX(sp.x + jitter) : sp.x
+                startPos = CGPoint(x: x, y: sp.y)
             } else {
                 startPos = CGPoint(
-                    x: 0.22 + CGFloat(idx % 4) * 0.19,
+                    x: 0.34 + CGFloat(idx % 4) * 0.105,
                     y: 0.30 + CGFloat((idx / 4) % 2) * 0.36
                 )
             }
@@ -391,7 +400,7 @@ final class SunroomRoamingEngine {
                         actor.speechBubble = spec.kind.isCatFamily ? "拍拍縫布球～♪" : "滾球玩囉汪！"
                         actor.bubbleExpiresAt = now.addingTimeInterval(3.8)
                         let rollTo = CGPoint(
-                            x: max(0.14, min(0.86, to.x + (actor.facingRight ? 0.24 : -0.24))),
+                            x: Self.insetRoamingX(to.x + (actor.facingRight ? 0.24 : -0.24)),
                             y: max(0.26, min(0.82, to.y + CGFloat.random(in: -0.08...0.08)))
                         )
                         rollingBall = RollingClothBall(from: to, to: rollTo, startedAt: now, duration: 2.2)
@@ -500,10 +509,10 @@ final class SunroomRoamingEngine {
     /// 玩家在陽光室丟出一顆手工縫布球：布球滾過 2.5D 木地板，最近的清醒室友立刻開心地跑去追球並拍球！
     @discardableResult
     func tossClothBall(now: Date = Date()) -> String? {
-        let startX: CGFloat = Bool.random() ? 0.16 : 0.84
+        let startX = Bool.random() ? Self.roamingXBounds.lowerBound : Self.roamingXBounds.upperBound
         let startPos = CGPoint(x: startX, y: CGFloat.random(in: 0.42...0.68))
         let targetPos = CGPoint(
-            x: startX < 0.5 ? CGFloat.random(in: 0.56...0.82) : CGFloat.random(in: 0.18...0.44),
+            x: startX < 0.5 ? CGFloat.random(in: 0.56...0.66) : CGFloat.random(in: 0.34...0.44),
             y: CGFloat.random(in: 0.30...0.78)
         )
         rollingBall = RollingClothBall(from: startPos, to: targetPos, startedAt: now, duration: 2.3)
@@ -561,7 +570,7 @@ final class SunroomRoamingEngine {
             actor.position = startPos
             let spread = CGFloat(idx) - CGFloat(count - 1) * 0.5
             let dest = CGPoint(
-                x: max(0.10, min(0.90, targetUV.x + spread * 0.11 - 0.06)),
+                x: Self.insetRoamingX(targetUV.x + spread * 0.07 - 0.08),
                 y: max(0.22, min(0.84, targetUV.y + (idx % 2 == 0 ? -0.05 : 0.04)))
             )
             let dist = hypot(dest.x - startPos.x, dest.y - startPos.y)
@@ -633,7 +642,7 @@ final class SunroomRoamingEngine {
         guard var actor = actors[petID] else { return }
         let cur = actor.interpolatedPosition(at: now)
         actor.position = cur
-        let doorUV = CGPoint(x: 0.91, y: 0.48)
+        let doorUV = Self.porchStationUV
         let dist = hypot(doorUV.x - cur.x, doorUV.y - cur.y)
         actor.beginWalk(from: cur, to: doorUV, at: now, duration: max(1.4, min(3.8, Double(dist) * 8.0)), facingRight: true)
         actor.speechBubble = "去\(destination)探險囉♪"
@@ -645,7 +654,7 @@ final class SunroomRoamingEngine {
 
     /// Solo Errand return animation: companion happily trots back from the doorway onto the rug!
     func welcomePetBackInDoor(petID: String, coins: Int, now: Date = Date()) {
-        let doorUV = CGPoint(x: 0.90, y: 0.48)
+        let doorUV = Self.porchStationUV
         let centerUV = CGPoint(x: 0.56, y: 0.56)
         if var actor = actors[petID] {
             actor.position = doorUV
@@ -723,7 +732,9 @@ final class SunroomRoamingEngine {
                 let p = resolvedSpotPosition(for: chosen.spotIndex, verandaUnlocked: verandaUnlocked)
                 return (
                     CGPoint(
-                        x: max(0.10, min(0.90, p.x + CGFloat.random(in: -0.025...0.025))),
+                        x: customSpotPositions[chosen.spotIndex] == nil
+                            ? Self.insetRoamingX(p.x + CGFloat.random(in: -0.025...0.025))
+                            : p.x,
                         y: max(0.16, min(0.84, p.y + CGFloat.random(in: -0.02...0.02)))
                     ),
                     chosen.spotIndex
@@ -732,12 +743,12 @@ final class SunroomRoamingEngine {
         }
 
         for _ in 0..<6 {
-            let rx = CGFloat.random(in: 0.12...0.88)
+            let rx = CGFloat.random(in: Self.roamingXBounds)
             let ry = CGFloat.random(in: 0.22...0.84)
             if hypot(rx - origin.x, ry - origin.y) > 0.22 {
                 return (CGPoint(x: rx, y: ry), nil)
             }
         }
-        return (CGPoint(x: origin.x > 0.5 ? 0.24 : 0.76, y: CGFloat.random(in: 0.30...0.74)), nil)
+        return (CGPoint(x: origin.x > 0.5 ? Self.roamingXBounds.lowerBound : Self.roamingXBounds.upperBound, y: CGFloat.random(in: 0.30...0.74)), nil)
     }
 }

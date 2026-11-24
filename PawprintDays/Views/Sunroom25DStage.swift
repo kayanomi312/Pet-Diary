@@ -46,18 +46,25 @@ struct Sunroom25DStageView: View {
             let viewW = geo.size.width
             let viewH = geo.size.height
             let stageW = viewW + (coordinator.ledger.verandaUnlocked ? 360 : 200)
-            let floorHorizonY = viewH * 0.455
+            let floorHorizonY = viewH * 0.46
             let floorBottomY = viewH * 0.855
+
+            let viewportLeft = (stageW - viewW) / 2 - effectivePan
+            let hidingPet = !isDecoratingMode && !isFeatherWandMode && !isPhotoMode &&
+                coordinator.homeSpots.contains { $0.spotIndex == hidingSpotIndex && $0.equippedGoodieID != nil }
+                ? hidingPetID : nil
 
             TimelineView(.animation(minimumInterval: AppTheme.Motion.interval(fps: 60, reduceMotion: reduceMotion))) { timeline in
                 let now = timeline.date
+                let visibleActors = roaming.actors.values.filter { $0.petID != hidingPet }
+                let skitPair = isPhotoMode || isDecoratingMode || isFeatherWandMode
+                    ? nil : nearbyRoommates(visibleActors, at: now)
                 ZStack {
                     // MARK: Layer 1A — Back Hand-Painted Sunroom Wall & Sunlit Window (0.35x Parallax)
                     ZStack {
                         if let uiBg = UIImage(named: "bg_home_sunroom") {
                             Image(uiImage: uiBg)
                                 .resizable()
-                                .scaledToFill()
                                 .frame(width: stageW, height: viewH)
                                 .overlay(
                                     Rectangle()
@@ -79,7 +86,8 @@ struct Sunroom25DStageView: View {
                         horizonY: floorHorizonY,
                         weather: coordinator.activeWeather,
                         theme: coordinator.ledger.activeRoomTheme,
-                        verandaUnlocked: coordinator.ledger.verandaUnlocked
+                        verandaUnlocked: coordinator.ledger.verandaUnlocked,
+                        lightOffsetX: reduceMotion ? 0 : effectivePan * (0.35 - 0.88)
                     )
                     .frame(width: stageW, height: viewH)
                     .offset(x: effectivePan * (reduceMotion ? 1 : 0.88))
@@ -114,6 +122,14 @@ struct Sunroom25DStageView: View {
                         )
                         .position(x: stageW * 0.50, y: floorHorizonY - 26)
                         .offset(x: effectivePan * (reduceMotion ? 1 : 0.60))
+                    }
+
+                    if coordinator.isGingerTeaActive {
+                        SteamingGingerTeaTrayView(onTap: { coordinator.sipGingerTea() })
+                            .scaleEffect(0.76)
+                            .position(x: stageW * 0.40, y: floorHorizonY - 62)
+                            .offset(x: effectivePan * (reduceMotion ? 1 : 0.60))
+                            .allowsHitTesting(!isPhotoMode)
                     }
 
                     // Hanging Window Beam Decor: Swipeable Edo Glass Wind Chime + Crafted Origamis!
@@ -173,7 +189,7 @@ struct Sunroom25DStageView: View {
                         Color.clear
                             .contentShape(FloorTapRegionShape(topY: floorHorizonY))
                             .onTapGesture { location in
-                                guard !isDecoratingMode else { return }
+                                guard !isDecoratingMode, !isPhotoMode else { return }
                                 guard location.y >= floorHorizonY - 12 && location.y <= floorBottomY + 24 else { return }
                                 let u = location.x / stageW
                                 let depth = max(0.14, min(0.88, (location.y - floorHorizonY) / max(1, floorBottomY - floorHorizonY)))
@@ -234,58 +250,46 @@ struct Sunroom25DStageView: View {
                                             .frame(width: 98, height: 36)
                                             .offset(y: 12)
                                     }
+                                    if hidingSpotIndex == spot.spotIndex, let hidingPet {
+                                        Button {
+                                            onFoundHidingPet?(hidingPet, uv)
+                                        } label: {
+                                            SunroomPeekingEars()
+                                                .frame(width: 26, height: 18)
+                                                .frame(width: 36, height: 36)
+                                                .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        .offset(x: 33, y: -34)
+                                        .accessibilityLabel("躲在家具後的小靈獸")
+                                    }
+
                                     PaintedGoodiePropView(
                                         goodieID: spot.equippedGoodieID,
                                         hasLovedPatina: spot.hasLovedPatina,
                                         hasStitchedPatch: spot.hasStitchedPatch,
                                         isWide: spot.currentOccupantPetIDs.count > 1
                                     )
-
-                                    // Sunroom Hide-and-Seek playful peeking sparkle behind this furniture spot!
-                                    if !isDecoratingMode, !isFeatherWandMode, !isPhotoMode,
-                                       hidingSpotIndex == spot.spotIndex,
-                                       let foundPet = hidingPetID {
-                                        Button {
-                                            onFoundHidingPet?(foundPet, uv)
-                                        } label: {
-                                            HStack(spacing: 3) {
-                                                Image(systemName: "eyes")
-                                                    .font(.system(size: 11, weight: .bold))
-                                                Text("找到你！")
-                                                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                                            }
-                                            .foregroundStyle(.white)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(Color(hex: "#D98A36"), in: Capsule())
-                                            .overlay(Capsule().stroke(Color(hex: "#FFFDF8"), lineWidth: 1.4))
-                                            .shadow(color: AppTheme.deepPineInk.opacity(0.26), radius: 4, y: 2)
-                                        }
-                                        .buttonStyle(TactileGameButtonStyle(pressScale: 0.90, pressOffsetY: 1))
-                                        .offset(x: 24, y: -22)
-                                        .accessibilityLabel("發現躲貓貓的小靈獸")
-                                    }
+                                    .allowsHitTesting(isDecoratingMode)
                                 }
                                 let hideLabelInDecorate = isDecoratingMode && uv.y > 0.68 && selectedDecorateSpotIndex != spot.spotIndex && draggingSpotIndex != spot.spotIndex
-                                if !isPhotoMode && !hideLabelInDecorate {
-                                    Text(isDecoratingMode ? "拖曳移動 · \(spot.spotName)" : (spot.hasLovedPatina ? "✦ \(spot.spotName)" : spot.spotName))
+                                if isDecoratingMode && !isPhotoMode && !hideLabelInDecorate {
+                                    Text(spot.spotName)
                                         .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                                        .foregroundStyle(isDecoratingMode ? AppTheme.forestTeal : Color(hex: "#4A3628"))
+                                        .foregroundStyle(AppTheme.forestTeal)
                                         .padding(.horizontal, 7)
                                         .padding(.vertical, 2)
                                         .background(
                                             Capsule()
                                                 .fill(Color(hex: "#FFFDF7").opacity(0.92))
-                                                .overlay(Capsule().stroke(isDecoratingMode ? AppTheme.pawStrollChain : AppTheme.timberWarm.opacity(0.45), lineWidth: isDecoratingMode ? 1.3 : 0.9))
+                                                .overlay(Capsule().stroke(AppTheme.pawStrollChain, lineWidth: 1.3))
                                         )
                                 }
                             }
                             .scaleEffect(scale * (draggingSpotIndex == spot.spotIndex ? 1.08 : 1.0))
                             .position(x: pt.x, y: pt.y + 8 * scale)
                             .zIndex(Double(uv.y * 1000.0) - (draggingSpotIndex == spot.spotIndex ? -50 : 10))
-                            .onTapGesture {
-                                onTapSpot(spot)
-                            }
+                            .gesture(TapGesture().onEnded { onTapSpot(spot) }, including: isDecoratingMode ? .all : .subviews)
                             .highPriorityGesture(
                                 DragGesture(minimumDistance: 6, coordinateSpace: .named("sunroomFloor"))
                                     .onChanged { value in
@@ -379,7 +383,7 @@ struct Sunroom25DStageView: View {
 
                         // Physical Interactive Tea & Biscuit Tray right on the foreground floor (Swirl to Brew!)
                         if !isDecoratingMode && !isFeatherWandMode {
-                            let teaUV = CGPoint(x: 0.74, y: 0.80)
+                            let teaUV = SunroomRoamingEngine.teaStationUV
                             let teaPt = floorPoint(uv: teaUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
                             let teaScale = depthScale(for: teaUV.y)
                             InWorldTeaStationView(
@@ -391,34 +395,38 @@ struct Sunroom25DStageView: View {
                                     onBrewTeaInWorld?(brewed)
                                 }
                             )
+                            .allowsHitTesting(!isPhotoMode)
                             .scaleEffect(teaScale * 0.90)
                             .position(x: teaPt.x, y: teaPt.y - 16 * teaScale)
                             .zIndex(Double(teaUV.y * 1000.0) + 18)
 
                             // Physical Origami Craft Stool by the sunny left window (Tap to Fold in-world!)
-                            let origUV = CGPoint(x: 0.22, y: 0.46)
+                            let origUV = CGPoint(x: 0.30, y: 0.46)
                             let origPt = floorPoint(uv: origUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
                             let origScale = depthScale(for: origUV.y)
                             InWorldOrigamiTableView(isPhotoMode: isPhotoMode) {
                                 onTapOrigamiTable?()
                             }
+                            .allowsHitTesting(!isPhotoMode)
                             .scaleEffect(origScale)
                             .position(x: origPt.x, y: origPt.y - 10 * origScale)
                             .zIndex(Double(origUV.y * 1000.0) + 10)
 
                             // Physical Porch Adventure Satchel near the right doorway (Direct Solo Errands!)
-                            let doorUV = CGPoint(x: 0.78, y: 0.46)
+                            let doorUV = SunroomRoamingEngine.porchStationUV
                             let doorPt = floorPoint(uv: doorUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
                             let doorScale = depthScale(for: doorUV.y)
                             if coordinator.isFeatureUnlocked(.errands) {
                                 InWorldPorchSatchelView(
-                                    activeErrand: coordinator.indoorState.activeErrand,
+                                    activeErrand: isPhotoMode ? nil : coordinator.indoorState.activeErrand,
                                     now: now,
                                     coinBalance: coordinator.ledger.coinBalance,
                                     isPhotoMode: isPhotoMode,
                                     onSendSupply: { pack in onSendErrandSupply?(pack) },
                                     onCollectReturned: { onCollectErrandInWorld?() }
                                 )
+                                .id(isPhotoMode)
+                                .allowsHitTesting(!isPhotoMode)
                                 .scaleEffect(doorScale)
                                 .position(x: doorPt.x, y: doorPt.y - 24 * doorScale)
                                 .zIndex(Double(doorUV.y * 1000.0) + 22)
@@ -472,12 +480,14 @@ struct Sunroom25DStageView: View {
                                     onTapOffspring?(child)
                                 }
                             } label: {
-                                VStack(spacing: 2) {
-                                    HybridOffspringRigView(
-                                        offspring: child,
-                                        weather: coordinator.activeWeather,
-                                        size: 98
-                                    )
+                                HybridOffspringRigView(
+                                    offspring: child,
+                                    weather: coordinator.activeWeather,
+                                    size: 98
+                                )
+                            }
+                            .overlay(alignment: .bottom) {
+                                if !isPhotoMode {
                                     Text(child.growthStage == .egg ? "✦ 奇幻靈卵" : "\(child.name) \(child.gender.symbol)")
                                         .font(.system(size: 10, weight: .bold, design: .rounded))
                                         .foregroundStyle(Color(hex: "#4A3628"))
@@ -485,9 +495,11 @@ struct Sunroom25DStageView: View {
                                         .padding(.vertical, 2)
                                         .background(Color(hex: "#FFFDF7").opacity(0.92), in: Capsule())
                                         .overlay(Capsule().stroke(Color(hex: child.gender.badgeHex).opacity(0.55), lineWidth: 0.9))
+                                        .allowsHitTesting(false)
                                 }
                             }
                             .buttonStyle(.plain)
+                            .allowsHitTesting(!isPhotoMode)
                             .scaleEffect(cScale)
                             .position(x: cPt.x, y: cPt.y - 24 * cScale)
                             .zIndex(Double(cUV.y * 1000.0) + 6)
@@ -495,15 +507,12 @@ struct Sunroom25DStageView: View {
                         }
 
                         // 2.5D Free-Roaming Hand-Animated Pets (pure 60fps interpolated position + species magical auras!)
-                        let sortedActorIDs = roaming.actors.keys.sorted()
-                        let skitHostPetID: String? = (sortedActorIDs.count >= 2 && !isDecoratingMode && !isFeatherWandMode) ? sortedActorIDs[1] : nil
-                        let skitPartnerPetID: String? = (sortedActorIDs.count >= 2) ? sortedActorIDs[0] : nil
-                        ForEach(Array(roaming.actors.values), id: \.petID) { actor in
+                        ForEach(visibleActors, id: \.petID) { actor in
                             let spec = PetCatalog.pet(id: actor.petID)
                             let resident = coordinator.resident(for: actor.petID)
                             let liveUV = reduceMotion ? actor.position : actor.interpolatedPosition(at: now)
                             let pt = floorPoint(uv: liveUV, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
-                            let scale = depthScale(for: liveUV.y)
+                            let depth = depthScale(for: liveUV.y)
                             let petMentorship = coordinator.teachingIntentions.first {
                                 $0.state == .demonstrated &&
                                 ($0.mentorPetID == actor.petID || $0.learnerPetID == actor.petID)
@@ -522,135 +531,100 @@ struct Sunroom25DStageView: View {
                                 }
                             }()
 
-                            ZStack {
-                                VStack(spacing: 0) {
-                                    if !isPhotoMode, let ready = petMentorship {
-                                        CutePlushButton(
-                                            title: "記下傳承",
-                                            tone: .butterHoney,
-                                            fontSize: 10,
-                                            horizontalPadding: 8,
-                                            verticalPadding: 4,
-                                            icon: { Image(systemName: "sparkles").font(.system(size: 10, weight: .bold)) },
-                                            action: { onCompleteMentorship(ready) }
-                                        )
-                                    } else if !isPhotoMode, actor.petID == skitHostPetID, let partner = skitPartnerPetID {
-                                        Button {
-                                            onTriggerSkit?(partner, actor.petID)
-                                        } label: {
-                                            HStack(spacing: 3) {
-                                                Image(systemName: "sparkles")
-                                                    .font(.system(size: 9.5, weight: .bold))
-                                                Text("室友小劇場")
-                                                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                                            }
-                                            .foregroundStyle(Color(hex: "#5A3D16"))
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(Color(hex: "#FFF4D6"), in: Capsule())
-                                            .overlay(Capsule().stroke(Color(hex: "#D9A441"), lineWidth: 1.1))
-                                            .shadow(color: AppTheme.deepPineInk.opacity(0.16), radius: 3, y: 1.5)
-                                        }
-                                        .buttonStyle(TactileGameButtonStyle(pressScale: 0.92, pressOffsetY: 1))
-                                    } else if let bubble = actor.speechBubble {
-                                        let bubbleOffsetX: CGFloat = pt.x < 175 ? 36 : (pt.x > stageW - 175 ? -36 : 0)
-                                        SunroomPetSpeechBubble(text: bubble)
-                                            .offset(x: bubbleOffsetX, y: 6)
-                                    }
+                            let scale = depth * (isInBox ? 0.86 : 1.0)
+                            Button {
+                                onTapPet(actor.petID)
+                            } label: {
+                                ZStack {
+                                    // Match the canvas and shader's positive-X displacement per unit of Y.
+                                    let shadowDrop: CGFloat = coordinator.activeWeather == .clearMorning ? 12 : 8
+                                    let shadowRun = SunroomLight.runPerRise * shadowDrop * stageW / max(1, viewH)
+                                    Ellipse()
+                                        .fill(AppTheme.deepPineInk.opacity(coordinator.activeWeather.isRainy ? 0.08 : 0.15))
+                                        .frame(width: 74, height: 16)
+                                        .rotationEffect(.radians(atan2(shadowDrop, shadowRun)))
+                                        .blur(radius: 5)
+                                        .offset(x: shadowRun, y: 47 + shadowDrop)
+                                        .allowsHitTesting(false)
 
-                                    Button {
-                                        if !isDecoratingMode && !isFeatherWandMode { onTapPet(actor.petID) }
-                                    } label: {
-                                        ZStack {
-                                            // Directional Window-Lit Ground Shadow (shifts opposite sunbeam angle!)
-                                            let shadowShiftX: CGFloat = {
-                                                switch coordinator.activeWeather {
-                                                case .clearMorning: return 11.0
-                                                case .dusk: return 16.0
-                                                case .postRain: return 8.0
-                                                case .lightRain, .overcast: return 0.0
-                                                }
-                                            }()
-                                            Ellipse()
-                                                .fill(
-                                                    RadialGradient(
-                                                        colors: [
-                                                            AppTheme.deepPineInk.opacity(coordinator.activeWeather.isRainy ? 0.14 : 0.22),
-                                                            .clear
-                                                        ],
-                                                        center: .center,
-                                                        startRadius: 4,
-                                                        endRadius: 42
-                                                    )
+                                    // Warm golden hearth-glow pool beneath napping DragonCat (pet.03)!
+                                    if spec.kind == .dragonCat && actor.isNapping {
+                                        Ellipse()
+                                            .fill(
+                                                RadialGradient(
+                                                    colors: [Color(hex: "#F5B864").opacity(0.36), .clear],
+                                                    center: .center,
+                                                    startRadius: 8,
+                                                    endRadius: 58
                                                 )
-                                                .frame(width: 80, height: 20)
-                                                .offset(x: shadowShiftX, y: 46)
-                                                .allowsHitTesting(false)
-
-                                            // Warm golden hearth-glow pool beneath napping DragonCat (pet.03)!
-                                            if spec.kind == .dragonCat && actor.isNapping {
-                                                Ellipse()
-                                                    .fill(
-                                                        RadialGradient(
-                                                            colors: [Color(hex: "#F5B864").opacity(0.36), .clear],
-                                                            center: .center,
-                                                            startRadius: 8,
-                                                            endRadius: 58
-                                                        )
-                                                    )
-                                                    .frame(width: 112, height: 34)
-                                                    .offset(y: 44)
-                                                    .allowsHitTesting(false)
-                                            }
-
-                                            // Species-specific magical room aura (Dragon hearth embers, Spirit cloud puffs, Antler forest leaves!)
-                                            if !reduceMotion {
-                                                SpeciesRoomMagicAuraCanvas(petKind: spec.kind, weather: coordinator.activeWeather, time: now.timeIntervalSinceReferenceDate)
-                                                    .frame(width: 126, height: 126)
-                                                    .allowsHitTesting(false)
-                                            }
-
-                                            ProceduralPetRigView(
-                                                pet: spec,
-                                                outfitID: resident?.activeOutfitID,
-                                                pose: actor.isNapping ? .resting : .notice,
-                                                weatherMode: coordinator.activeWeather,
-                                                isHappySquint: isExcited || isInBox || ({ if case .greetingFriend = actor.behavior { return true }; return false }()),
-                                                mentorshipParticle: petMentorship.flatMap { HabitFamily(rawValue: $0.habitFamilyID) },
-                                                tapBounceScale: bouncingPetID == actor.petID ? 1.0 : 0.0,
-                                                playfulAction: petAction,
-                                                actionTriggerDate: actor.tapExcitedUntil.addingTimeInterval(-1.2),
-                                                stageDate: now,
-                                                poseTransition: actor.poseTransition,
-                                                poseStartedAt: bouncingPetID == actor.petID ? nil : actor.poseStartedAt,
-                                                locomotion: actor.direction,
-                                                gaitRate: actor.gaitRate,
-                                                facingRight: actor.facingRight,
-                                                presentationScale: scale * (isInBox ? 0.86 : 1.0),
-                                                onCelEvent: { event, date in
-                                                    if event == "footContact" || event == "land" {
-                                                        roaming.emitCelDust(petID: actor.petID, at: date)
-                                                    }
-                                                }
                                             )
-                                            .frame(width: 118, height: 118)
+                                            .frame(width: 112, height: 34)
+                                            .offset(y: 44)
+                                            .allowsHitTesting(false)
+                                    }
 
-                                            // Foreground cardboard front-wall occlusion rim when a cat tucks INSIDE the bakery box!
-                                            if isInBox {
-                                                BakeryBoxForegroundRimView()
-                                                    .offset(y: 36)
-                                                    .allowsHitTesting(false)
+                                    // Species-specific magical room aura (Dragon hearth embers, Spirit cloud puffs, Antler forest leaves!)
+                                    if !reduceMotion {
+                                        SpeciesRoomMagicAuraCanvas(petKind: spec.kind, weather: coordinator.activeWeather, time: now.timeIntervalSinceReferenceDate)
+                                            .frame(width: 126, height: 126)
+                                            .allowsHitTesting(false)
+                                    }
+
+                                    ProceduralPetRigView(
+                                        pet: spec,
+                                        outfitID: resident?.activeOutfitID,
+                                        pose: actor.isNapping ? .resting : .notice,
+                                        weatherMode: coordinator.activeWeather,
+                                        isHappySquint: isExcited || isInBox || ({ if case .greetingFriend = actor.behavior { return true }; return false }()),
+                                        mentorshipParticle: petMentorship.flatMap { HabitFamily(rawValue: $0.habitFamilyID) },
+                                        tapBounceScale: bouncingPetID == actor.petID ? 1.0 : 0.0,
+                                        playfulAction: petAction,
+                                        actionTriggerDate: actor.tapExcitedUntil.addingTimeInterval(-1.2),
+                                        stageDate: now,
+                                        poseTransition: actor.poseTransition,
+                                        poseStartedAt: bouncingPetID == actor.petID ? nil : actor.poseStartedAt,
+                                        locomotion: actor.direction,
+                                        gaitRate: actor.gaitRate,
+                                        facingRight: actor.facingRight,
+                                        presentationScale: scale,
+                                        onCelEvent: { event, date in
+                                            if event == "footContact" || event == "land" {
+                                                roaming.emitCelDust(petID: actor.petID, at: date)
                                             }
                                         }
+                                    )
+                                    .frame(width: 118, height: 118)
+
+                                    // Foreground cardboard front-wall occlusion rim when a cat tucks INSIDE the bakery box!
+                                    if isInBox {
+                                        BakeryBoxForegroundRimView()
+                                            .offset(y: 36)
+                                            .allowsHitTesting(false)
                                     }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("\(coordinator.displayName(for: actor.petID))，點擊互動照護")
                                 }
-                                .scaleEffect(scale * (isInBox ? 0.86 : 1.0))
-                                .position(x: pt.x, y: pt.y - (isInBox ? 32 : 44) * scale)
-                                .id(reduceMotion ? "\(liveUV.x),\(liveUV.y)" : actor.petID)
-                                .transition(.opacity)
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("\(coordinator.displayName(for: actor.petID))，點擊互動照護")
+                            .allowsHitTesting(!isDecoratingMode && !isFeatherWandMode && !isPhotoMode)
+                            .overlay(alignment: .top) {
+                                if !isPhotoMode && !isDecoratingMode && !isFeatherWandMode {
+                                    petCallout(
+                                        mentorship: petMentorship,
+                                        skitPartner: skitPair?.host == actor.petID ? skitPair?.partner : nil,
+                                        petID: actor.petID,
+                                        speech: actor.speechBubble,
+                                        x: pt.x,
+                                        scale: scale,
+                                        viewportLeft: viewportLeft,
+                                        viewWidth: viewW
+                                    )
+                                    .alignmentGuide(.top) { $0[.bottom] + 2 }
+                                }
+                            }
+                            .scaleEffect(scale)
+                            .position(x: pt.x, y: pt.y - (isInBox ? 32 : 44) * depth)
+                            .id(reduceMotion ? "\(liveUV.x),\(liveUV.y)" : actor.petID)
+                            .transition(.opacity)
                             .animation(reduceMotion ? AppTheme.Motion.reduced : nil, value: liveUV)
                             .zIndex(Double(liveUV.y * 1000.0))
                         }
@@ -697,7 +671,7 @@ struct Sunroom25DStageView: View {
                         }
 
                         // 60fps Floating In-World Reaction Bursts (+1 幣, ♡ 溫柔, ✦ 破殼, ♪ 叮噹)
-                        ForEach(roaming.floatingBursts) { burst in
+                        ForEach(isPhotoMode ? [] : roaming.floatingBursts) { burst in
                             let age = max(0, now.timeIntervalSince(burst.createdAt))
                             let p = min(1.0, age / 1.85)
                             let bPt = floorPoint(uv: burst.position, stageW: stageW, horizonY: floorHorizonY, bottomY: floorBottomY)
@@ -718,7 +692,7 @@ struct Sunroom25DStageView: View {
                         }
 
                         // Empty sunroom welcoming guide when the player hasn't invited a pet yet
-                        if roaming.actors.isEmpty {
+                        if !isPhotoMode && roaming.actors.isEmpty {
                             VStack(spacing: 8) {
                                 Text("去街角向第一位奇幻毛孩打招呼吧！")
                                     .font(AppTheme.serifTitle(16))
@@ -750,7 +724,7 @@ struct Sunroom25DStageView: View {
 
                     // MARK: Layer 3 — Foreground Out-of-Focus Botanical & Timber Depth Frame (1.32x Parallax!)
                     ForegroundBotanicalParallaxOverlay(weather: coordinator.activeWeather)
-                        .frame(width: viewW + 260, height: viewH)
+                        .frame(width: viewW, height: viewH)
                         .offset(x: effectivePan * (reduceMotion ? 1 : 1.32))
                         .allowsHitTesting(false)
                 }
@@ -759,6 +733,76 @@ struct Sunroom25DStageView: View {
             }
         }
         .ignoresSafeArea()
+    }
+
+    private func nearbyRoommates(
+        _ actors: [SunroomRoamingEngine.RoamingPetActor],
+        at date: Date
+    ) -> (host: String, partner: String)? {
+        let positioned = actors.sorted { $0.petID < $1.petID }.map {
+            (id: $0.petID, uv: reduceMotion ? $0.position : $0.interpolatedPosition(at: date))
+        }
+        var closest: (host: String, partner: String)?
+        var shortestDistance: CGFloat = 0.26
+        for (index, first) in positioned.enumerated() {
+            for second in positioned.dropFirst(index + 1) {
+                let distance = hypot(first.uv.x - second.uv.x, first.uv.y - second.uv.y)
+                if distance < shortestDistance {
+                    shortestDistance = distance
+                    closest = (host: first.id, partner: second.id)
+                }
+            }
+        }
+        return closest
+    }
+
+    @ViewBuilder
+    private func petCallout(
+        mentorship: TeachingIntention?,
+        skitPartner: String?,
+        petID: String,
+        speech: String?,
+        x: CGFloat,
+        scale: CGFloat,
+        viewportLeft: CGFloat,
+        viewWidth: CGFloat
+    ) -> some View {
+        if let mentorship {
+            CutePlushButton(
+                title: "記下傳承",
+                tone: .butterHoney,
+                fontSize: 10,
+                horizontalPadding: 8,
+                verticalPadding: 4,
+                icon: { Image(systemName: "sparkles").font(.system(size: 10, weight: .bold)) },
+                action: { onCompleteMentorship(mentorship) }
+            )
+        } else if let skitPartner {
+            Button {
+                onTriggerSkit?(skitPartner, petID)
+            } label: {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color(hex: "#966118"))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color(hex: "#FFF6DE").opacity(0.93), in: Capsule())
+                    .shadow(color: Color(hex: "#F4C56A").opacity(0.65), radius: 5)
+                    .frame(minWidth: 40, minHeight: 34)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("觀看室友互動")
+        } else if let speech {
+            // The bubble has a 168pt text cap plus 20pt padding before the pet's scale.
+            let width = min(188, max(0, (viewWidth - 16) / scale))
+            let inset = width * scale / 2 + 8
+            let clampedX = min(max(x, viewportLeft + inset), viewportLeft + viewWidth - inset)
+            SunroomPetSpeechBubble(text: speech)
+                .frame(width: width)
+                .offset(x: (clampedX - x) / scale)
+                .allowsHitTesting(false)
+        }
     }
 
     /// Maps room floor UV `(x: 0..1, y: 0..1 depth)` onto the perspective floor trapezoid
@@ -789,160 +833,308 @@ struct Sunroom25DStageView: View {
     }
 }
 
-/// True 1-Point Perspective 2.5D Cedar Floorboards, Baseboard Molding, Sunbeam Floor Reflection & Foreshortened Rug
+private enum SunroomLight {
+    // Also used by sunroomAmbient in PaperGrainAndLUT.metal, in normalized stage coordinates.
+    static let runPerRise: CGFloat = 0.64
+}
+
+private struct SunroomPeekingEars: View {
+    var body: some View {
+        Canvas { context, size in
+            for side: CGFloat in [-1, 1] {
+                let x = size.width * 0.44 + side * 5
+                let ear = Path { path in
+                    path.move(to: CGPoint(x: x - 4, y: 15))
+                    path.addQuadCurve(to: CGPoint(x: x + side * 2, y: 3), control: CGPoint(x: x - 4, y: 4))
+                    path.addQuadCurve(to: CGPoint(x: x + 4, y: 15), control: CGPoint(x: x + 4, y: 5))
+                    path.closeSubpath()
+                }
+                context.fill(ear, with: .color(Color(hex: "#926D54")))
+                context.stroke(ear, with: .color(AppTheme.warmPaper.opacity(0.7)), lineWidth: 0.8)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            Image(systemName: "sparkle")
+                .font(.system(size: 8, weight: .semibold))
+                .foregroundStyle(Color(hex: "#FFE5A2"))
+        }
+    }
+}
+
+/// One-point cedar planks, a foreshortened braided rug, and window light.
 private struct PerspectiveCedarFloorCanvas: View {
     let horizonY: CGFloat
     let weather: WeatherMode
     let theme: SeasonalRoomTheme
     let verandaUnlocked: Bool
+    let lightOffsetX: CGFloat
 
     var body: some View {
-        Canvas { ctx, size in
-            let w = size.width
-            let h = size.height
-            let floorH = h - horizonY
+        Canvas { context, size in
+            let floor = CGRect(x: 0, y: horizonY, width: size.width, height: size.height - horizonY)
+            let board = CGRect(x: 0, y: horizonY - 10, width: size.width, height: 10)
+            context.fill(Path(board), with: .linearGradient(
+                Gradient(colors: [Color(hex: "#A17A55"), Color(hex: "#745134")]),
+                startPoint: CGPoint(x: 0, y: board.minY), endPoint: CGPoint(x: 0, y: board.maxY)
+            ))
 
-            // 1. Warm baseboard timber skirting separating back sunroom wall from the 2.5D floor
-            let baseboardRect = CGRect(x: 0, y: horizonY - 14, width: w, height: 18)
-            ctx.fill(
-                Path(baseboardRect),
-                with: .linearGradient(
-                    Gradient(colors: [Color(hex: "#8A5F39"), Color(hex: "#674325")]),
-                    startPoint: CGPoint(x: 0, y: baseboardRect.minY),
-                    endPoint: CGPoint(x: 0, y: baseboardRect.maxY)
-                )
-            )
-            // Soft wall-to-floor ambient occlusion shadow strip
-            ctx.fill(
-                Path(CGRect(x: 0, y: horizonY + 4, width: w, height: 22)),
-                with: .linearGradient(
-                    Gradient(colors: [Color(hex: "#3B2412").opacity(0.28), .clear]),
-                    startPoint: CGPoint(x: 0, y: horizonY + 4),
-                    endPoint: CGPoint(x: 0, y: horizonY + 26)
-                )
-            )
+            var wood = context
+            wood.clip(to: Path(floor))
+            drawPlanks(in: wood, floor: floor)
+            drawRug(in: wood, floor: floor)
+            drawLight(in: wood, floor: floor)
+        }
+        .allowsHitTesting(false)
+    }
 
-            // 2. Main 2.5D Cedar Wood Floor Plane (rich honey/amber/rain-cool gradient)
-            let floorRect = CGRect(x: 0, y: horizonY + 4, width: w, height: floorH)
-            ctx.fill(
-                Path(floorRect),
-                with: .linearGradient(
-                    Gradient(colors: weather.isRainy
-                             ? [Color(hex: "#C5AE91"), Color(hex: "#A88D6F"), Color(hex: "#8E7358")]
-                             : [Color(hex: theme.floorTopHex), Color(hex: theme.floorBottomHex), Color(hex: "#8B5E39")]),
-                    startPoint: CGPoint(x: 0, y: horizonY),
-                    endPoint: CGPoint(x: 0, y: h)
-                )
-            )
+    private func drawPlanks(in context: GraphicsContext, floor: CGRect) {
+        let width = floor.width
+        let top = CGPoint(x: 0, y: floor.minY)
+        let bottom = CGPoint(x: 0, y: floor.maxY)
+        let tones = [
+            Color(hex: "#F7C98B").opacity(0.13),
+            Color(hex: "#8B4A2A").opacity(0.09),
+            Color(hex: "#FFE3AB").opacity(0.10),
+            Color(hex: "#B36D41").opacity(0.10),
+            Color.clear
+        ]
+        context.fill(Path(floor), with: .linearGradient(
+            Gradient(colors: [Color(hex: theme.floorTopHex), Color(hex: theme.floorBottomHex)]),
+            startPoint: top, endPoint: bottom
+        ))
 
-            // 3. True 1-Point Perspective Floorboard Seam Lines converging toward window vanishing point!
-            let vp = CGPoint(x: w * 0.50, y: horizonY - floorH * 0.55)
-            let plankCount = verandaUnlocked ? 16 : 12
-            for idx in -2...(plankCount + 2) {
-                let bottomX = CGFloat(idx) * (w / CGFloat(plankCount))
-                // Intersect ray from bottomX toward vanishing point `vp` at `y = horizonY + 4`
-                let t = (horizonY + 4 - h) / (vp.y - h)
-                let topX = bottomX + (vp.x - bottomX) * t
-                var seam = Path()
-                seam.move(to: CGPoint(x: topX, y: horizonY + 4))
-                seam.addLine(to: CGPoint(x: bottomX, y: h))
-                ctx.stroke(seam, with: .color(Color(hex: "#4B2E17").opacity(0.22)), lineWidth: 1.2)
+        let plankCount = verandaUnlocked ? 16 : 12
+        for plank in -4..<(plankCount + 4) {
+            func point(_ across: CGFloat, _ depth: CGFloat) -> CGPoint {
+                let bottomX = (CGFloat(plank) + across) * width / CGFloat(plankCount)
+                let spread: CGFloat = 0.36 + depth * 0.64
+                return CGPoint(x: width * 0.5 + (bottomX - width * 0.5) * spread,
+                               y: floor.minY + depth * floor.height)
             }
 
-            // Exponentially spaced horizontal plank end-joins (closer near back wall, wider in foreground)
-            for row in 1...7 {
-                let f = pow(Double(row) / 7.5, 1.55)
-                let y = horizonY + 4 + CGFloat(f) * floorH
-                var join = Path()
-                join.move(to: CGPoint(x: 0, y: y))
-                join.addLine(to: CGPoint(x: w, y: y))
-                ctx.stroke(join, with: .color(Color(hex: "#4B2E17").opacity(0.13)), lineWidth: 1.0)
-            }
+            let stagger = CGFloat((plank + 4) % 3) * 0.065
+            let ends: [CGFloat] = [0, 0.10 + stagger, 0.30 + stagger, 0.56 + stagger, 0.90 + stagger * 0.5, 1]
+            for row in 0..<(ends.count - 1) {
+                let near = ends[row]
+                let far = ends[row + 1]
+                let segment = Path { path in
+                    path.move(to: point(0, near))
+                    path.addLines([point(1, near), point(1, far), point(0, far)])
+                    path.closeSubpath()
+                }
+                context.fill(segment, with: .color(tones[((plank + 4) * 7 + row * 3) % tones.count]))
 
-            // 4. Optional Rain-Porch Wooden Veranda Deck Strip on Right Side
-            if verandaUnlocked {
-                let deckX = w * 0.72
-                ctx.fill(
-                    Path(CGRect(x: deckX, y: horizonY + 4, width: w - deckX, height: floorH)),
-                    with: .color(Color(hex: "#735843").opacity(0.22))
-                )
-                var divider = Path()
-                divider.move(to: CGPoint(x: deckX + 18, y: horizonY + 4))
-                divider.addLine(to: CGPoint(x: deckX - 18, y: h))
-                ctx.stroke(divider, with: .color(Color(hex: "#52351E").opacity(0.45)), lineWidth: 3.0)
-            }
+                if row > 0 {
+                    let endJoin = Path { path in
+                        path.move(to: point(0, near))
+                        path.addLine(to: point(1, near))
+                    }
+                    context.stroke(endJoin, with: .color(Color(hex: "#573824").opacity(0.18)), lineWidth: 0.7)
+                }
 
-            // 5. Foreshortened 2.5D Braided Oval Sunroom Rug centered on the mid-foreground floor
-            let rugCenter = CGPoint(x: w * (verandaUnlocked ? 0.36 : 0.50), y: horizonY + floorH * 0.44)
-            let rugRings: [(CGFloat, CGFloat, Color)] = [
-                (260, 86, Color(hex: "#4A2E18").opacity(0.16)), // soft cast shadow
-                (252, 80, Color(hex: "#58788C").opacity(0.62)),
-                (212, 66, Color(hex: "#EFE2C8").opacity(0.82)),
-                (168, 50, Color(hex: "#CC855A").opacity(0.58)),
-                (120, 34, Color(hex: "#F6ECD8").opacity(0.76))
-            ]
-            for (idx, ring) in rugRings.enumerated() {
-                let yOff: CGFloat = idx == 0 ? 4 : 0
-                let rect = CGRect(x: rugCenter.x - ring.0 * 0.5, y: rugCenter.y - ring.1 * 0.5 + yOff, width: ring.0, height: ring.1)
-                ctx.fill(Path(ellipseIn: rect), with: .color(ring.2))
-                if idx > 0 {
-                    ctx.stroke(Path(ellipseIn: rect), with: .color(Color(hex: "#5B3E26").opacity(0.24)), style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+                let span = far - near
+                for grain in 1...3 {
+                    let x = CGFloat(grain) / 4 + CGFloat((row + plank + 4) % 3 - 1) * 0.05
+                    let wave = Path { path in
+                        path.move(to: point(x, near + span * 0.08))
+                        path.addCurve(to: point(x - 0.08, far - span * 0.08),
+                                      control1: point(x - 0.28, near + span * 0.38),
+                                      control2: point(x + 0.20, near + span * 0.61))
+                    }
+                    context.stroke(wave, with: .color(Color(hex: "#FFF1D1").opacity(0.13)), lineWidth: 0.65)
                 }
             }
 
-            // 6. Slanting Warm Windowpane Sunlight Reflection lying flat on the 2.5D wooden floor!
-            if !weather.isRainy {
-                let lightTint = weather == .dusk ? Color(hex: "#FFD99B").opacity(0.26) : Color(hex: "#FFFCE8").opacity(0.28)
-                for pane in 0..<2 {
-                    let shift = CGFloat(pane) * 140
-                    var patch = Path()
-                    patch.move(to: CGPoint(x: w * 0.16 + shift, y: horizonY + 12))
-                    patch.addLine(to: CGPoint(x: w * 0.36 + shift, y: horizonY + 12))
-                    patch.addLine(to: CGPoint(x: w * 0.52 + shift, y: horizonY + floorH * 0.56))
-                    patch.addLine(to: CGPoint(x: w * 0.28 + shift, y: horizonY + floorH * 0.56))
-                    patch.closeSubpath()
-                    ctx.fill(patch, with: .color(lightTint))
-                }
+            let seam = Path { path in
+                path.move(to: point(0, 0))
+                path.addLine(to: point(0, 1))
             }
+            context.stroke(seam, with: .color(Color(hex: "#573824").opacity(0.25)), lineWidth: 0.9)
+        }
+
+        if verandaUnlocked {
+            let deckX = width * 0.72
+            let deck = CGRect(x: deckX, y: floor.minY, width: width - deckX, height: floor.height)
+            context.fill(Path(deck), with: .linearGradient(
+                Gradient(colors: [Color(hex: "#735843").opacity(0.22), .clear]),
+                startPoint: CGPoint(x: deck.minX, y: 0), endPoint: CGPoint(x: deck.maxX, y: 0)
+            ))
+        }
+
+        context.fill(Path(floor), with: .linearGradient(
+            Gradient(colors: [Color(hex: "#3B2412").opacity(0.33), .clear]),
+            startPoint: top, endPoint: CGPoint(x: 0, y: floor.minY + 25)
+        ))
+    }
+
+    private func drawRug(in context: GraphicsContext, floor: CGRect) {
+        let center = CGPoint(x: floor.midX, y: floor.minY + floor.height * 0.46)
+        let rx = min(134, floor.width * 0.24)
+        let ry = rx * 0.32
+        func rimPoint(_ angle: CGFloat, inset: CGFloat = 0) -> CGPoint {
+            let scallop = cos(angle * 28) * 1.8 - inset
+            return CGPoint(x: center.x + cos(angle) * (rx + scallop),
+                           y: center.y + sin(angle) * (ry + scallop * 0.48))
+        }
+
+        let bounds = CGRect(x: center.x - rx, y: center.y - ry, width: rx * 2, height: ry * 2)
+        var shade = context
+        shade.addFilter(.blur(radius: 3))
+        shade.fill(Path(ellipseIn: bounds.insetBy(dx: -3, dy: -2).offsetBy(dx: 2, dy: 4)),
+                   with: .color(Color(hex: "#4A2E18").opacity(0.28)))
+
+        for side: CGFloat in [0, .pi] {
+            for strand in -6...6 {
+                let angle = side + CGFloat(strand) * 0.055
+                let root = rimPoint(angle, inset: 2)
+                let tip = CGPoint(x: root.x + cos(angle) * CGFloat(7 + abs(strand % 3)),
+                                  y: root.y + sin(angle) * 5 + 1)
+                let fringe = Path { path in
+                    path.move(to: root)
+                    path.addQuadCurve(to: tip, control: CGPoint(x: (root.x + tip.x) / 2, y: root.y + 2))
+                }
+                context.stroke(fringe, with: .color(Color(hex: "#F2DAB4").opacity(0.9)),
+                               style: StrokeStyle(lineWidth: 1.2, lineCap: .round))
+            }
+        }
+
+        let edge = Path { path in
+            path.move(to: rimPoint(0))
+            for step in 1...224 {
+                path.addLine(to: rimPoint(CGFloat(step) / 224 * .pi * 2))
+            }
+            path.closeSubpath()
+        }
+        context.fill(edge, with: .color(Color(hex: "#71888A")))
+        let braids: [(CGFloat, String)] = [
+            (0.90, "#C0B599"), (0.80, "#E7D1AF"), (0.68, "#C38A70"),
+            (0.55, "#DBC19B"), (0.43, "#EBDDCA"), (0.30, "#EEE3CF")
+        ]
+        for (scale, hex) in braids {
+            let ring = Path(ellipseIn: bounds.insetBy(dx: rx * (1 - scale), dy: ry * (1 - scale)))
+            context.fill(ring, with: .color(Color(hex: hex)))
+            context.stroke(ring, with: .color(Color(hex: "#6B4B36").opacity(0.25)),
+                           style: StrokeStyle(lineWidth: 1.7, dash: [2, 3]))
+        }
+    }
+
+    private func drawLight(in context: GraphicsContext, floor: CGRect) {
+        let height = floor.maxY
+        let width = floor.width
+        let startY = floor.minY
+        let endY = startY + floor.height * 0.72
+        let dimmed = weather == .overcast || theme == .rainySeason || theme == .winterLamp
+        let paneColor = Color(hex: weather == .dusk ? "#FFD395" : "#FFF4CE")
+        var reflected = context
+        reflected.addFilter(.blur(radius: dimmed || weather.isRainy ? 7 : 2.5))
+
+        if weather != .lightRain {
+            for paneCenter: CGFloat in [0.25, 0.43] {
+                func paneX(at y: CGFloat) -> CGFloat {
+                    (paneCenter + SunroomLight.runPerRise * (y / height - 0.06)) * width + lightOffsetX
+                }
+                let paneTop = startY - 3
+                let leftTop = paneX(at: paneTop) - width * 0.065
+                let leftBottom = paneX(at: endY) - width * 0.065
+                let span = width * 0.13
+                let pane = Path { path in
+                    path.move(to: CGPoint(x: leftTop, y: paneTop))
+                    path.addLines([
+                        CGPoint(x: leftTop + span, y: paneTop),
+                        CGPoint(x: leftBottom + span, y: endY),
+                        CGPoint(x: leftBottom, y: endY)
+                    ])
+                    path.closeSubpath()
+                }
+                reflected.fill(pane, with: .linearGradient(
+                    Gradient(colors: [paneColor.opacity(dimmed ? 0.18 : 0.38), .clear]),
+                    startPoint: CGPoint(x: 0, y: startY), endPoint: CGPoint(x: 0, y: endY)
+                ))
+            }
+        }
+
+        if theme == .rainySeason || weather.isRainy {
+            let center = CGPoint(x: floor.midX + width * 0.04, y: startY + floor.height * 0.16)
+            let mist = CGRect(x: center.x - width * 0.25, y: center.y - 14, width: width * 0.5, height: 28)
+            reflected.fill(Path(ellipseIn: mist), with: .radialGradient(
+                Gradient(colors: [Color(hex: "#E3EDF0").opacity(0.39), .clear]),
+                center: center, startRadius: 0, endRadius: width * 0.23
+            ))
+        }
+
+        if theme == .autumnCedar {
+            context.fill(Path(floor), with: .radialGradient(
+                Gradient(colors: [Color(hex: "#DC7941").opacity(0.23), .clear]),
+                center: CGPoint(x: width * 0.46, y: startY + floor.height * 0.50),
+                startRadius: 10, endRadius: width * 0.42
+            ))
+        }
+
+        if theme == .winterLamp || weather == .dusk || weather.isRainy {
+            let center = CGPoint(x: width * 0.30, y: startY + floor.height * 0.56)
+            let pool = CGRect(x: center.x - width * 0.23, y: center.y - 42, width: width * 0.46, height: 84)
+            reflected.fill(Path(ellipseIn: pool), with: .radialGradient(
+                Gradient(colors: [Color(hex: "#FFCE7A").opacity(0.52), Color(hex: "#F0A758").opacity(0.18), .clear]),
+                center: center, startRadius: 4, endRadius: width * 0.22
+            ))
         }
     }
 }
 
-/// Layer 3 Foreground Parallax Botanical Leaves & Timber Corner Eave (moves faster than floor for vivid 2.5D depth!)
 private struct ForegroundBotanicalParallaxOverlay: View {
     let weather: WeatherMode
 
     var body: some View {
-        Canvas { ctx, size in
-            let w = size.width
-            let h = size.height
+        Canvas { context, size in
+            let leaf = weather.isRainy ? Color(hex: "#2F5447") : Color(hex: "#4D7451")
+            var soft = context
+            soft.addFilter(.blur(radius: 0.65))
+            for side: CGFloat in [-1, 1] {
+                let isLeft = side > 0
+                let root = CGPoint(x: isLeft ? -14 : size.width + 14, y: size.height - 36)
+                for stem in 0..<3 {
+                    let reach = CGFloat(36 + stem * 18)
+                    let lift = CGFloat(128 - stem * 32)
+                    func point(_ t: CGFloat) -> CGPoint {
+                        CGPoint(x: root.x + side * reach * t * (1.68 - t * 0.68),
+                                y: root.y - lift * t)
+                    }
 
-            // Soft out-of-focus foreground fern/monstera fronds in bottom-left & bottom-right corners
-            let frondColor = weather.isRainy ? Color(hex: "#2F5447") : Color(hex: "#3E6E52")
-            for idx in 0..<4 {
-                let fx = 28.0 + Double(idx) * 26.0
-                let fy = Double(h) - 110.0 + Double(idx % 2) * 24.0
-                let leaf = Path(ellipseIn: CGRect(x: fx - 44, y: fy - 18, width: 88, height: 34))
-                ctx.fill(leaf, with: .color(frondColor.opacity(0.22)))
-            }
-            for idx in 0..<4 {
-                let fx = Double(w) - 34.0 - Double(idx) * 26.0
-                let fy = Double(h) - 118.0 + Double(idx % 2) * 22.0
-                let leaf = Path(ellipseIn: CGRect(x: fx - 44, y: fy - 18, width: 88, height: 34))
-                ctx.fill(leaf, with: .color(frondColor.opacity(0.20)))
+                    let stalk = Path { path in
+                        path.move(to: root)
+                        for step in 1...12 { path.addLine(to: point(CGFloat(step) / 12)) }
+                    }
+                    soft.stroke(stalk, with: .color(leaf.opacity(0.44)), lineWidth: 1.3)
+
+                    for step in 2...8 {
+                        let t = CGFloat(step) / 9
+                        let base = point(t)
+                        let span = 18 * (1 - t * 0.70)
+                        for edge: CGFloat in [-1, 1] {
+                            let tip = CGPoint(x: base.x + edge * span, y: base.y - 10 + t * 4)
+                            let leaflet = Path { path in
+                                path.move(to: base)
+                                path.addQuadCurve(to: tip, control: CGPoint(x: base.x + edge * span * 0.27, y: tip.y - 7))
+                                path.addQuadCurve(to: base, control: CGPoint(x: tip.x, y: base.y + 3))
+                                path.closeSubpath()
+                            }
+                            soft.fill(leaflet, with: .color(leaf.opacity(0.27 + Double(t) * 0.14)))
+                        }
+                    }
+                }
             }
 
-            // Warm top-corner cedar roof beam vignette framing the 2.5D room
-            ctx.fill(
-                Path(CGRect(x: 0, y: 0, width: w, height: 22)),
-                with: .linearGradient(
-                    Gradient(colors: [Color(hex: "#4B2E17").opacity(0.35), .clear]),
-                    startPoint: .zero,
-                    endPoint: CGPoint(x: 0, y: 22)
-                )
-            )
+            let eave = Path { path in
+                path.move(to: .zero)
+                path.addLines([CGPoint(x: size.width, y: 0), CGPoint(x: size.width, y: 25)])
+                path.addQuadCurve(to: CGPoint(x: 0, y: 25), control: CGPoint(x: size.width / 2, y: -8))
+                path.closeSubpath()
+            }
+            context.fill(eave, with: .linearGradient(
+                Gradient(colors: [Color(hex: "#553820").opacity(0.38), .clear]),
+                startPoint: .zero, endPoint: CGPoint(x: 0, y: 26)
+            ))
         }
-        .blur(radius: 1.5)
     }
 }
 
